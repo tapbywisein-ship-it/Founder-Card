@@ -30,7 +30,7 @@
 | `src/components/ThemeProvider.tsx` | Create | Wraps `next-themes` ThemeProvider with sensible defaults |
 | `src/components/ThemeToggle.tsx` | Create | Sun/Moon icon button for the top-nav |
 | `src/App.tsx` | Modify | Wrap app in `<ThemeProvider>` |
-| `index.html` | Modify | Drop Lovable TODO comments, add `<meta name="theme-color">`, drop Cormorant preconnect (none currently, just confirming) |
+| `index.html` | Modify | Drop legacy TODO comments left by the prior generator, add `<meta name="theme-color">`, drop Cormorant preconnect (none currently, just confirming) |
 
 Files NOT touched in Phase 1 (handled in Phase 2):
 - All `src/pages/**` files (token cascade carries them; gold class references removed by codemod in Phase 2)
@@ -1623,12 +1623,12 @@ Write `index.html`:
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Founder Key" />
     <meta property="og:description" content="An event networking platform for founders." />
-    <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4bae0de9-3737-46d4-9838-b119ed58b2b0/id-preview-b55d73f7--d0539621-bf87-4528-a707-9df6680e02a7.lovable.app-1773562222609.png" />
+    <meta property="og:image" content="/og-default.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Founder Key" />
     <meta name="twitter:description" content="An event networking platform for founders." />
-    <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4bae0de9-3737-46d4-9838-b119ed58b2b0/id-preview-b55d73f7--d0539621-bf87-4528-a707-9df6680e02a7.lovable.app-1773562222609.png" />
+    <meta name="twitter:image" content="/og-default.png" />
   </head>
 
   <body>
@@ -1639,8 +1639,8 @@ Write `index.html`:
 ```
 
 Key changes:
-- Drop the `<!-- TODO -->` comments left over from Lovable
-- Drop `<meta name="author" content="Lovable" />`
+- Drop the `<!-- TODO -->` comments left over from the previous generator
+- Drop `<meta name="author" content="..." />` placeholder left by the previous generator
 - Add `theme-color` for both light and dark
 - Slightly tighten the description copy
 
@@ -1648,7 +1648,7 @@ Key changes:
 
 ```bash
 git add index.html
-git commit -m "chore(html): clean up Lovable TODOs, add theme-color meta"
+git commit -m "chore(html): clean up legacy TODO comments, add theme-color meta"
 ```
 
 ---

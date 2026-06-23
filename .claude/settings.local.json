@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(rm -f package-lock.json bun.lock)",
+      "Bash(npm install *)"
     ]
   }
 }
