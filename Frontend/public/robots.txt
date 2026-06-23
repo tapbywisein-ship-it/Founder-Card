@@ -1,0 +1,17 @@
+# FounderKey — allow public pages, keep private/admin/API routes out of the index.
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /organizer
+Disallow: /connections
+Disallow: /messages
+Disallow: /notifications
+Disallow: /apply-card
+Disallow: /my-tickets
+Disallow: /people-i-met
+Disallow: /gamification
+
+Sitemap: https://founderkey-prashanth1710.azurewebsites.net/sitemap.xml

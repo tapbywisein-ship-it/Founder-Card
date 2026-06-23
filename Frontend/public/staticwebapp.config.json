@@ -1,0 +1,73 @@
+{
+  "routes": [
+    {
+      "route": "/login",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/register",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/dashboard",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/profile",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/connect",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/connections",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/discover",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/gamification",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/notifications",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/events",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/event/*",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/apply-card",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/organizer/*",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/admin/*",
+      "rewrite": "/index.html"
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/assets/*", "/images/*", "/*.{css,js,ico,svg,png,jpg,webp,woff,woff2,ttf,eot}"]
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html",
+      "statusCode": 200
+    }
+  },
+  "mimeTypes": {
+    ".json": "application/json"
+  }
+}

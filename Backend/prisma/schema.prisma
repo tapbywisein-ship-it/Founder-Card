@@ -1,0 +1,794 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ATTENDEE
+  ORGANIZER
+  ADMIN
+}
+
+enum UserTier {
+  FREE
+  FOUNDER
+}
+
+enum CardStatus {
+  PENDING
+  ACTIVE
+  DEACTIVATED
+  REJECTED
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CANCELLED
+  COMPLETED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+}
+
+enum EventType {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum EventVisibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  ATTENDED
+  CANCELLED
+  WAITLISTED
+  PENDING_APPROVAL
+}
+
+enum NotificationType {
+  CONNECTION_REQUEST
+  CONNECTION_ACCEPTED
+  EVENT_REMINDER
+  FOUNDER_CARD_APPROVED
+  FOUNDER_CARD_REJECTED
+  NEW_EVENT
+  BADGE_EARNED
+  LEVEL_UP
+  CARD_VIEWED
+  REGISTRATION_APPROVED
+  SYSTEM
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  ARCHIVED
+}
+
+enum EventRole {
+  ATTENDEE
+  VIP
+  SPEAKER
+  STAFF
+  SPONSOR
+}
+
+enum ReportTargetType {
+  USER
+  EVENT
+  CONNECTION
+  COMMENT
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  ACTIONED
+  DISMISSED
+}
+
+enum TapMethod {
+  QR
+  NFC
+  MANUAL
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  username        String?   @unique
+  password        String?
+  googleId        String?   @unique
+  authProvider    String    @default("email")
+  role            Role      @default(ATTENDEE)
+  tier            UserTier  @default(FREE)
+  isActive        Boolean   @default(true)
+  isEmailVerified Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  profile             Profile?
+  founderCard         FounderCard?
+  gamification        Gamification?
+  sentConnections     Connection[]        @relation("Requester")
+  receivedConnections Connection[]        @relation("Receiver")
+  registrations       EventRegistration[]
+  organizedEvents     Event[]             @relation("Organizer")
+  notifications       Notification[]
+  userBadges          UserBadge[]
+  scoreHistory        ScoreHistory[]
+  leads               Lead[]              @relation("AttendeeLead")
+  auditLogs           AuditLog[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  eventMessages       EventMessage[]
+  reportsFiled        Report[]            @relation("ReportsFiled")
+  reportsReviewed     Report[]            @relation("ReportsReviewed")
+  tapsInitiated       EventTap[]          @relation("TapsInitiated")
+  tapsReceived        EventTap[]          @relation("TapsReceived")
+  claimTokens         ClaimToken[]
+  connectionNotes     ConnectionNote[]
+  savedEvents         SavedEvent[]
+  conversationsAsA    Conversation[]      @relation("ConvUserA")
+  conversationsAsB    Conversation[]      @relation("ConvUserB")
+  messagesSent        Message[]
+  coorganizedEvents   EventCoorganizer[]
+  pageViews           EventPageView[]
+  payments            Payment[]
+  payouts             Payout[]
+  blocksMade          BlockedUser[]       @relation("BlocksMade")
+  blocksReceived      BlockedUser[]       @relation("BlocksReceived")
+
+  @@index([email])
+  @@index([googleId])
+  @@index([username])
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+model Profile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  firstName  String
+  lastName   String
+  bio        String?  @db.Text
+  company    String?
+  position   String?
+  location   String?
+  avatar     String?
+  skills     String[]
+  interests  String[]
+  lookingFor String[]
+  phone      String?
+  twitter    String?
+  linkedin   String?
+  website    String?
+  instagram  String?
+  email      String?
+  // Organizer payout account (revenue-ledger model; admin settles manually).
+  payoutUpiId         String?
+  payoutAccountName   String?
+  payoutBankName      String?
+  payoutAccountNumber String?
+  payoutIfsc          String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("profiles")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// Password reset tokens persisted in the DB so they survive container
+// restarts (the prod Redis URL falls back to in-memory; tokens stored only
+// there would be wiped on every deploy). We store a SHA-256 HASH of the
+// emailed token, not the token itself — a DB leak doesn't expose live links.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model FounderCard {
+  id         String     @id @default(uuid())
+  userId     String     @unique
+  memberId   String?    @unique
+  status     CardStatus @default(PENDING)
+  qrCode     String?    @db.Text
+  qrCodeUrl  String?
+  publicSlug String?    @unique
+  nfcTagId   String?    @unique
+  message    String?    @db.Text
+  reason     String?    @db.Text
+  appliedAt  DateTime   @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+  updatedAt  DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("founder_cards")
+}
+
+model Connection {
+  id          String           @id @default(uuid())
+  requesterId String
+  receiverId  String
+  status      ConnectionStatus @default(PENDING)
+  eventId     String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester User             @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiver  User             @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  event     Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  notes     ConnectionNote[]
+
+  @@unique([requesterId, receiverId])
+  @@index([requesterId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([eventId])
+  @@map("connections")
+}
+
+model Event {
+  id               String          @id @default(uuid())
+  organizerId      String
+  title            String
+  description      String          @db.Text
+  startDate        DateTime
+  endDate          DateTime
+  locationType     EventType       @default(IN_PERSON)
+  address          String?
+  city             String?
+  country          String?
+  meetingUrl       String?
+  capacity         Int             @default(100)
+  ticketPrice      Decimal?        @db.Decimal(10, 2)
+  coverImage       String?
+  tags             String[]
+  status           EventStatus     @default(DRAFT)
+  category         String?
+  theme            String?         @default("default")
+  slug             String?         @unique
+  requiresApproval Boolean         @default(false)
+  waitlistEnabled  Boolean         @default(true)
+  visibility       EventVisibility @default(PUBLIC)
+  timezone         String?         @default("UTC")
+  ticketTypes      Json?
+  checkInToken     String?         @unique
+  checkInTokenExpiresAt DateTime?
+  recapSentAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  organizer     User                @relation("Organizer", fields: [organizerId], references: [id])
+  registrations EventRegistration[]
+  leads         Lead[]
+  messages      EventMessage[]
+  connections   Connection[]
+  taps          EventTap[]
+  savedBy       SavedEvent[]
+  questions     EventQuestion[]
+  speakers      EventSpeaker[]
+  agendaItems   EventAgendaItem[]
+  coorganizers  EventCoorganizer[]
+  pageViews     EventPageView[]
+  payments      Payment[]
+  payouts       Payout[]
+
+  @@index([organizerId])
+  @@index([status])
+  @@index([startDate])
+  @@index([category])
+  @@map("events")
+}
+
+model EventPageView {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String?
+  sessionId String
+  ipHash    String?
+  userAgent String?
+  referrer  String?
+  isBot     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, sessionId])
+  @@index([eventId, createdAt])
+  @@index([userId])
+  @@map("event_page_views")
+}
+
+model EventRegistration {
+  id             String             @id @default(uuid())
+  eventId        String
+  userId         String
+  status         RegistrationStatus @default(REGISTERED)
+  eventRole      EventRole          @default(ATTENDEE)
+  checkedIn      Boolean            @default(false)
+  checkedInAt    DateTime?
+  amountPaid     Decimal?           @db.Decimal(10, 2)
+  paymentStatus  PaymentStatus?
+  ticketTierId   String?
+  ticketTierName String?
+  registeredAt   DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  event    Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers  RegistrationAnswer[]
+  payments Payment[]
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_registrations")
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  userId            String
+  eventId           String
+  registrationId    String?
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  amount            Decimal       @db.Decimal(10, 2)
+  platformFee       Decimal?      @db.Decimal(10, 2)
+  organizerEarning  Decimal?      @db.Decimal(10, 2)
+  currency          String        @default("INR")
+  ticketTierId      String?
+  ticketTierName    String?
+  status            PaymentStatus @default(CREATED)
+  notes             Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event        Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registration EventRegistration? @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([razorpayOrderId])
+  @@map("payments")
+}
+
+model Payout {
+  id          String       @id @default(uuid())
+  organizerId String
+  eventId     String?
+  amount      Decimal      @db.Decimal(10, 2)
+  status      PayoutStatus @default(PENDING)
+  reference   String?
+  note        String?
+  paidAt      DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  organizer User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  event     Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([organizerId])
+  @@index([status])
+  @@map("payouts")
+}
+
+model BlockedUser {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("blocked_users")
+}
+
+model Gamification {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  fkScore   Int      @default(0)
+  level     Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([fkScore])
+  @@map("gamification")
+}
+
+model ScoreHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  points    Int
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("score_history")
+}
+
+model Badge {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  icon        String
+  condition   Json
+  points      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String
+  badgeId  String
+  earnedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Lead {
+  id          String     @id @default(uuid())
+  eventId     String
+  attendeeId  String
+  organizerId String
+  status      LeadStatus @default(NEW)
+  notes       String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  event    Event @relation(fields: [eventId], references: [id])
+  attendee User  @relation("AttendeeLead", fields: [attendeeId], references: [id])
+
+  @@unique([eventId, attendeeId])
+  @@index([organizerId])
+  @@index([status])
+  @@map("leads")
+}
+
+model PlatformSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   @db.Text
+  type      String   @default("string")
+  label     String?
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model ConnectionNote {
+  id           String   @id @default(uuid())
+  connectionId String
+  authorId     String
+  body         String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([authorId])
+  @@map("connection_notes")
+}
+
+model SavedEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@map("saved_events")
+}
+
+model Conversation {
+  id            String   @id @default(uuid())
+  userAId       String
+  userBId       String
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  userA    User      @relation("ConvUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB    User      @relation("ConvUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  senderId       String
+  body           String    @db.VarChar(4000)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model EventQuestion {
+  id        String   @id @default(uuid())
+  eventId   String
+  prompt    String
+  type      String   @default("TEXT") // TEXT | SELECT | TEXTAREA
+  options   Json?
+  required  Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  event   Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers RegistrationAnswer[]
+
+  @@index([eventId])
+  @@map("event_questions")
+}
+
+model RegistrationAnswer {
+  id             String   @id @default(uuid())
+  registrationId String
+  questionId     String
+  answer         String   @db.Text
+  createdAt      DateTime @default(now())
+
+  registration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  question     EventQuestion     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, questionId])
+  @@map("registration_answers")
+}
+
+model EventSpeaker {
+  id        String   @id @default(uuid())
+  eventId   String
+  name      String
+  title     String?
+  company   String?
+  bio       String?  @db.Text
+  avatar    String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  event       Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  agendaItems EventAgendaItem[]
+
+  @@index([eventId])
+  @@map("event_speakers")
+}
+
+model EventAgendaItem {
+  id          String    @id @default(uuid())
+  eventId     String
+  startsAt    DateTime
+  endsAt      DateTime?
+  title       String
+  description String?   @db.Text
+  speakerId   String?
+  createdAt   DateTime  @default(now())
+
+  event   Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  speaker EventSpeaker? @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([startsAt])
+  @@map("event_agenda_items")
+}
+
+model EventCoorganizer {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  role      String   @default("COHOST")
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@map("event_coorganizers")
+}
+
+model ClaimToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("claim_tokens")
+}
+
+model EventMessage {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("event_messages")
+}
+
+model Report {
+  id         String           @id @default(uuid())
+  reporterId String
+  targetType ReportTargetType
+  targetId   String
+  category   String
+  reason     String           @db.Text
+  status     ReportStatus     @default(OPEN)
+  reviewerId String?
+  resolution String?          @db.Text
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  reporter User  @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("ReportsReviewed", fields: [reviewerId], references: [id])
+
+  @@index([status])
+  @@index([targetType, targetId])
+  @@index([reporterId])
+  @@map("reports")
+}
+
+model EventTap {
+  id                   String    @id @default(uuid())
+  eventId              String
+  scannerUserId        String
+  targetUserId         String
+  method               TapMethod @default(QR)
+  resultedInConnection Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  scanner User  @relation("TapsInitiated", fields: [scannerUserId], references: [id], onDelete: Cascade)
+  target  User  @relation("TapsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([scannerUserId])
+  @@index([targetUserId])
+  @@map("event_taps")
+}
