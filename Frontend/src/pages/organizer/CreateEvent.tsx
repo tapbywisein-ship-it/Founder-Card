@@ -4,7 +4,7 @@ import { SignInModal } from '@/components/SignInModal';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useCreateEvent } from '@/hooks/useOrganizer';
 import { useAppStore } from '@/store/appStore';
 import { EVENT_THEMES, THEME_IDS } from '@/lib/eventThemes';
@@ -119,6 +119,12 @@ const CreateEventPage = () => {
   // overlays the page, so they can see what they're signing in for. Form
   // state persists across the auth round-trip because we don't unmount.
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const userRole = useAppStore((s) => s.user?.role);
+
+  // Admins manage events via /admin — bounce them to their dashboard.
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
   const [signInOpen, setSignInOpen] = useState(false);
 
   // Auto-open the sign-in popup on first render for anonymous visitors.
