@@ -23,6 +23,8 @@ import { SignInModal } from '@/components/SignInModal';
 import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ReportButton } from '@/components/ReportButton';
+import { blockIcon } from '@/components/CardBlocksEditor';
+import { CardLeadForm } from '@/components/CardLeadForm';
 import { ConnectionNotes } from '@/components/ConnectionNotes';
 import { CardActionRow } from '@/components/CardActionRow';
 import { CommonGroundPanel } from '@/components/CommonGroundPanel';
@@ -30,7 +32,7 @@ import { useAppStore } from '@/store/appStore';
 import { useActiveEventId } from '@/lib/useActiveEvent';
 import { founderCardService, type PublicCard } from '@/services/founderCard.service';
 import { useJsonLd } from '@/lib/useJsonLd';
-import { WhatIsFounderKey } from '@/components/WhatIsFounderKey';
+import { WhatIsFounderKey as WhatIsTapByWisein } from '@/components/WhatIsFounderKey';
 import { connectionsService } from '@/services/connections.service';
 import { useStartConversation } from '@/hooks/useMessages';
 
@@ -147,7 +149,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
       ? `${window.location.origin}/c/${card.slug}`
       : '';
 
-  // Schema.org Person structured data for the public founder card.
+  // Schema.org Person structured data for the public tap card.
   useJsonLd(
     card && profile
       ? {
@@ -164,7 +166,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
 
   const body = (
     <div className="space-y-6">
-      <WhatIsFounderKey />
+      <WhatIsTapByWisein />
       {isLoading && (
         <Surface padding="lg" className="text-center">
           <p className="text-sm text-muted-foreground">Loading card…</p>
@@ -205,6 +207,12 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                     {[profile?.position, profile?.company].filter(Boolean).join(' · ')}
                   </p>
                 )}
+                {profile?.status && (
+                  <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                    {profile.status}
+                  </span>
+                )}
                 {profile?.location && (
                   <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3" /> {profile.location}
@@ -219,6 +227,27 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
 
               {profile?.bio && (
                 <p className="max-w-md text-sm text-muted-foreground">{profile.bio}</p>
+              )}
+
+              {card.blocks && card.blocks.length > 0 && (
+                <div className="flex w-full max-w-md flex-col gap-2 pt-1">
+                  {card.blocks.map((b) => {
+                    const Icon = blockIcon(b.type);
+                    return (
+                      <a
+                        key={b.id}
+                        href={b.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 rounded-card border border-border bg-card px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-secondary"
+                      >
+                        <Icon className="h-4 w-4 flex-shrink-0 text-primary" />
+                        <span className="flex-1 truncate text-sm font-medium text-foreground">{b.label}</span>
+                        <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                      </a>
+                    );
+                  })}
+                </div>
               )}
 
               {isAuthenticated && card.userId !== currentUser?.id && (
@@ -269,7 +298,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                     variant="outline"
                     onClick={() => {
                       navigator
-                        .share({ title: `${fullName} on FounderKey`, url: cardUrl })
+                        .share({ title: `${fullName} on TapByWisein`, url: cardUrl })
                         .catch(() => {});
                     }}
                   >
@@ -277,11 +306,18 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                   </Button>
                 )}
               </div>
+
+              {/* Lead capture — visitors (not the owner) can leave their details */}
+              {currentUser?.id !== card.userId && (
+                <div className="pt-3">
+                  <CardLeadForm ownerId={card.userId} ownerName={fullName ?? undefined} />
+                </div>
+              )}
             </div>
           </Surface>
 
           {/* Skills / interests / lookingFor */}
-          {profile && (profile.skills.length || profile.interests.length || profile.lookingFor.length) > 0 && (
+          {profile && (profile.skills.length > 0 || profile.interests.length > 0 || profile.lookingFor.length > 0) && (
             <div className="grid gap-4 md:grid-cols-3">
               {profile.skills.length > 0 && (
                 <Surface>
@@ -384,7 +420,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
               </div>
               {card.status === 'ACTIVE' && (
                 <span className="inline-flex items-center gap-1 chip-primary">
-                  <Sparkles className="h-3 w-3" /> Founder Card active
+                  <Sparkles className="h-3 w-3" /> Tap Card active
                 </span>
               )}
             </Surface>
@@ -443,7 +479,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
       </header>
       <main className="mx-auto w-full max-w-2xl px-6 pb-16">
         <div className="mb-3 flex items-center gap-1.5 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          <Zap className="h-3 w-3" /> FounderKey card
+          <Zap className="h-3 w-3" /> TapByWisein card
         </div>
         {body}
       </main>

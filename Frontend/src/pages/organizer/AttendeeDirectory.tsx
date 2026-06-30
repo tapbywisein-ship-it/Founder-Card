@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrganizerLayout } from '@/components/OrganizerLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Download, Eye, Mail, Users, Star, Crown } from 'lucide-react';
-import { useOrgAttendees } from '@/hooks/useOrganizer';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Search, Filter, Download, Eye, Mail, Users, Star, Crown, AlertCircle,
+  CheckSquare, Square, X, Send, Info,
+} from 'lucide-react';
+import { useOrgAttendees, useSendAttendeeBlast } from '@/hooks/useOrganizer';
 import type { AttendeeItem } from '@/services/organizer.service';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -14,25 +20,58 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   CANCELLED:  { label: 'Cancelled',  color: 'bg-red-500/10 text-red-400 border-red-500/20' },
 };
 
+const PLACEHOLDER_BODY = `Hi {{firstName}},
+
+We have an exciting update for you!
+
+[Your message here]
+
+Best,
+[Your name]`;
+
 const AttendeeDirectoryPage = () => {
-  const [search, setSearch] = useState('');
+  const [search, setSearch]             = useState('');
   const [selectedAttendee, setSelectedAttendee] = useState<AttendeeItem | null>(null);
 
-  const { data, isLoading } = useOrgAttendees({ search: search || undefined });
+  // Bulk selection
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Email blast modal
+  const [blastOpen, setBlastOpen] = useState(false);
+  const [subject, setSubject]     = useState('');
+  const [body, setBody]           = useState(PLACEHOLDER_BODY);
+  const [previewMode, setPreviewMode] = useState(false);
+
+  const { data, isLoading, isError } = useOrgAttendees({ search: search || undefined });
+  const sendBlast = useSendAttendeeBlast();
   const attendees = data?.attendees ?? [];
 
-  const checkedInCount  = attendees.filter((a) => a.checkedIn).length;
-  const founderCount    = attendees.filter((a) => a.user?.founderCard?.status === 'ACTIVE').length;
-  const avgScore        = attendees.length
+  const checkedInCount = attendees.filter((a) => a.checkedIn).length;
+  const founderCount   = attendees.filter((a) => a.user?.founderCard?.status === 'ACTIVE').length;
+  const avgScore       = attendees.length
     ? Math.round(attendees.reduce((s, a) => s + (a.user?.gamification?.fkScore ?? 0), 0) / attendees.length)
     : 0;
+
+  // Only attendees with a user id can be targeted
+  const selectableIds = useMemo(() => attendees.map((a) => a.user?.id).filter(Boolean) as string[], [attendees]);
+
+  const allSelected   = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
+  const someSelected  = selected.size > 0;
+
+  const toggleOne = (userId: string) =>
+    setSelected((prev) => { const s = new Set(prev); s.has(userId) ? s.delete(userId) : s.add(userId); return s; });
+
+  const toggleAll = () =>
+    setSelected(allSelected ? new Set() : new Set(selectableIds));
+
+  const clearSelection = () => setSelected(new Set());
 
   const handleExport = () => {
     const csv = ['Name,Company,Position,Event,Tier,FK Score,Email,Status']
       .concat(
         attendees.map((a) => {
           const name = a.user?.profile ? `${a.user.profile.firstName} ${a.user.profile.lastName}` : a.email;
-          return `${name},${a.user?.profile?.company ?? ''},${a.user?.profile?.position ?? ''},${a.event?.title ?? ''},${a.user?.founderCard?.status === 'ACTIVE' ? 'FounderCard' : 'Free'},${a.user?.gamification?.fkScore ?? 0},${a.email},${a.status}`;
+          return `"${name}","${a.user?.profile?.company ?? ''}","${a.user?.profile?.position ?? ''}","${a.event?.title ?? ''}","${a.user?.founderCard?.status === 'ACTIVE' ? 'FounderCard' : 'Free'}",${a.user?.gamification?.fkScore ?? 0},"${a.email}",${a.status}`;
         })
       )
       .join('\n');
@@ -42,7 +81,26 @@ const AttendeeDirectoryPage = () => {
     el.href     = url;
     el.download = 'attendee-directory.csv';
     el.click();
+    URL.revokeObjectURL(url);
   };
+
+  const handleSendBlast = () => {
+    if (!subject.trim() || !body.trim()) return;
+    sendBlast.mutate(
+      { userIds: Array.from(selected), subject: subject.trim(), body: body.trim() },
+      {
+        onSuccess: () => {
+          setBlastOpen(false);
+          setSubject('');
+          setBody(PLACEHOLDER_BODY);
+          clearSelection();
+        },
+      }
+    );
+  };
+
+  // Preview: replace {{firstName}} with a sample name
+  const previewBody = body.replace(/\{\{\s*firstName\s*\}\}/g, 'Alex');
 
   return (
     <OrganizerLayout>
@@ -57,6 +115,13 @@ const AttendeeDirectoryPage = () => {
             <Download className="w-4 h-4 mr-1.5" /> Export CSV
           </Button>
         </div>
+
+        {isError && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            Failed to load attendee directory. Try refreshing the page.
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -101,6 +166,33 @@ const AttendeeDirectoryPage = () => {
           </div>
         </Surface>
 
+        {/* Bulk action bar */}
+        <AnimatePresence>
+          {someSelected && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3"
+            >
+              <span className="text-sm font-medium text-foreground">
+                {selected.size} attendee{selected.size !== 1 ? 's' : ''} selected
+              </span>
+              <div className="flex-1" />
+              <Button
+                size="sm"
+                onClick={() => setBlastOpen(true)}
+              >
+                <Mail className="w-4 h-4 mr-1.5" />
+                Send Email
+              </Button>
+              <Button size="sm" variant="ghost" onClick={clearSelection}>
+                <X className="w-4 h-4" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Table */}
         <Surface className="overflow-hidden p-0">
           {isLoading ? (
@@ -119,6 +211,18 @@ const AttendeeDirectoryPage = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
+                    <th className="px-4 py-3 w-10">
+                      <button
+                        onClick={toggleAll}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title={allSelected ? 'Deselect all' : 'Select all'}
+                      >
+                        {allSelected
+                          ? <CheckSquare className="w-4 h-4 text-primary" />
+                          : <Square className="w-4 h-4" />
+                        }
+                      </button>
+                    </th>
                     {['Attendee', 'Company', 'Event', 'Tier', 'FK Score', 'Status', ''].map((h) => (
                       <th key={h} className="text-left text-xs text-muted-foreground font-medium px-4 py-3 whitespace-nowrap">{h}</th>
                     ))}
@@ -132,6 +236,9 @@ const AttendeeDirectoryPage = () => {
                         : a.email;
                       const isFounder = a.user?.founderCard?.status === 'ACTIVE';
                       const sc = statusConfig[a.status] ?? statusConfig['REGISTERED'];
+                      const userId = a.user?.id;
+                      const isSelected = userId ? selected.has(userId) : false;
+
                       return (
                         <motion.tr
                           key={a.id}
@@ -139,12 +246,25 @@ const AttendeeDirectoryPage = () => {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0 }}
                           transition={{ delay: i * 0.03 }}
-                          className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                          className={`border-b border-border/50 transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                         >
+                          <td className="px-4 py-3 w-10">
+                            {userId ? (
+                              <button
+                                onClick={() => toggleOne(userId)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                {isSelected
+                                  ? <CheckSquare className="w-4 h-4 text-primary" />
+                                  : <Square className="w-4 h-4" />
+                                }
+                              </button>
+                            ) : null}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               {a.user?.profile?.avatar ? (
-                                <img src={a.user.profile.avatar} alt={name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                                <img src={a.user.profile.avatar} alt={name} loading="lazy" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                               ) : (
                                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
                                   {name[0]?.toUpperCase()}
@@ -216,7 +336,7 @@ const AttendeeDirectoryPage = () => {
                   <button onClick={() => setSelectedAttendee(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-xs">✕</button>
                   <div className="text-center mb-5">
                     {a.user?.profile?.avatar ? (
-                      <img src={a.user.profile.avatar} alt={name} className="w-16 h-16 rounded-full mx-auto mb-3 object-cover border-2 border-primary/30" />
+                      <img src={a.user.profile.avatar} alt={name} loading="lazy" className="w-16 h-16 rounded-full mx-auto mb-3 object-cover border-2 border-primary/30" />
                     ) : (
                       <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold mx-auto mb-3">
                         {name[0]?.toUpperCase()}
@@ -235,9 +355,9 @@ const AttendeeDirectoryPage = () => {
                   </div>
                   <div className="space-y-2 text-sm">
                     {[
-                      { label: 'Email',    value: a.email },
-                      { label: 'Event',    value: a.event?.title ?? '—' },
-                      { label: 'FK Score', value: a.user?.gamification?.fkScore ?? 0 },
+                      { label: 'Email',      value: a.email },
+                      { label: 'Event',      value: a.event?.title ?? '—' },
+                      { label: 'FK Score',   value: a.user?.gamification?.fkScore ?? 0 },
                       { label: 'Registered', value: new Date(a.registeredAt).toLocaleDateString() },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex items-center justify-between py-2 border-b border-border/50">
@@ -256,6 +376,117 @@ const AttendeeDirectoryPage = () => {
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Bulk Email Modal */}
+      <AnimatePresence>
+        {blastOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            onClick={(e) => e.target === e.currentTarget && setBlastOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="w-full max-w-lg"
+            >
+              <Surface className="relative space-y-4">
+                {/* Modal header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">Send Email</p>
+                      <p className="text-[11px] text-muted-foreground">To {selected.size} attendee{selected.size !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setBlastOpen(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Tip */}
+                <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
+                  <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  Use <code className="mx-1 font-mono bg-background px-1 rounded">{`{{firstName}}`}</code> to personalize each email with the attendee's first name.
+                </div>
+
+                {/* Toggle preview */}
+                <div className="flex gap-2 border-b border-border pb-1">
+                  {['Write', 'Preview'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setPreviewMode(tab === 'Preview')}
+                      className={`text-xs font-medium pb-1.5 border-b-2 transition-colors ${
+                        (tab === 'Preview') === previewMode
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {!previewMode ? (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="blast-subject">Subject *</Label>
+                      <Input
+                        id="blast-subject"
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        placeholder="e.g. Exciting update from [Your Event]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="blast-body">Message *</Label>
+                      <Textarea
+                        id="blast-body"
+                        value={body}
+                        onChange={(e) => setBody(e.target.value)}
+                        rows={8}
+                        className="resize-none font-mono text-xs"
+                        placeholder="Write your message…"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-border bg-muted/20 p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Subject</p>
+                      <p className="text-sm font-medium text-foreground">{subject || <span className="italic text-muted-foreground">No subject</span>}</p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/20 p-3 min-h-32">
+                      <p className="text-xs text-muted-foreground mb-1">Body (sample for "Alex")</p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{previewBody}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" className="flex-1" onClick={() => setBlastOpen(false)} disabled={sendBlast.isPending}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleSendBlast}
+                    disabled={!subject.trim() || !body.trim() || sendBlast.isPending}
+                  >
+                    <Send className="w-4 h-4 mr-1.5" />
+                    {sendBlast.isPending ? 'Sending…' : `Send to ${selected.size}`}
+                  </Button>
+                </div>
+              </Surface>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </OrganizerLayout>
   );

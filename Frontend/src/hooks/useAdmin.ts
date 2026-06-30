@@ -9,6 +9,7 @@ export const adminKeys = {
   settings: () => ['admin', 'settings'] as const,
   founderCards: (params?: object) => ['admin', 'founder-cards', params] as const,
   analytics: () => ['admin', 'analytics'] as const,
+  revenue: (params?: object) => ['admin', 'revenue', params] as const,
 };
 
 export function useAdminDashboard() {
@@ -85,6 +86,27 @@ export function useToggleUserActive() {
   });
 }
 
+export function useBanUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason: string }) =>
+      adminService.banUser(userId, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+      toast.success('User banned and notified');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useAuditLogs(params = {}) {
+  return useQuery({
+    queryKey: ['admin', 'audit-logs', params],
+    queryFn: () => adminService.getAuditLogs(params),
+    select: (res) => ({ logs: res.data, pagination: res.pagination }),
+  });
+}
+
 export function useReviewFounderCard() {
   const qc = useQueryClient();
   return useMutation({
@@ -93,6 +115,39 @@ export function useReviewFounderCard() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'founder-cards'] });
       toast.success('Card reviewed');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useAdminRevenue(params = {}) {
+  return useQuery({
+    queryKey: adminKeys.revenue(params),
+    queryFn: () => adminService.getRevenue(params),
+    select: (res) => ({ items: res.data, pagination: res.pagination }),
+  });
+}
+
+export function useDispatchOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { id: string; trackingId: string; trackingProvider: string; nfcTagId?: string }) =>
+      adminService.dispatchOrder(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.revenue({}) });
+      toast.success('Order dispatched — email sent to customer');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useMarkOrderDelivered() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.markOrderDelivered(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.revenue({}) });
+      toast.success('Order marked as delivered');
     },
     onError: (err: Error) => toast.error(err.message),
   });

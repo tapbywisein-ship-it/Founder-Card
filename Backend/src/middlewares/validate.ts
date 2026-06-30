@@ -27,9 +27,7 @@ const formatZodErrors = (error: ZodError): Array<{ field: string; message: strin
   }));
 };
 
-export const validateAll = (
-  schemas: Partial<Record<ValidationSource, ZodSchema>>
-) => {
+export const validateAll = (schemas: Partial<Record<ValidationSource, ZodSchema>>) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     const allErrors: Array<{ field: string; message: string }> = [];
 

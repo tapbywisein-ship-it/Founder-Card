@@ -13,7 +13,9 @@ export function useConversations() {
     queryKey: messageKeys.conversations(),
     queryFn: () => messagesService.listConversations(),
     select: (res) => res.data,
-    refetchInterval: 15_000,
+    // Socket drives instant updates via refetchQueries on message:new.
+    // Keep a long fallback poll only for tab-switch / reconnect recovery.
+    refetchInterval: 60_000,
   });
 }
 
@@ -64,6 +66,7 @@ export function useUnreadMessageCount() {
     queryKey: messageKeys.unread(),
     queryFn: () => messagesService.unreadCount(),
     select: (res) => res.data.count,
-    refetchInterval: 30_000,
+    // Socket refetches this on every message:new event.
+    refetchInterval: 60_000,
   });
 }

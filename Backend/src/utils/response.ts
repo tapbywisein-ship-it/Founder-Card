@@ -15,7 +15,11 @@ export const sendSuccess = <T>(
   });
 };
 
-export const sendCreated = <T>(res: Response, data: T, message = 'Created successfully'): Response => {
+export const sendCreated = <T>(
+  res: Response,
+  data: T,
+  message = 'Created successfully'
+): Response => {
   return sendSuccess(res, data, message, StatusCodes.CREATED);
 };
 

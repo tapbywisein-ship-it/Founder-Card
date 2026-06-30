@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Sparkles, Users } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Sparkles, Users, AlertCircle } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
@@ -105,7 +105,7 @@ const EventAttendeesPage = () => {
   const eventId = id ?? '';
 
   const { data: event } = useEvent(eventId);
-  const { data: attendeesData, isLoading } = useEventAttendees(eventId);
+  const { data: attendeesData, isLoading, isError } = useEventAttendees(eventId);
   const { data: suggestions } = useEventSuggestions(eventId);
 
   return (
@@ -151,6 +151,12 @@ const EventAttendeesPage = () => {
               (attendeesData.pagination as { total?: number })?.total}
             )
           </h2>
+          {isError && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Failed to load attendees. Try refreshing.
+            </div>
+          )}
           {isLoading && (
             <Surface className="text-center">
               <p className="text-sm text-muted-foreground">Loading attendees…</p>

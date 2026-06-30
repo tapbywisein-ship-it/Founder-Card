@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/store/appStore';
-import { apiLogin } from '@/services/auth.service';
+import { apiGetMe } from '@/services/auth.service';
 import { supabase } from '@/lib/supabase';
 
 interface SignInModalProps {
@@ -35,7 +35,7 @@ export const SignInModal = ({
   open,
   onOpenChange,
   intendedRoute,
-  title = 'Welcome to Founder Key',
+  title = 'Welcome to TapByWisein',
   description = 'Sign in to continue.',
 }: SignInModalProps) => {
   const navigate = useNavigate();
@@ -58,7 +58,9 @@ export const SignInModal = ({
     if (!cleanEmail || !cleanPassword) return;
     setLoading(true);
     try {
-      const { user } = await apiLogin(cleanEmail, cleanPassword);
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
+      if (signInError) throw new Error(signInError.message);
+      const user = await apiGetMe();
       login(user);
       toast.success('Signed in');
       onOpenChange(false);
@@ -185,7 +187,7 @@ export const SignInModal = ({
         </Button>
 
         <p className="text-center text-xs text-muted-foreground mt-3">
-          New to Founder Key?{' '}
+          New to TapByWisein?{' '}
           <button
             type="button"
             className="text-primary hover:underline"

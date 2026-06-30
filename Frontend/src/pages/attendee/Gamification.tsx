@@ -1,9 +1,10 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { Surface } from '@/components/Surface';
 import { useMyScore, useMyBadges, useAllBadges, useLeaderboard, useScoreHistory } from '@/hooks/useGamification';
 import { useAppStore } from '@/store/appStore';
-import { Trophy, Zap, Lock, Crown, Star, Users, Medal, ArrowUpRight, Info } from 'lucide-react';
+import { Trophy, Zap, Lock, Crown, Star, Users, Medal, ArrowUpRight, Info, AlertCircle, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SCORE_RULES } from '@/lib/scoreRules';
 
@@ -13,7 +14,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 const GamificationPage = () => {
   const user = useAppStore((s) => s.user);
-  const { data: gamification, isLoading: scoreLoading } = useMyScore();
+  const { data: gamification, isLoading: scoreLoading, isError: scoreError, refetch: refetchScore } = useMyScore();
   const { data: badges, isLoading: badgesLoading } = useMyBadges();
   const { data: allBadges } = useAllBadges();
   const { data: leaderboardData } = useLeaderboard(1, 10);
@@ -21,13 +22,30 @@ const GamificationPage = () => {
 
   const score = gamification?.fkScore ?? 0;
   const level = gamification?.level ?? 1;
-  const earnedBadges = badges ?? [];
+  const earnedBadges = useMemo(() => badges ?? [], [badges]);
   const earnedIds = new Set(earnedBadges.map((b) => b.id));
   // Locked badges = all definitions the user hasn't earned yet. Their description
   // doubles as the unlock condition.
   const lockedBadges = (allBadges ?? []).filter((b) => !earnedIds.has(b.id));
   const leaderboard = leaderboardData?.leaderboard ?? [];
   const history = historyData?.history ?? [];
+  const myRank = leaderboard.findIndex((e) => e.userId === user?.id);
+  const myRankDisplay = myRank >= 0 ? myRank + 1 : null;
+
+  // Track newly earned badges for the celebration animation
+  const prevBadgeIdsRef = useRef<Set<string>>(new Set());
+  const [newBadgeIds, setNewBadgeIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (earnedBadges.length === 0) return;
+    const prev = prevBadgeIdsRef.current;
+    const freshIds = earnedBadges.filter((b) => !prev.has(b.id)).map((b) => b.id);
+    if (freshIds.length > 0 && prev.size > 0) {
+      setNewBadgeIds(new Set(freshIds));
+      const t = setTimeout(() => setNewBadgeIds(new Set()), 3000);
+      return () => clearTimeout(t);
+    }
+    prevBadgeIdsRef.current = new Set(earnedBadges.map((b) => b.id));
+  }, [earnedBadges]);
 
   const nextLevelScore = level * 200;
   const progressPct = Math.min(100, (score / nextLevelScore) * 100);
@@ -36,6 +54,17 @@ const GamificationPage = () => {
     <AppLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <h1 className="text-3xl font-semibold text-foreground">FK Score & Badges</h1>
+        {scoreError && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <span className="flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Failed to load score data. Check your connection and try again.
+            </span>
+            <button onClick={() => refetchScore()} className="shrink-0 text-xs font-medium underline underline-offset-2 hover:opacity-80">
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Score card */}
         <Surface className="text-center py-8">
@@ -139,15 +168,28 @@ const GamificationPage = () => {
             <div className="grid grid-cols-3 gap-3">
               {earnedBadges.map((badge, i) => {
                 const Icon = ICON_MAP[badge.icon] ?? Trophy;
+                const isNew = newBadgeIds.has(badge.id);
                 return (
                   <motion.div
                     key={badge.id}
                     initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.07 }}
-                    className="flex flex-col items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20"
+                    animate={isNew
+                      ? { opacity: 1, scale: [1, 1.15, 0.95, 1.05, 1], transition: { duration: 0.6, times: [0, 0.3, 0.5, 0.7, 1] } }
+                      : { opacity: 1, scale: 1, transition: { delay: i * 0.07 } }
+                    }
+                    className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${isNew ? 'bg-primary/15 border-primary/50 ring-2 ring-primary/30' : 'bg-primary/5 border-primary/20'}`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                    {isNew && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: [1, 1, 0], scale: [0.5, 1.4, 1.4] }}
+                        transition={{ duration: 1.2 }}
+                        className="absolute -top-2 -right-2"
+                      >
+                        <Sparkles className="w-4 h-4 text-yellow-400" />
+                      </motion.div>
+                    )}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isNew ? 'bg-primary shadow-lg shadow-primary/40' : 'bg-primary'}`}>
                       <Icon className="w-5 h-5 text-primary-foreground" />
                     </div>
                     <p className="text-xs font-medium text-foreground text-center leading-tight">{badge.name}</p>
@@ -200,6 +242,20 @@ const GamificationPage = () => {
               <h2 className="text-lg font-semibold text-foreground">Leaderboard</h2>
               <Trophy className="w-4 h-4 text-muted-foreground" />
             </div>
+
+            {/* Your rank banner */}
+            {myRankDisplay !== null && (
+              <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-xl px-4 py-2.5 mb-3">
+                <div className="flex items-center gap-2">
+                  <Medal className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">Your rank</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">{score} pts</span>
+                  <span className="text-lg font-bold text-primary">#{myRankDisplay}</span>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               {leaderboard.map((entry, i) => {
                 const isMe = entry.userId === user?.id;

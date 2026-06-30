@@ -24,13 +24,13 @@ export function usePublicProfile(userId: string) {
   });
 }
 
-export function useUpdateProfile() {
+export function useUpdateProfile({ silent = false }: { silent?: boolean } = {}) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: UpdateProfilePayload) => profileService.updateProfile(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: profileKeys.mine() });
-      toast.success('Profile updated!');
+      if (!silent) toast.success('Profile updated!');
     },
     onError: (err: Error) => toast.error(err.message),
   });

@@ -1,9 +1,5 @@
 import prisma from '@config/database';
-import {
-  NotFoundError,
-  BadRequestError,
-  ForbiddenError,
-} from '@utils/errors';
+import { NotFoundError, BadRequestError, ForbiddenError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import notificationsService from '@modules/notifications/notifications.service';
 import blocksService from '@modules/blocks/blocks.service';
@@ -23,11 +19,7 @@ export class MessagesService {
       throw new BadRequestError("You can't message yourself");
     }
 
-    await blocksService.assertNotBlocked(
-      senderId,
-      targetUserId,
-      'You cannot message this user'
-    );
+    await blocksService.assertNotBlocked(senderId, targetUserId, 'You cannot message this user');
 
     const connection = await prisma.connection.findFirst({
       where: {
@@ -40,9 +32,7 @@ export class MessagesService {
       select: { id: true },
     });
     if (!connection) {
-      throw new ForbiddenError(
-        'You can only message people you are connected with'
-      );
+      throw new ForbiddenError('You can only message people you are connected with');
     }
 
     const [aId, bId] = sortPair(senderId, targetUserId);
@@ -62,10 +52,18 @@ export class MessagesService {
         where: { OR: [{ userAId: userId }, { userBId: userId }] },
         include: {
           userA: {
-            include: { profile: { select: { firstName: true, lastName: true, avatar: true, position: true } } },
+            include: {
+              profile: {
+                select: { firstName: true, lastName: true, avatar: true, position: true },
+              },
+            },
           },
           userB: {
-            include: { profile: { select: { firstName: true, lastName: true, avatar: true, position: true } } },
+            include: {
+              profile: {
+                select: { firstName: true, lastName: true, avatar: true, position: true },
+              },
+            },
           },
           messages: { orderBy: { createdAt: 'desc' }, take: 1 },
         },
@@ -92,9 +90,7 @@ export class MessagesService {
             },
             _count: { _all: true },
           });
-    const unreadByConvo = new Map(
-      unreadGroups.map((g) => [g.conversationId, g._count._all])
-    );
+    const unreadByConvo = new Map(unreadGroups.map((g) => [g.conversationId, g._count._all]));
 
     const items = convos.map((c) => {
       const other = c.userAId === userId ? c.userB : c.userA;
@@ -126,12 +122,7 @@ export class MessagesService {
     };
   }
 
-  async listMessages(
-    conversationId: string,
-    userId: string,
-    page?: number,
-    limit?: number
-  ) {
+  async listMessages(conversationId: string, userId: string, page?: number, limit?: number) {
     const convo = await prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { id: true, userAId: true, userBId: true },
@@ -207,7 +198,9 @@ export class MessagesService {
       io?.to(`user:${senderId}`).emit('message:sent', payload);
       // Update last-seen marker for sender (active right now).
       const redis = (await import('@config/redis')).default;
-      await redis.setex(`presence:lastseen:${senderId}`, 86400, Date.now().toString()).catch(() => {});
+      await redis
+        .setex(`presence:lastseen:${senderId}`, 86400, Date.now().toString())
+        .catch(() => {});
 
       // Check whether the recipient has been offline for 10+ minutes.
       const lastSeenRaw = await redis.get(`presence:lastseen:${recipientId}`).catch(() => null);

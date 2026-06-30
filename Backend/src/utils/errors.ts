@@ -72,3 +72,12 @@ export class ServiceUnavailableError extends AppError {
     this.name = 'ServiceUnavailableError';
   }
 }
+
+/** A free-tier limit was hit. 402 Payment Required signals the client to show
+ *  the membership upgrade prompt. */
+export class MembershipRequiredError extends AppError {
+  constructor(message = 'Founder membership required') {
+    super(message, StatusCodes.PAYMENT_REQUIRED);
+    this.name = 'MembershipRequiredError';
+  }
+}

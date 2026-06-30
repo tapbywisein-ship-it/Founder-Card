@@ -4,7 +4,7 @@ import { env } from './env';
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'Golden Tap Connect / Founder Key API',
+    title: 'TapByWisein API',
     version: '1.0.0',
     description: `
       Production-ready REST API for the Founder Key platform.
@@ -24,8 +24,8 @@ const swaggerDefinition = {
       All protected routes require: \`Authorization: Bearer <token>\`
     `,
     contact: {
-      name: 'Golden Tap Connect API Support',
-      email: 'api@goldentap.com',
+      name: 'TapByWisein API Support',
+      email: 'api@tapbywisein.com',
     },
     license: {
       name: 'MIT',
@@ -37,7 +37,7 @@ const swaggerDefinition = {
       description: 'Development server',
     },
     {
-      url: `https://api.goldentap.com/api/${env.API_VERSION}`,
+      url: `https://api.tapbywisein.com/api/${env.API_VERSION}`,
       description: 'Production server',
     },
   ],

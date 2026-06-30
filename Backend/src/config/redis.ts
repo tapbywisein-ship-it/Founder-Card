@@ -15,14 +15,17 @@ interface MemoryStore {
 const memStore: MemoryStore = { data: new Map() };
 
 // Clean expired keys every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of memStore.data.entries()) {
-    if (entry.expiresAt !== null && entry.expiresAt < now) {
-      memStore.data.delete(key);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, entry] of memStore.data.entries()) {
+      if (entry.expiresAt !== null && entry.expiresAt < now) {
+        memStore.data.delete(key);
+      }
     }
-  }
-}, 5 * 60 * 1000);
+  },
+  5 * 60 * 1000
+);
 
 const memoryClient = {
   async get(key: string): Promise<string | null> {
@@ -69,11 +72,17 @@ const memoryClient = {
     }
     return result;
   },
-  async ping(): Promise<'PONG'> { return 'PONG'; },
-  async quit(): Promise<'OK'> { return 'OK'; },
+  async ping(): Promise<'PONG'> {
+    return 'PONG';
+  },
+  async quit(): Promise<'OK'> {
+    return 'OK';
+  },
   disconnect(): void {},
   status: 'ready' as const,
-  on(_event: string, _handler: unknown): unknown { return memoryClient; },
+  on(_event: string, _handler: unknown): unknown {
+    return memoryClient;
+  },
 };
 
 // ─── Redis Client ─────────────────────────────────────────────────────────────
@@ -135,7 +144,9 @@ if (REDIS_URL && REDIS_URL !== 'redis://localhost:6379') {
     logger.warn('Redis: ioredis load failed — running with in-memory store');
   }
 } else {
-  logger.warn('Redis: no REDIS_URL configured — running with in-memory store (not suitable for production)');
+  logger.warn(
+    'Redis: no REDIS_URL configured — running with in-memory store (not suitable for production)'
+  );
 }
 
 export { redis, subscriber, usingMemoryFallback };

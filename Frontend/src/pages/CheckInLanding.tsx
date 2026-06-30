@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/store/appStore';
 import { eventsService } from '@/services/events.service';
 import { useSetCheckedInEventId } from '@/lib/useActiveEvent';
+import { useHomePath } from '@/lib/useHomePath';
 
 /**
  * Self check-in landing page hit when a user scans the event's check-in QR
@@ -17,6 +18,7 @@ import { useSetCheckedInEventId } from '@/lib/useActiveEvent';
 const CheckInLanding = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const homePath = useHomePath();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const setCheckedInEventId = useSetCheckedInEventId();
   const [state, setState] = useState<'pending' | 'success' | 'already' | 'error'>('pending');
@@ -85,7 +87,7 @@ const CheckInLanding = () => {
               <h1 className="text-xl font-semibold text-foreground">Couldn't check in</h1>
               <p className="mt-1 text-sm text-muted-foreground">{errorMsg}</p>
               <div className="mt-6 flex flex-col gap-2">
-                <Button onClick={() => navigate('/dashboard')}>Go to dashboard</Button>
+                <Button onClick={() => navigate(homePath)}>Go to dashboard</Button>
               </div>
             </>
           )}

@@ -1,11 +1,19 @@
 import prisma from '@config/database';
-import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from '@utils/errors';
+import {
+  NotFoundError,
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  MembershipRequiredError,
+} from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { SCORE_VALUES } from '@config/constants';
 import gamificationService from '@modules/gamification/gamification.service';
 import notificationsService from '@modules/notifications/notifications.service';
 import blocksService from '@modules/blocks/blocks.service';
+import membershipService, { FREE_FOLLOWUP_LIMIT } from '@modules/membership/membership.service';
 import { addEmailJob } from '@jobs/email.queue';
+import logger from '@utils/logger';
 
 export class ConnectionsService {
   async sendRequest(requesterId: string, receiverId: string) {
@@ -93,7 +101,9 @@ export class ConnectionsService {
     // Email the receiver too.
     addEmailJob('connectionRequest', {
       to: receiver.email,
-      name: receiver.profile ? `${receiver.profile.firstName} ${receiver.profile.lastName}` : 'there',
+      name: receiver.profile
+        ? `${receiver.profile.firstName} ${receiver.profile.lastName}`
+        : 'there',
       requesterName,
       requesterCompany: requester?.profile?.company ?? undefined,
     }).catch(() => {});
@@ -128,12 +138,9 @@ export class ConnectionsService {
           .addScore(userId, 'CONNECTION_MADE', SCORE_VALUES.CONNECTION_MADE, { connectionId })
           .catch(() => {}),
         gamificationService
-          .addScore(
-            connection.requesterId,
-            'CONNECTION_MADE',
-            SCORE_VALUES.CONNECTION_MADE,
-            { connectionId }
-          )
+          .addScore(connection.requesterId, 'CONNECTION_MADE', SCORE_VALUES.CONNECTION_MADE, {
+            connectionId,
+          })
           .catch(() => {}),
       ]);
 
@@ -375,11 +382,15 @@ export class ConnectionsService {
 
       // In-app card URL: ".../card/<uuid>" — used when the user has no
       // FounderCard yet, so the QR encodes the userId directly.
-      const userMatch = raw.match(/\/card\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+      const userMatch = raw.match(
+        /\/card\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+      );
       if (userMatch) return userMatch[1];
 
       // Bare UUID, in case someone pastes just the id.
-      const uuidMatch = raw.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+      const uuidMatch = raw.match(
+        /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+      );
       if (uuidMatch) return uuidMatch[1];
 
       // Legacy base64 JSON payload
@@ -424,7 +435,7 @@ export class ConnectionsService {
 
     await gamificationService
       .addScore(scannerId, 'QR_SCAN', SCORE_VALUES.QR_SCAN, { targetUserId: cardOwnerId })
-      .catch(() => {});
+      .catch((err) => logger.warn('Failed to award QR_SCAN score', { scannerId, err }));
 
     const existing = await prisma.connection.findFirst({
       where: {
@@ -655,8 +666,265 @@ export class ConnectionsService {
   async deleteNote(noteId: string, authorId: string): Promise<void> {
     const note = await prisma.connectionNote.findUnique({ where: { id: noteId } });
     if (!note) throw new NotFoundError('Note');
-    if (note.authorId !== authorId) throw new ForbiddenError('Only the author can delete this note');
+    if (note.authorId !== authorId)
+      throw new ForbiddenError('Only the author can delete this note');
     await prisma.connectionNote.delete({ where: { id: noteId } });
+  }
+
+  // ── Per-user CRM metadata: private tags + follow-up reminder ────────────────
+
+  private async assertConnectionParticipant(connectionId: string, userId: string) {
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      select: { requesterId: true, receiverId: true },
+    });
+    if (!connection) throw new NotFoundError('Connection');
+    if (connection.requesterId !== userId && connection.receiverId !== userId) {
+      throw new ForbiddenError('You can only manage your own connections');
+    }
+  }
+
+  /** Returns the viewer's private tags + follow-up for a connection (defaults if unset). */
+  async getMeta(connectionId: string, userId: string) {
+    await this.assertConnectionParticipant(connectionId, userId);
+    const meta = await prisma.connectionMeta.findUnique({
+      where: { connectionId_userId: { connectionId, userId } },
+    });
+    return {
+      tags: meta?.tags ?? [],
+      followUpAt: meta?.followUpAt ?? null,
+      followUpDone: meta?.followUpDone ?? false,
+    };
+  }
+
+  /** Upsert the viewer's tags + follow-up reminder for a connection. */
+  async setMeta(
+    connectionId: string,
+    userId: string,
+    input: { tags?: string[]; followUpAt?: string | null; followUpDone?: boolean }
+  ) {
+    await this.assertConnectionParticipant(connectionId, userId);
+
+    const data: {
+      tags?: string[];
+      followUpAt?: Date | null;
+      followUpDone?: boolean;
+      remindedAt?: Date | null;
+    } = {};
+
+    if (input.tags !== undefined) {
+      data.tags = input.tags
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .slice(0, 15);
+    }
+    if (input.followUpAt !== undefined) {
+      data.followUpAt = input.followUpAt ? new Date(input.followUpAt) : null;
+      // Reset the reminder bookkeeping when the date changes.
+      data.followUpDone = false;
+      data.remindedAt = null;
+
+      // Free-tier cap: non-members may keep at most FREE_FOLLOWUP_LIMIT active
+      // reminders. Only enforced when *setting* a reminder (not clearing one),
+      // and only when this connection isn't already counted.
+      if (data.followUpAt) {
+        const isMember = await membershipService.isActiveMember(userId);
+        if (!isMember) {
+          const activeCount = await prisma.connectionMeta.count({
+            where: {
+              userId,
+              followUpDone: false,
+              followUpAt: { not: null },
+              connectionId: { not: connectionId },
+            },
+          });
+          if (activeCount >= FREE_FOLLOWUP_LIMIT) {
+            throw new MembershipRequiredError(
+              `Free accounts can keep ${FREE_FOLLOWUP_LIMIT} active follow-ups. Upgrade to Founder membership for unlimited reminders.`
+            );
+          }
+        }
+      }
+    }
+    if (input.followUpDone !== undefined) {
+      data.followUpDone = input.followUpDone;
+    }
+
+    const meta = await prisma.connectionMeta.upsert({
+      where: { connectionId_userId: { connectionId, userId } },
+      update: data,
+      create: {
+        connectionId,
+        userId,
+        tags: data.tags ?? [],
+        followUpAt: data.followUpAt ?? null,
+        followUpDone: data.followUpDone ?? false,
+      },
+    });
+
+    return {
+      tags: meta.tags,
+      followUpAt: meta.followUpAt,
+      followUpDone: meta.followUpDone,
+    };
+  }
+
+  /**
+   * The viewer's open follow-ups (a reminder set, not yet marked done), with the
+   * other person resolved. Sorted soonest-first so overdue items surface at the
+   * top. This is the "home" for follow-up reminders beyond the notification ping.
+   */
+  async getFollowUps(userId: string) {
+    const metas = await prisma.connectionMeta.findMany({
+      where: {
+        userId,
+        followUpDone: false,
+        followUpAt: { not: null },
+      },
+      orderBy: { followUpAt: 'asc' },
+      include: {
+        connection: {
+          select: {
+            id: true,
+            requesterId: true,
+            receiverId: true,
+            requester: {
+              select: {
+                id: true,
+                email: true,
+                profile: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                    company: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+            receiver: {
+              select: {
+                id: true,
+                email: true,
+                profile: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                    company: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const now = Date.now();
+    return (
+      metas
+        // Defensive: skip any meta whose connection was removed.
+        .filter((m) => m.connection)
+        .map((m) => {
+          const other =
+            m.connection.requesterId === userId ? m.connection.receiver : m.connection.requester;
+          return {
+            connectionId: m.connectionId,
+            followUpAt: m.followUpAt,
+            overdue: m.followUpAt ? m.followUpAt.getTime() < now : false,
+            tags: m.tags,
+            user: other,
+          };
+        })
+    );
+  }
+
+  /**
+   * Member-only network search: search the viewer's accepted connections by
+   * name, company, role, skills, and the event they met at. Returns matches with
+   * the field(s) that matched so the UI can explain *why* a result surfaced.
+   * Non-members get a 402 — this is a Founder membership perk.
+   */
+  async searchNetwork(userId: string, query: string) {
+    const isMember = await membershipService.isActiveMember(userId);
+    if (!isMember) {
+      throw new MembershipRequiredError(
+        'Network search is a Founder membership feature. Upgrade to search across your connections.'
+      );
+    }
+
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return { query, results: [] };
+
+    const connections = await prisma.connection.findMany({
+      where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { receiverId: userId }] },
+      include: {
+        requester: { include: { profile: true } },
+        receiver: { include: { profile: true } },
+        event: { select: { id: true, title: true } },
+      },
+      take: 1000,
+    });
+
+    const results: Array<{
+      connectionId: string;
+      matchedOn: string[];
+      event: { id: string; title: string } | null;
+      user: {
+        id: string;
+        email: string;
+        profile: {
+          firstName: string;
+          lastName: string;
+          avatar: string | null;
+          company: string | null;
+          position: string | null;
+          skills: string[];
+        } | null;
+      };
+    }> = [];
+
+    for (const c of connections) {
+      const other = c.requesterId === userId ? c.receiver : c.requester;
+      const p = other.profile;
+      const matchedOn: string[] = [];
+
+      const name = p ? `${p.firstName} ${p.lastName}`.toLowerCase() : '';
+      if (name.includes(q)) matchedOn.push('name');
+      if (p?.company && p.company.toLowerCase().includes(q)) matchedOn.push('company');
+      if (p?.position && p.position.toLowerCase().includes(q)) matchedOn.push('role');
+      if (p?.skills?.some((s) => s.toLowerCase().includes(q))) matchedOn.push('skills');
+      if (c.event?.title && c.event.title.toLowerCase().includes(q)) matchedOn.push('event');
+
+      if (matchedOn.length === 0) continue;
+
+      results.push({
+        connectionId: c.id,
+        matchedOn,
+        event: c.event,
+        user: {
+          id: other.id,
+          email: other.email,
+          profile: p
+            ? {
+                firstName: p.firstName,
+                lastName: p.lastName,
+                avatar: p.avatar,
+                company: p.company,
+                position: p.position,
+                skills: p.skills ?? [],
+              }
+            : null,
+        },
+      });
+    }
+
+    // Surface stronger matches (more fields hit) first.
+    results.sort((a, b) => b.matchedOn.length - a.matchedOn.length);
+    return { query, results: results.slice(0, 50) };
   }
 
   async suggestConnections(userId: string, limit = 10) {

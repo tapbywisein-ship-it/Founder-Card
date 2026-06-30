@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { clearTokens } from '@/services/api';
+import { supabase } from '@/lib/supabase';
 
 export type UserRole = 'attendee' | 'organizer' | 'admin';
 export type UserTier = 'free' | 'founder';
@@ -56,7 +56,7 @@ interface AppState {
   registerForEvent: (eventId: string) => void;
 }
 
-const STORAGE_KEY = 'founderkey-auth';
+const STORAGE_KEY = 'tapbywisein-auth';
 
 const loadFromStorage = (): Partial<AppState> => {
   try {
@@ -85,10 +85,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setActiveRole: (role) => { set({ activeRole: role }); saveToStorage(get()); },
   login: (user) => { set({ user, isAuthenticated: true, activeRole: user.role }); saveToStorage({ user, isAuthenticated: true, activeRole: user.role }); },
-  logout: () => { clearTokens(); set({ user: null, isAuthenticated: false, activeRole: 'attendee' }); saveToStorage({ user: null, isAuthenticated: false, activeRole: 'attendee' }); },
+  logout: () => { supabase.auth.signOut().catch(() => {}); set({ user: null, isAuthenticated: false, activeRole: 'attendee' }); saveToStorage({ user: null, isAuthenticated: false, activeRole: 'attendee' }); },
   activateCard: () => {
     const user = get().user;
-    if (user) { const updated = { ...user, hasFounderCard: true, cardStatus: 'active' as const, tier: 'founder' as const, cardQR: `founderkey://card/${user.id}` }; set({ user: updated }); saveToStorage({ ...get(), user: updated }); }
+    if (user) { const updated = { ...user, hasFounderCard: true, cardStatus: 'active' as const, tier: 'founder' as const, cardQR: `tapbywisein://card/${user.id}` }; set({ user: updated }); saveToStorage({ ...get(), user: updated }); }
   },
   deactivateCard: () => {
     const user = get().user;
@@ -110,7 +110,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 export const mockAttendee: User = {
   id: 'att-1',
   name: 'Alex Chen',
-  email: 'alex@founderkey.com',
+  email: 'alex@tapbywisein.com',
   role: 'attendee',
   avatar: '',
   photoUrl: '',
@@ -133,7 +133,7 @@ export const mockAttendee: User = {
   tier: 'founder',
   hasFounderCard: true,
   cardStatus: 'active',
-  cardQR: 'founderkey://card/att-1',
+  cardQR: 'tapbywisein://card/att-1',
   connectionsCount: 142,
   eventsAttended: 23,
   registeredEvents: ['1'],
@@ -163,7 +163,7 @@ export const mockOrganizer: User = {
   tier: 'founder',
   hasFounderCard: true,
   cardStatus: 'active',
-  cardQR: 'founderkey://card/org-1',
+  cardQR: 'tapbywisein://card/org-1',
   connectionsCount: 310,
   eventsAttended: 58,
 };
@@ -171,16 +171,16 @@ export const mockOrganizer: User = {
 export const mockAdmin: User = {
   id: 'adm-1',
   name: 'Rahul Nair',
-  email: 'admin@founderkey.com',
+  email: 'admin@tapbywisein.com',
   role: 'admin',
   avatar: '',
   designation: 'Platform Administrator',
-  company: 'FounderKey',
+  company: 'TapByWisein',
   accountType: 'company',
   phone: '+91 9000000001',
   gender: 'Male',
   age: 32,
-  bio: 'Keeping FounderKey secure, scalable, and growing.',
+  bio: 'Keeping TapByWisein secure, scalable, and growing.',
   industry: 'Platform & Infrastructure',
   skills: ['Platform Management', 'Security', 'Analytics', 'Policy'],
   interests: ['Startups', 'Policy', 'Security'],
@@ -190,7 +190,7 @@ export const mockAdmin: User = {
   tier: 'founder',
   hasFounderCard: true,
   cardStatus: 'active',
-  cardQR: 'founderkey://card/adm-1',
+  cardQR: 'tapbywisein://card/adm-1',
   connectionsCount: 0,
   eventsAttended: 0,
 };

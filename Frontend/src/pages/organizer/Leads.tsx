@@ -6,6 +6,35 @@ import { Input } from '@/components/ui/input';
 import { Download, Search, Users } from 'lucide-react';
 import { useLeads, useUpdateLeadStatus } from '@/hooks/useLeads';
 import type { Lead } from '@/services/leads.service';
+import { leadsService } from '@/services/leads.service';
+import { toast } from 'sonner';
+
+function downloadCsv(leads: Lead[]) {
+  const header = ['Name', 'Email', 'Company', 'Position', 'LinkedIn', 'Event', 'Status', 'Date'];
+  const rows = leads.map((l) => {
+    const p = l.attendee?.profile;
+    return [
+      p ? `${p.firstName} ${p.lastName}` : '',
+      l.attendee?.email ?? '',
+      p?.company ?? '',
+      p?.position ?? '',
+      p?.linkedin ?? '',
+      l.event?.title ?? '',
+      l.status,
+      new Date(l.createdAt).toLocaleDateString(),
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+  const csv = [header.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -20,6 +49,7 @@ const STATUSES = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'ARCHIVED'];
 const LeadsPage = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   const { data } = useLeads({ search: search || undefined, status: statusFilter || undefined });
   const updateMutation = useUpdateLeadStatus();
@@ -31,8 +61,25 @@ const LeadsPage = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-3xl font-semibold text-foreground">Leads</h1>
-          <Button variant="ghost" size="sm">
-            <Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await leadsService.exportLeads();
+                downloadCsv(res.data as Lead[]);
+                toast.success('CSV downloaded');
+              } catch {
+                toast.error('Export failed');
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" />
+            {exporting ? 'Exporting…' : 'Export CSV'}
           </Button>
         </div>
 

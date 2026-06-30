@@ -15,7 +15,7 @@ const TIERS = [
     highlight: false,
     features: [
       'Unlimited free-ticket events',
-      'Founder Cards + QR/NFC connect',
+      'Tap Cards + QR/NFC connect',
       'Attendee check-in',
       'Basic event analytics',
     ],

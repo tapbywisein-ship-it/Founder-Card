@@ -63,7 +63,7 @@ export interface ChangePasswordDto {
 
 export interface AuthResponse {
   user: AuthUser;
-  tokens: TokenPair;
+  tokens: TokenPair | null;
 }
 
 // OAuth types

@@ -43,7 +43,7 @@ const startServer = async (): Promise<void> => {
       logger.info('Scheduler initialized');
     }
 
-    logger.info('Golden Tap Connect backend started successfully');
+    logger.info('TapByWisein backend started successfully');
   } catch (error) {
     logger.error('Failed to start server', { error });
     process.exit(1);
@@ -68,10 +68,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
       });
 
       // Close Bull queues
-      await Promise.allSettled([
-        emailQueue.close(),
-        notificationQueue.close(),
-      ]);
+      await Promise.allSettled([emailQueue.close(), notificationQueue.close()]);
       logger.info('Bull queues closed');
 
       // Disconnect from database

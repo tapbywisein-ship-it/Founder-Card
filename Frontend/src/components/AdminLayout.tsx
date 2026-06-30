@@ -4,17 +4,20 @@ import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
-  LayoutDashboard, Users, Calendar, BarChart3, Settings, LogOut, Shield, Sparkles,
+  LayoutDashboard, Users, Calendar, BarChart3, Settings, LogOut, Shield, Sparkles, UserCircle, IndianRupee, ScrollText,
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
-  { label: 'Users', icon: Users, path: '/admin/users' },
-  { label: 'Events', icon: Calendar, path: '/admin/events' },
-  { label: 'Founder Cards', icon: Sparkles, path: '/admin/founder-cards' },
-  { label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
-  { label: 'Permissions', icon: Shield, path: '/admin/permissions' },
-  { label: 'Settings', icon: Settings, path: '/admin/settings' },
+  { label: 'Dashboard',   icon: LayoutDashboard, path: '/admin/dashboard' },
+  { label: 'Users',       icon: Users,           path: '/admin/users' },
+  { label: 'Events',      icon: Calendar,        path: '/admin/events' },
+  { label: 'Tap Cards',   icon: Sparkles,        path: '/admin/founder-cards' },
+  { label: 'Revenue',     icon: IndianRupee,     path: '/admin/revenue' },
+  { label: 'Analytics',   icon: BarChart3,       path: '/admin/analytics' },
+  { label: 'Audit Logs',  icon: ScrollText,      path: '/admin/audit-logs' },
+  { label: 'Permissions', icon: Shield,          path: '/admin/permissions' },
+  { label: 'Settings',    icon: Settings,        path: '/admin/settings' },
+  { label: 'Profile',     icon: UserCircle,      path: '/profile' },
 ];
 
 export const AdminLayout = ({ children }: { children: ReactNode }) => {

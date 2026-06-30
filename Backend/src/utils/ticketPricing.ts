@@ -20,13 +20,15 @@ interface EventLike {
 }
 
 const toNumber = (v: unknown): number => {
-  const n = Number(typeof v === 'object' && v !== null ? v.toString() : v ?? 0);
+  const n = Number(typeof v === 'object' && v !== null ? v.toString() : (v ?? 0));
   return Number.isFinite(n) ? n : 0;
 };
 
 /** Enabled tiers, or a single "General Admission" tier derived from ticketPrice. */
 export function resolveTiers(event: EventLike): TicketTier[] {
-  const raw = Array.isArray(event.ticketTypes) ? (event.ticketTypes as Record<string, unknown>[]) : [];
+  const raw = Array.isArray(event.ticketTypes)
+    ? (event.ticketTypes as Record<string, unknown>[])
+    : [];
   const tiers = raw
     .filter((t) => t && t.isEnabled !== false)
     .map((t) => ({
@@ -39,7 +41,15 @@ export function resolveTiers(event: EventLike): TicketTier[] {
       isEnabled: t.isEnabled !== false,
     }));
   if (tiers.length > 0) return tiers;
-  return [{ id: 'default', name: 'General Admission', price: toNumber(event.ticketPrice), benefits: [], isEnabled: true }];
+  return [
+    {
+      id: 'default',
+      name: 'General Admission',
+      price: toNumber(event.ticketPrice),
+      benefits: [],
+      isEnabled: true,
+    },
+  ];
 }
 
 export function findTier(event: EventLike, tierId: string): TicketTier | null {

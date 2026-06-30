@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAppStore, UserRole } from '@/store/appStore';
-import { getAccessToken } from '@/services/api';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -9,16 +8,10 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { isAuthenticated, user, logout } = useAppStore();
+  const { isAuthenticated, user } = useAppStore();
   const location = useLocation();
-  const hasToken = !!getAccessToken();
 
-  // Zustand says authenticated but no real JWT exists — stale state, force logout
-  if (isAuthenticated && !hasToken) {
-    logout();
-  }
-
-  if (!isAuthenticated || !user || !hasToken) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

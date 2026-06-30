@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { NotebookPen, Plus, Trash2, X, Check } from 'lucide-react';
+import { NotebookPen, Plus, Trash2, X, Check, Tag, CalendarClock } from 'lucide-react';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   connectionsService,
@@ -70,6 +71,36 @@ export const ConnectionNotes = ({ targetUserId }: ConnectionNotesProps) => {
     },
   });
 
+  // ── CRM metadata: tags + follow-up reminder ──
+  const [tagDraft, setTagDraft] = useState('');
+  const meta = useQuery({
+    queryKey: ['connection-meta', connectionId],
+    queryFn: () => connectionsService.getMeta(connectionId!),
+    select: (res) => res.data,
+    enabled: !!connectionId,
+  });
+  const tags = meta.data?.tags ?? [];
+  const followUpAt = meta.data?.followUpAt ?? null;
+  const followUpDone = meta.data?.followUpDone ?? false;
+
+  const setMeta = useMutation({
+    mutationFn: (input: { tags?: string[]; followUpAt?: string | null; followUpDone?: boolean }) =>
+      connectionsService.setMeta(connectionId!, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['connection-meta', connectionId] }),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not save'),
+  });
+
+  const addTag = () => {
+    const t = tagDraft.trim();
+    if (!t || tags.includes(t)) {
+      setTagDraft('');
+      return;
+    }
+    setMeta.mutate({ tags: [...tags, t] });
+    setTagDraft('');
+  };
+  const removeTag = (t: string) => setMeta.mutate({ tags: tags.filter((x) => x !== t) });
+
   if (conn.isLoading) return null;
   if (!connectionId || !isAccepted) {
     return (
@@ -84,7 +115,74 @@ export const ConnectionNotes = ({ targetUserId }: ConnectionNotesProps) => {
 
   return (
     <Surface>
-      <div className="mb-3 flex items-center gap-2">
+      {/* Tags */}
+      <div className="mb-4">
+        <div className="mb-2 flex items-center gap-2">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Tags</h3>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tags.map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+            >
+              {t}
+              <button
+                type="button"
+                aria-label={`Remove ${t}`}
+                onClick={() => removeTag(t)}
+                className="rounded-full hover:bg-primary/20"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <Input
+            value={tagDraft}
+            onChange={(e) => setTagDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                addTag();
+              }
+            }}
+            placeholder="Add tag (e.g. investor)…"
+            className="h-7 w-40 text-xs"
+          />
+        </div>
+      </div>
+
+      {/* Follow-up reminder */}
+      <div className="mb-4 border-t border-border pt-4">
+        <div className="mb-2 flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Follow-up reminder</h3>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="date"
+            value={followUpAt ? followUpAt.slice(0, 10) : ''}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) =>
+              setMeta.mutate({ followUpAt: e.target.value ? new Date(e.target.value).toISOString() : null })
+            }
+            className="h-8 w-[150px] text-xs"
+          />
+          {followUpAt && !followUpDone && (
+            <Button size="sm" variant="ghost" onClick={() => setMeta.mutate({ followUpDone: true })}>
+              <Check className="mr-1 h-3.5 w-3.5" /> Mark done
+            </Button>
+          )}
+          {followUpAt && (
+            <span className="text-xs text-muted-foreground">
+              {followUpDone ? 'Done' : `Reminds on ${format(new Date(followUpAt), 'PP')}`}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-3 flex items-center gap-2 border-t border-border pt-4">
         <NotebookPen className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">Private notes</h3>
         <span className="text-xs text-muted-foreground">— only you see these</span>

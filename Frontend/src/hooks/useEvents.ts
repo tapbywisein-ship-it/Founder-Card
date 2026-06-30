@@ -60,6 +60,7 @@ export function useEvents(params: SearchEventsParams = {}) {
     queryFn: () => eventsService.listEvents(params),
     select: (res) => ({ events: res.data, pagination: res.pagination }),
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 }
 
@@ -69,6 +70,7 @@ export function useEvent(id: string) {
     queryFn: () => eventsService.getEvent(id),
     select: (res) => res.data,
     enabled: !!id,
+    refetchInterval: 30_000,
   });
 }
 

@@ -37,11 +37,52 @@ export class OrganizerService {
       },
     });
 
+    // Revenue: sum of amountPaid on non-cancelled registrations
+    const revenueAgg = await prisma.eventRegistration.aggregate({
+      where: { event: { organizerId }, status: { not: 'CANCELLED' } },
+      _sum: { amountPaid: true },
+    });
+    const totalRevenue = Number(revenueAgg._sum.amountPaid ?? 0);
+
+    // Check-in rate
+    const checkedInCount = await prisma.eventRegistration.count({
+      where: { event: { organizerId }, checkedIn: true },
+    });
+    const checkInRate =
+      totalRegistrations > 0 ? Math.round((checkedInCount / totalRegistrations) * 100) : 0;
+
+    // Registration trend: last 7 days — fetch raw rows, bucket in JS
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const recentRegs = await prisma.eventRegistration.findMany({
+      where: {
+        event: { organizerId },
+        status: { not: 'CANCELLED' },
+        registeredAt: { gte: sevenDaysAgo },
+      },
+      select: { registeredAt: true },
+    });
+
+    const trendByDay: Record<string, number> = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sevenDaysAgo);
+      d.setDate(d.getDate() + i);
+      trendByDay[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const row of recentRegs) {
+      const day = new Date(row.registeredAt).toISOString().slice(0, 10);
+      if (day in trendByDay) trendByDay[day]++;
+    }
+    const registrationTrend = Object.entries(trendByDay).map(([date, count]) => ({ date, count }));
+
     return {
       totalEvents,
       upcomingEvents,
       totalAttendees: totalRegistrations,
       totalLeads,
+      totalRevenue,
+      checkInRate,
+      registrationTrend,
       recentEvents: recentEvents.map((e) => ({
         ...e,
         registeredCount: e._count.registrations,
@@ -114,12 +155,7 @@ export class OrganizerService {
     };
   }
 
-  async updateLeadStatus(
-    leadId: string,
-    organizerId: string,
-    status: string,
-    notes?: string
-  ) {
+  async updateLeadStatus(leadId: string, organizerId: string, status: string, notes?: string) {
     const lead = await prisma.lead.findUnique({ where: { id: leadId } });
     if (!lead) throw new NotFoundError('Lead');
     if (lead.organizerId !== organizerId) {
@@ -270,9 +306,79 @@ export class OrganizerService {
     ]);
 
     const conversionRate =
-      totalRegistrations > 0
-        ? Math.round((attendedCount / totalRegistrations) * 100)
-        : 0;
+      totalRegistrations > 0 ? Math.round((attendedCount / totalRegistrations) * 100) : 0;
+
+    // ── Attendee-quality signals ──────────────────────────────────────────────
+    // Active registrants with their profile, plus check-in flag, for this event.
+    const activeRegs = await prisma.eventRegistration.findMany({
+      where: { eventId, status: { not: 'CANCELLED' } },
+      select: {
+        userId: true,
+        checkedIn: true,
+        user: { select: { profile: { select: { position: true, company: true } } } },
+      },
+    });
+
+    // Seniority mix — classify each attendee's role into a coarse bucket.
+    const seniority: Record<string, number> = {
+      Founder: 0,
+      Executive: 0,
+      Manager: 0,
+      'IC / Other': 0,
+      Unknown: 0,
+    };
+    const companyCounts = new Map<string, number>();
+    for (const r of activeRegs) {
+      const pos = (r.user.profile?.position ?? '').toLowerCase();
+      if (!pos) seniority.Unknown++;
+      else if (/found|ceo|co-?founder|owner|partner/.test(pos)) seniority.Founder++;
+      else if (/chief|c[teimop]o|vp|vice president|head of|director/.test(pos))
+        seniority.Executive++;
+      else if (/manager|lead|principal/.test(pos)) seniority.Manager++;
+      else seniority['IC / Other']++;
+
+      const company = r.user.profile?.company?.trim();
+      if (company) companyCounts.set(company, (companyCounts.get(company) ?? 0) + 1);
+    }
+    const seniorityMix = Object.entries(seniority)
+      .filter(([, v]) => v > 0)
+      .map(([name, value]) => ({ name, value }));
+    const topCompanies = [...companyCounts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    // Repeat vs first-time — attendees who've been to this organizer's *other*
+    // events before (any non-cancelled registration).
+    const attendeeIds = activeRegs.map((r) => r.userId);
+    let repeatAttendees = 0;
+    if (attendeeIds.length > 0) {
+      const priorRegs = await prisma.eventRegistration.groupBy({
+        by: ['userId'],
+        where: {
+          userId: { in: attendeeIds },
+          status: { not: 'CANCELLED' },
+          eventId: { not: eventId },
+          event: { organizerId },
+        },
+      });
+      repeatAttendees = priorRegs.length;
+    }
+    const firstTimeAttendees = attendeeIds.length - repeatAttendees;
+
+    // Funnel: registered → checked-in → connected (made/received a connection at
+    // this event).
+    const checkedInCount = activeRegs.filter((r) => r.checkedIn).length;
+    const connectionsAtEvent = await prisma.connection.findMany({
+      where: { eventId, status: 'ACCEPTED' },
+      select: { requesterId: true, receiverId: true },
+    });
+    const connectedUserIds = new Set<string>();
+    for (const c of connectionsAtEvent) {
+      connectedUserIds.add(c.requesterId);
+      connectedUserIds.add(c.receiverId);
+    }
+    const connectedCount = attendeeIds.filter((id) => connectedUserIds.has(id)).length;
 
     return {
       event: {
@@ -289,6 +395,17 @@ export class OrganizerService {
         active: totalRegistrations - cancelledCount,
         conversionRate,
         capacityUtilization: Math.round((totalRegistrations / event.capacity) * 100),
+      },
+      quality: {
+        seniorityMix,
+        topCompanies,
+        repeatAttendees,
+        firstTimeAttendees,
+      },
+      funnel: {
+        registered: activeRegs.length,
+        checkedIn: checkedInCount,
+        connected: connectedCount,
       },
       timeline: registrationsByDay,
       leads: leadsByStatus.reduce(
@@ -314,8 +431,8 @@ export class OrganizerService {
       audience === 'registered'
         ? { status: 'REGISTERED' }
         : audience === 'waitlist'
-        ? { status: 'WAITLISTED' }
-        : { status: { not: 'CANCELLED' } };
+          ? { status: 'WAITLISTED' }
+          : { status: { not: 'CANCELLED' } };
 
     const registrations = await prisma.eventRegistration.findMany({
       where: { eventId, ...statusFilter },
@@ -347,6 +464,50 @@ export class OrganizerService {
       }
     }
     return { sent: queued, recipients: registrations.map((r) => r.user.email) };
+  }
+
+  /**
+   * Send a bulk email to a specific list of user IDs that have attended at
+   * least one of this organizer's events. Guards against emailing users the
+   * organizer has no relationship with.
+   */
+  async sendAttendeeBlast(organizerId: string, userIds: string[], subject: string, body: string) {
+    // Only target users who have registered for at least one of this organizer's events.
+    const eligible = await prisma.eventRegistration.findMany({
+      where: {
+        event: { organizerId },
+        userId: { in: userIds },
+        status: { not: 'CANCELLED' },
+      },
+      distinct: ['userId'],
+      select: {
+        userId: true,
+        user: {
+          select: {
+            email: true,
+            profile: { select: { firstName: true } },
+          },
+        },
+      },
+    });
+
+    let queued = 0;
+    for (const r of eligible) {
+      const firstName = r.user.profile?.firstName ?? '';
+      const personalizedBody = body.replace(/\{\{\s*firstName\s*\}\}/g, firstName);
+      try {
+        await addEmailJob('eventBlast', {
+          to: r.user.email,
+          name: firstName,
+          subject,
+          bodyHtml: personalizedBody,
+        });
+        queued += 1;
+      } catch (err) {
+        logger.warn('Failed to enqueue attendee blast email', { to: r.user.email, err });
+      }
+    }
+    return { sent: queued, recipients: eligible.map((r) => r.user.email) };
   }
 
   async checkInAttendee(eventId: string, organizerId: string, userId: string) {
@@ -428,20 +589,14 @@ export class OrganizerService {
     });
   }
 
-  async addCoorganizer(
-    eventId: string,
-    callerId: string,
-    dto: { email: string; role?: string }
-  ) {
+  async addCoorganizer(eventId: string, callerId: string, dto: { email: string; role?: string }) {
     // Only the primary organizer can add co-hosts (not other co-hosts).
     const event = await prisma.event.findFirst({
       where: { id: eventId, organizerId: callerId, deletedAt: null },
       select: { id: true, organizerId: true },
     });
     if (!event) {
-      throw new ForbiddenError(
-        'Only the primary organizer can add co-hosts'
-      );
+      throw new ForbiddenError('Only the primary organizer can add co-hosts');
     }
 
     const target = await prisma.user.findUnique({
@@ -459,9 +614,8 @@ export class OrganizerService {
       update: { role: dto.role ?? 'COHOST' },
     });
 
-    const { default: notificationsService } = await import(
-      '@modules/notifications/notifications.service'
-    );
+    const { default: notificationsService } =
+      await import('@modules/notifications/notifications.service');
     notificationsService
       .createNotification(
         target.id,
@@ -491,7 +645,14 @@ export class OrganizerService {
   async createSpeaker(
     eventId: string,
     organizerId: string,
-    dto: { name: string; title?: string; company?: string; bio?: string; avatar?: string; position?: number }
+    dto: {
+      name: string;
+      title?: string;
+      company?: string;
+      bio?: string;
+      avatar?: string;
+      position?: number;
+    }
   ) {
     await this.assertEventOwner(eventId, organizerId);
     if (!dto.name?.trim()) throw new BadRequestError('Name is required');
@@ -548,7 +709,13 @@ export class OrganizerService {
   async createQuestion(
     eventId: string,
     organizerId: string,
-    dto: { prompt: string; type?: string; options?: string[]; required?: boolean; position?: number }
+    dto: {
+      prompt: string;
+      type?: string;
+      options?: string[];
+      required?: boolean;
+      position?: number;
+    }
   ) {
     const event = await prisma.event.findFirst({
       where: { id: eventId, organizerId, deletedAt: null },
@@ -573,7 +740,13 @@ export class OrganizerService {
     eventId: string,
     organizerId: string,
     questionId: string,
-    dto: { prompt?: string; type?: string; options?: string[]; required?: boolean; position?: number }
+    dto: {
+      prompt?: string;
+      type?: string;
+      options?: string[];
+      required?: boolean;
+      position?: number;
+    }
   ) {
     const event = await prisma.event.findFirst({
       where: { id: eventId, organizerId, deletedAt: null },
@@ -637,13 +810,17 @@ export class OrganizerService {
     // On approval, issue the ticket perks (score + lead + QR confirmation email).
     if (action === 'APPROVE') {
       const { default: eventsService } = await import('@modules/events/events.service');
-      eventsService.onRegistrationApproved(reg.id).catch(() => {});
+      eventsService.onRegistrationApproved(reg.id).catch((err) =>
+        logger.error('onRegistrationApproved failed after approval', {
+          registrationId: reg.id,
+          err,
+        })
+      );
     }
 
     // Best-effort notification — let the requester know.
-    const { default: notificationsService } = await import(
-      '@modules/notifications/notifications.service'
-    );
+    const { default: notificationsService } =
+      await import('@modules/notifications/notifications.service');
     notificationsService
       .createNotification(
         reg.userId,
@@ -656,7 +833,9 @@ export class OrganizerService {
           : 'Reach out to the organizer if you have questions.',
         { eventId }
       )
-      .catch(() => {});
+      .catch((err) =>
+        logger.warn('Failed to send approval notification', { userId: reg.userId, err })
+      );
 
     return updated;
   }
@@ -740,19 +919,18 @@ export class OrganizerService {
     });
     if (!event) throw new NotFoundError('Event');
 
-    const [connectionCount, tapCount, registrations, connectionRows] =
-      await Promise.all([
-        prisma.connection.count({ where: { eventId } }),
-        prisma.eventTap.count({ where: { eventId } }),
-        prisma.eventRegistration.findMany({
-          where: { eventId, status: { not: 'CANCELLED' } },
-          select: { userId: true, checkedIn: true },
-        }),
-        prisma.connection.findMany({
-          where: { eventId },
-          select: { requesterId: true, receiverId: true },
-        }),
-      ]);
+    const [connectionCount, tapCount, registrations, connectionRows] = await Promise.all([
+      prisma.connection.count({ where: { eventId } }),
+      prisma.eventTap.count({ where: { eventId } }),
+      prisma.eventRegistration.findMany({
+        where: { eventId, status: { not: 'CANCELLED' } },
+        select: { userId: true, checkedIn: true },
+      }),
+      prisma.connection.findMany({
+        where: { eventId },
+        select: { requesterId: true, receiverId: true },
+      }),
+    ]);
 
     // Per-user connection count for top-connectors leaderboard.
     const tally = new Map<string, number>();
@@ -853,9 +1031,7 @@ export class OrganizerService {
       existingRegistrations.map((r) => r.user.email.toLowerCase())
     );
 
-    const willCreateUsers = parsed.valid.filter(
-      (r) => !existingEmailSet.has(r.email)
-    ).length;
+    const willCreateUsers = parsed.valid.filter((r) => !existingEmailSet.has(r.email)).length;
     const willCreateRegistrations = parsed.valid.filter(
       (r) => !alreadyRegisteredEmails.has(r.email)
     ).length;
@@ -1129,7 +1305,7 @@ export class OrganizerService {
             endsAt: newEndsAt,
             title: item.title,
             description: item.description,
-            speakerId: item.speakerId ? speakerIdMap.get(item.speakerId) ?? null : null,
+            speakerId: item.speakerId ? (speakerIdMap.get(item.speakerId) ?? null) : null,
           },
         });
       }
@@ -1169,7 +1345,13 @@ export class OrganizerService {
         user: {
           include: {
             profile: {
-              select: { firstName: true, lastName: true, company: true, position: true, phone: true },
+              select: {
+                firstName: true,
+                lastName: true,
+                company: true,
+                position: true,
+                phone: true,
+              },
             },
           },
         },
@@ -1197,19 +1379,21 @@ export class OrganizerService {
       'Registered At',
     ];
 
-    const rows = registrations.map((r) => [
-      escape(r.user.profile?.firstName),
-      escape(r.user.profile?.lastName),
-      escape(r.user.email),
-      escape(r.user.profile?.phone),
-      escape(r.user.profile?.company),
-      escape(r.user.profile?.position),
-      escape(r.status),
-      escape(r.eventRole),
-      escape(r.checkedIn ? 'Yes' : 'No'),
-      escape(r.checkedInAt ? r.checkedInAt.toISOString() : ''),
-      escape(r.registeredAt.toISOString()),
-    ].join(','));
+    const rows = registrations.map((r) =>
+      [
+        escape(r.user.profile?.firstName),
+        escape(r.user.profile?.lastName),
+        escape(r.user.email),
+        escape(r.user.profile?.phone),
+        escape(r.user.profile?.company),
+        escape(r.user.profile?.position),
+        escape(r.status),
+        escape(r.eventRole),
+        escape(r.checkedIn ? 'Yes' : 'No'),
+        escape(r.checkedInAt ? r.checkedInAt.toISOString() : ''),
+        escape(r.registeredAt.toISOString()),
+      ].join(',')
+    );
 
     return [headers.join(','), ...rows].join('\r\n');
   }

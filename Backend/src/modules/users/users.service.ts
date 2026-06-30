@@ -5,12 +5,39 @@ import { processAvatar } from '@middlewares/upload';
 import { PaginationQuery } from '@appTypes/index';
 import { UpdateProfileDto, SearchUsersDto } from './users.validation';
 import mediaService from '@modules/media/media.service';
+import gamificationService from '@modules/gamification/gamification.service';
+import logger from '@utils/logger';
+import { SCORE_VALUES } from '@config/constants';
 
 const RESERVED_USERNAMES = new Set([
-  'admin', 'api', 'card', 'c', 'e', 'auth', 'login', 'logout', 'register',
-  'org', 'organizer', 'organizers', 'attendee', 'event', 'events',
-  'me', 'profile', 'dashboard', 'settings', 'support', 'help',
-  'static', 'public', 'www', 'app', 'founderkey', 'founder', 'founders',
+  'admin',
+  'api',
+  'card',
+  'c',
+  'e',
+  'auth',
+  'login',
+  'logout',
+  'register',
+  'org',
+  'organizer',
+  'organizers',
+  'attendee',
+  'event',
+  'events',
+  'me',
+  'profile',
+  'dashboard',
+  'settings',
+  'support',
+  'help',
+  'static',
+  'public',
+  'www',
+  'app',
+  'tapbywisein',
+  'tap',
+  'wisein',
 ]);
 
 const USERNAME_RE = /^[a-z0-9](?:[a-z0-9-_]{1,28}[a-z0-9])?$/;
@@ -67,8 +94,7 @@ export class UsersService {
       gamification: user.gamification,
       founderCard: user.founderCard,
       stats: {
-        connections:
-          user._count.sentConnections + user._count.receivedConnections,
+        connections: user._count.sentConnections + user._count.receivedConnections,
         eventsRegistered: user._count.registrations,
       },
     };
@@ -82,19 +108,38 @@ export class UsersService {
 
     if (!user) throw new NotFoundError('User');
 
-    const { socialLinks, firstName, lastName, ...profileFields } = dto;
+    const {
+      socialLinks,
+      firstName,
+      lastName,
+      twitter,
+      linkedin,
+      website,
+      instagram,
+      ...profileFields
+    } = dto;
 
     const updateData: Record<string, unknown> = { ...profileFields };
+
+    // Empty status clears the live status line.
+    if (updateData.status === '') updateData.status = null;
 
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
 
-    if (socialLinks) {
-      if (socialLinks.twitter !== undefined) updateData.twitter = socialLinks.twitter || null;
-      if (socialLinks.linkedin !== undefined) updateData.linkedin = socialLinks.linkedin || null;
-      if (socialLinks.website !== undefined) updateData.website = socialLinks.website || null;
-      if (socialLinks.instagram !== undefined) updateData.instagram = socialLinks.instagram || null;
-    }
+    // Accept flat social fields (sent by the profile editor) and nested
+    // socialLinks (kept for backward-compat). Flat fields take precedence.
+    const resolvedTwitter = twitter ?? socialLinks?.twitter;
+    const resolvedLinkedin = linkedin ?? socialLinks?.linkedin;
+    const resolvedWebsite = website ?? socialLinks?.website;
+    const resolvedInstagram = instagram ?? socialLinks?.instagram;
+
+    if (resolvedTwitter !== undefined) updateData.twitter = resolvedTwitter || null;
+    if (resolvedLinkedin !== undefined) updateData.linkedin = resolvedLinkedin || null;
+    if (resolvedWebsite !== undefined) updateData.website = resolvedWebsite || null;
+    if (resolvedInstagram !== undefined) updateData.instagram = resolvedInstagram || null;
+
+    const prevProfile = user.profile;
 
     const profile = await prisma.profile.upsert({
       where: { userId },
@@ -104,12 +149,38 @@ export class UsersService {
         firstName: firstName ?? 'User',
         lastName: lastName ?? '',
         ...profileFields,
-        twitter: socialLinks?.twitter || null,
-        linkedin: socialLinks?.linkedin || null,
-        website: socialLinks?.website || null,
-        instagram: socialLinks?.instagram || null,
+        twitter: resolvedTwitter || null,
+        linkedin: resolvedLinkedin || null,
+        website: resolvedWebsite || null,
+        instagram: resolvedInstagram || null,
       },
     });
+
+    // Award PROFILE_PHOTO_ADDED once when avatar is first set
+    const newAvatar = (updateData.avatar as string | undefined) ?? profile.avatar;
+    if (!prevProfile?.avatar && newAvatar) {
+      gamificationService
+        .addScore(userId, 'PROFILE_PHOTO_ADDED', SCORE_VALUES.PROFILE_PHOTO_ADDED)
+        .catch((err) => logger.warn('Failed to award PROFILE_PHOTO_ADDED score', { userId, err }));
+    }
+
+    // Award PROFILE_COMPLETE (50pts) once when all core fields are filled
+    const isComplete =
+      !!profile.firstName &&
+      !!profile.lastName &&
+      !!profile.bio &&
+      !!profile.avatar &&
+      (profile.skills?.length ?? 0) > 0;
+    if (isComplete) {
+      const alreadyAwarded = await prisma.scoreHistory.findFirst({
+        where: { userId, action: 'PROFILE_COMPLETE' },
+      });
+      if (!alreadyAwarded) {
+        gamificationService
+          .addScore(userId, 'PROFILE_COMPLETE', SCORE_VALUES.PROFILE_COMPLETE)
+          .catch((err) => logger.warn('Failed to award PROFILE_COMPLETE score', { userId, err }));
+      }
+    }
 
     return profile;
   }
@@ -128,11 +199,17 @@ export class UsersService {
     const profile = await prisma.profile.findUnique({ where: { userId } });
     if (!profile) throw new NotFoundError('Profile');
     const data: Record<string, unknown> = {};
-    (['payoutUpiId', 'payoutAccountName', 'payoutBankName', 'payoutAccountNumber', 'payoutIfsc'] as const).forEach(
-      (k) => {
-        if (dto[k] !== undefined) data[k] = dto[k] || null;
-      }
-    );
+    (
+      [
+        'payoutUpiId',
+        'payoutAccountName',
+        'payoutBankName',
+        'payoutAccountNumber',
+        'payoutIfsc',
+      ] as const
+    ).forEach((k) => {
+      if (dto[k] !== undefined) data[k] = dto[k] || null;
+    });
     return prisma.profile.update({ where: { userId }, data });
   }
 
@@ -144,18 +221,16 @@ export class UsersService {
     const processedBuffer = await processAvatar(fileBuffer);
     const filename = `avatars/${userId}-${Date.now()}.jpg`;
 
-    let avatarUrl: string;
+    const avatarUrl = await mediaService.uploadFile(processedBuffer, filename, 'image/jpeg');
 
-    try {
-      avatarUrl = await mediaService.uploadFile(processedBuffer, filename, 'image/jpeg');
-    } catch {
-      avatarUrl = await mediaService.uploadLocal(processedBuffer, filename);
+    const prev = await prisma.profile.findUnique({ where: { userId }, select: { avatar: true } });
+    await prisma.profile.update({ where: { userId }, data: { avatar: avatarUrl } });
+
+    if (!prev?.avatar) {
+      gamificationService
+        .addScore(userId, 'PROFILE_PHOTO_ADDED', SCORE_VALUES.PROFILE_PHOTO_ADDED)
+        .catch((err) => logger.warn('Failed to award PROFILE_PHOTO_ADDED score', { userId, err }));
     }
-
-    await prisma.profile.update({
-      where: { userId },
-      data: { avatar: avatarUrl },
-    });
 
     return { avatarUrl };
   }
@@ -207,7 +282,7 @@ export class UsersService {
     if (dto.skills) {
       const skillList = dto.skills.split(',').map((s) => s.trim());
       where.profile = {
-        ...(where.profile as object ?? {}),
+        ...((where.profile as object) ?? {}),
         skills: { hasSome: skillList },
       };
     }
@@ -342,6 +417,38 @@ export class UsersService {
       return { available: false, reason: 'That username is taken' };
     }
     return { available: true };
+  }
+
+  /**
+   * Self-service organizer upgrade. The product uses an open model: any
+   * signed-in attendee can promote themselves to ORGANIZER on demand (no admin
+   * approval). Admins keep their elevated role. `organization` is stored on the
+   * profile when provided so the host has a company name on their events.
+   */
+  async requestOrganizerRole(userId: string, dto: { reason?: string; organization?: string }) {
+    const user = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      include: { profile: true },
+    });
+    if (!user) throw new NotFoundError('User');
+    if (user.role === 'ORGANIZER' || user.role === 'ADMIN') {
+      throw new BadRequestError('You are already an organizer');
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role: 'ORGANIZER' },
+    });
+
+    // Backfill company on the profile if they supplied one and it's empty.
+    if (dto.organization && user.profile && !user.profile.company) {
+      await prisma.profile
+        .update({ where: { userId }, data: { company: dto.organization } })
+        .catch((err) => logger.warn('Failed to set organizer company', { userId, err }));
+    }
+
+    logger.info('User self-upgraded to organizer', { userId, organization: dto.organization });
+    return { ok: true, role: 'ORGANIZER' as const };
   }
 
   async claimUsername(userId: string, rawUsername: string) {

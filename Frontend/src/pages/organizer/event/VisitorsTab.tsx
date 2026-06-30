@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Surface } from '@/components/Surface';
-import { Eye, UserCheck, Users as UsersIcon } from 'lucide-react';
+import { Eye, UserCheck, Users as UsersIcon, AlertCircle } from 'lucide-react';
 import { apiFetch } from '@/services/api';
 
 interface VisitorPayload {
@@ -25,7 +25,7 @@ interface VisitorPayload {
 
 const VisitorsTab = () => {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['org-visitors', id],
     queryFn: () => apiFetch<{ data: VisitorPayload }>(`/events/${id}/visitors`),
     enabled: !!id,
@@ -36,6 +36,12 @@ const VisitorsTab = () => {
 
   return (
     <div className="space-y-6">
+      {isError && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          Failed to load visitor data. Try refreshing.
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Total views', value: v?.totalViews ?? 0, icon: Eye },
@@ -77,7 +83,7 @@ const VisitorsTab = () => {
                 >
                   <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-foreground flex-shrink-0 overflow-hidden">
                     {u.profile?.avatar ? (
-                      <img src={u.profile.avatar} alt="" className="w-full h-full object-cover" />
+                      <img src={u.profile.avatar} alt="" loading="lazy" className="w-full h-full object-cover" />
                     ) : (
                       name[0]?.toUpperCase()
                     )}

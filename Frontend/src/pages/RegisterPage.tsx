@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { useAppStore } from '@/store/appStore';
-import { apiRegister } from '@/services/auth.service';
-import { setTokens } from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 /**
@@ -74,18 +73,18 @@ const RegisterPage = () => {
     try {
       const parts = name.trim().split(/\s+/);
       const firstName = parts[0];
-      const lastName = parts.slice(1).join(' ') || firstName;
-      const { user, tokens } = await apiRegister({
+      const lastName = parts.slice(1).join(' ') || '';
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        firstName,
-        lastName,
-        role: signupRole,
+        options: {
+          data: { full_name: name.trim(), given_name: firstName, family_name: lastName },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
-      setTokens(tokens.accessToken, tokens.refreshToken);
-      login({ ...user, name: name.trim() });
-      toast.success('Account created');
-      navigate(intendedRoute ?? '/dashboard');
+      if (error) throw new Error(error.message);
+      toast.success('Account created! Check your email to verify, then sign in.');
+      navigate('/login');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       toast.error(msg);

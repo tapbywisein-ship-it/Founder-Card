@@ -26,7 +26,7 @@ export const Logo = ({ size = 'md', to }: { size?: 'sm' | 'md' | 'lg'; to?: stri
     <Link to={target} className="flex items-center gap-2 group">
       <Zap className={`${iconSizes[size]} text-primary fill-primary`} />
       <span className={`font-semibold tracking-tight text-foreground ${sizes[size]}`}>
-        FounderKey
+        TapByWisein
       </span>
     </Link>
   );

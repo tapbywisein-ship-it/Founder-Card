@@ -1,10 +1,11 @@
-import { apiFetch, getAccessToken } from './api';
+import { apiFetch } from './api';
+import { supabase } from '@/lib/supabase';
 
 const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/api/v1';
 
-/** Fetch the HTML invoice (auth-gated) and open it in a new tab for print/save. */
 export async function openInvoice(registrationId: string): Promise<void> {
-  const token = getAccessToken();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
   const res = await fetch(`${API_URL}/payments/${encodeURIComponent(registrationId)}/invoice`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -20,7 +21,7 @@ export async function openInvoice(registrationId: string): Promise<void> {
 
 export interface PaymentOrder {
   orderId: string;
-  amount: number; // in paise
+  amount: number;
   currency: string;
   keyId: string;
   eventTitle: string;
@@ -32,9 +33,26 @@ export interface VerifyResult {
   registration: { id: string } | null;
 }
 
+export interface ShippingAddress {
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface CardOrder {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+}
+
 export const paymentsService = {
   async getConfig() {
-    return apiFetch<{ data: { configured: boolean } }>('/payments/config');
+    return apiFetch<{ data: { configured: boolean; cardPrice: number } }>('/payments/config');
   },
 
   async createOrder(eventId: string, ticketTierId: string) {
@@ -54,9 +72,28 @@ export const paymentsService = {
       body: JSON.stringify(input),
     });
   },
+
+  /** Create a Razorpay order for the one-time NFC Tap Card purchase. */
+  async createCardOrder(shippingAddress: ShippingAddress) {
+    return apiFetch<{ data: CardOrder }>('/payments/card/order', {
+      method: 'POST',
+      body: JSON.stringify({ shippingAddress }),
+    });
+  },
+
+  /** Verify the card purchase signature and activate the Tap Card. */
+  async verifyCard(input: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }) {
+    return apiFetch<{ data: { ok: boolean } }>('/payments/card/verify', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
 };
 
-/** Lazy-load the Razorpay Checkout script once. */
 export function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
@@ -90,7 +127,6 @@ interface RazorpayOptions {
   modal?: { ondismiss?: () => void };
 }
 
-/** Open the Razorpay Checkout widget for an order. */
 export function openRazorpayCheckout(opts: RazorpayOptions): void {
   const RazorpayCtor = (window as unknown as { Razorpay: new (o: RazorpayOptions) => { open: () => void } })
     .Razorpay;

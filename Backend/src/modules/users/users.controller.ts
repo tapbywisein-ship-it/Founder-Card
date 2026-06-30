@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import usersService from './users.service';
-import founderCardsService from '@modules/founder-cards/founder-cards.service';
 import blocksService from '@modules/blocks/blocks.service';
 import { sendSuccess, sendPaginated } from '@utils/response';
 import { UpdateProfileDto, SearchUsersDto } from './users.validation';
@@ -74,14 +73,8 @@ export class UsersController {
     sendSuccess(res, updated, 'Username claimed');
   }
 
-  /**
-   * Marks onboarding complete and auto-issues the user's ACTIVE Founder Card
-   * (with FK-XXXXX member ID). Idempotent — safe to call on every wizard finish.
-   */
   async completeOnboarding(req: Request, res: Response): Promise<void> {
-    const userId = req.user!.userId;
-    const card = await founderCardsService.autoIssueCard(userId);
-    sendSuccess(res, card, 'Onboarding complete — your Founder Card is ready');
+    sendSuccess(res, null, 'Onboarding complete');
   }
 
   async updatePayoutAccount(req: Request, res: Response): Promise<void> {
@@ -109,6 +102,13 @@ export class UsersController {
     const blockerId = req.user!.userId;
     const blocks = await blocksService.listBlocks(blockerId);
     sendSuccess(res, blocks, 'Blocked users retrieved');
+  }
+
+  async requestOrganizerRole(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { reason, organization } = req.body as { reason?: string; organization?: string };
+    const result = await usersService.requestOrganizerRole(userId, { reason, organization });
+    sendSuccess(res, result, "You're an organizer now");
   }
 }
 

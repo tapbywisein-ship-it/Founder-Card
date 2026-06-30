@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
-import { apiVerifyEmail } from '@/services/auth.service';
+import { supabase } from '@/lib/supabase';
 
 type State = 'verifying' | 'success' | 'error';
 
-/** Consumes the ?token= from the verification email and confirms it server-side. */
+/** Handles Supabase email verification — the magic link sets the session automatically. */
 const VerifyEmail = () => {
-  const [params] = useSearchParams();
-  const token = params.get('token') ?? '';
   const [state, setState] = useState<State>('verifying');
   const [message, setMessage] = useState('');
   const ran = useRef(false);
@@ -18,20 +16,34 @@ const VerifyEmail = () => {
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    if (!token) {
-      setState('error');
-      setMessage('This verification link is invalid or incomplete.');
-      return;
-    }
-    apiVerifyEmail(token)
-      .then(() => setState('success'))
-      .catch((err) => {
-        setState('error');
-        setMessage(
-          err instanceof Error ? err.message : 'This link is invalid or has expired.'
-        );
-      });
-  }, [token]);
+
+    // Supabase processes the token from the URL hash automatically.
+    // We just need to check if a session was established.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setState('success');
+      } else {
+        // Listen for the auth state change triggered by the link
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+          if (event === 'SIGNED_IN') {
+            setState('success');
+            subscription.unsubscribe();
+          }
+        });
+        // Give it 3 seconds, then show error
+        setTimeout(() => {
+          setState((s) => {
+            if (s === 'verifying') {
+              setMessage('This link may have expired. Request a new verification email from settings.');
+              return 'error';
+            }
+            return s;
+          });
+          subscription.unsubscribe();
+        }, 3000);
+      }
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -55,7 +67,7 @@ const VerifyEmail = () => {
                 Email verified!
               </h1>
               <p className="text-sm text-muted-foreground">
-                Your email is confirmed. You can now sign in to Founder Key.
+                Your email is confirmed. You can now sign in to TapByWisein.
               </p>
               <Button asChild className="w-full">
                 <Link to="/login">Continue to sign in</Link>

@@ -17,6 +17,54 @@ export class FounderCardsController {
     sendSuccess(res, card, 'Founder Card retrieved');
   }
 
+  async getCardAnalytics(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const analytics = await founderCardsService.getCardAnalytics(userId);
+    sendSuccess(res, analytics, 'Card analytics retrieved');
+  }
+
+  async listBlocks(req: Request, res: Response): Promise<void> {
+    const blocks = await founderCardsService.listBlocks(req.user!.userId);
+    sendSuccess(res, blocks, 'Card blocks');
+  }
+
+  async createBlock(req: Request, res: Response): Promise<void> {
+    const { type, label, url } = req.body as { type?: string; label: string; url: string };
+    const block = await founderCardsService.createBlock(req.user!.userId, { type, label, url });
+    sendSuccess(res, block, 'Block added');
+  }
+
+  async updateBlock(req: Request, res: Response): Promise<void> {
+    const { blockId } = req.params as Record<string, string>;
+    const { type, label, url } = req.body as { type?: string; label?: string; url?: string };
+    const block = await founderCardsService.updateBlock(req.user!.userId, blockId, {
+      type,
+      label,
+      url,
+    });
+    sendSuccess(res, block, 'Block updated');
+  }
+
+  async deleteBlock(req: Request, res: Response): Promise<void> {
+    const { blockId } = req.params as Record<string, string>;
+    await founderCardsService.deleteBlock(req.user!.userId, blockId);
+    sendSuccess(res, null, 'Block deleted');
+  }
+
+  /** Public: a visitor leaves their details on someone's card. */
+  async captureLead(req: Request, res: Response): Promise<void> {
+    const { userId } = req.params as Record<string, string>;
+    const { name, email, message } = req.body as { name: string; email: string; message?: string };
+    const result = await founderCardsService.captureLead(userId, { name, email, message });
+    sendSuccess(res, result, 'Thanks — your details were shared');
+  }
+
+  /** Owner: list leads captured from their card. */
+  async listLeads(req: Request, res: Response): Promise<void> {
+    const leads = await founderCardsService.listLeads(req.user!.userId);
+    sendSuccess(res, leads, 'Card leads');
+  }
+
   async generateQR(req: Request, res: Response): Promise<void> {
     const userId = req.user!.userId;
     const card = await founderCardsService.generateQR(userId);
@@ -100,6 +148,13 @@ export class FounderCardsController {
     const { nfcTagId } = req.body as { nfcTagId: string };
     const card = await founderCardsService.provisionNfc(userId, nfcTagId);
     sendSuccess(res, card, 'NFC tag linked to your card');
+  }
+
+  async adminProvisionNfc(req: Request, res: Response): Promise<void> {
+    const id = req.params.id as string;
+    const { nfcTagId } = req.body as { nfcTagId: string };
+    const card = await founderCardsService.provisionNfcByCardId(id, nfcTagId);
+    sendSuccess(res, card, 'NFC tag assigned to card');
   }
 }
 

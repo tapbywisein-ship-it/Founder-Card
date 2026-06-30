@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { AppLayout } from '@/components/AppLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
-import { Bell, UserPlus, Calendar, Trophy, Zap, Check, CheckCheck } from 'lucide-react';
+import { Bell, UserPlus, Calendar, Trophy, Zap, Check, CheckCheck, AlertCircle } from 'lucide-react';
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -31,7 +31,7 @@ const NOTIF_COLORS: Record<string, string> = {
 };
 
 const NotificationsPage = () => {
-  const { data, isLoading } = useNotifications(1, 50);
+  const { data, isLoading, isError, refetch } = useNotifications(1, 50);
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
@@ -61,6 +61,18 @@ const NotificationsPage = () => {
             </Button>
           )}
         </div>
+
+        {isError && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <span className="flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Failed to load notifications. Check your connection and try again.
+            </span>
+            <button onClick={() => refetch()} className="shrink-0 text-xs font-medium underline underline-offset-2 hover:opacity-80">
+              Retry
+            </button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="space-y-3">

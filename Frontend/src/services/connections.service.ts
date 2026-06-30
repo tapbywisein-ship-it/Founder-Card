@@ -19,6 +19,48 @@ export interface ConnectionNote {
   updatedAt: string;
 }
 
+export interface ConnectionMeta {
+  tags: string[];
+  followUpAt: string | null;
+  followUpDone: boolean;
+}
+
+export interface FollowUp {
+  connectionId: string;
+  followUpAt: string | null;
+  overdue: boolean;
+  tags: string[];
+  user: {
+    id: string;
+    email: string;
+    profile: {
+      firstName: string;
+      lastName: string;
+      avatar: string | null;
+      company: string | null;
+      position: string | null;
+    } | null;
+  };
+}
+
+export interface NetworkSearchResult {
+  connectionId: string;
+  matchedOn: string[];
+  event: { id: string; title: string } | null;
+  user: {
+    id: string;
+    email: string;
+    profile: {
+      firstName: string;
+      lastName: string;
+      avatar: string | null;
+      company: string | null;
+      position: string | null;
+      skills: string[];
+    } | null;
+  };
+}
+
 export interface CommonEvent {
   id: string;
   title: string;
@@ -151,6 +193,38 @@ export const connectionsService = {
     return apiFetch<{ data: null }>(`/connections/notes/${noteId}`, {
       method: 'DELETE',
     });
+  },
+
+  async getMeta(connectionId: string) {
+    return apiFetch<{ data: ConnectionMeta }>(`/connections/${connectionId}/meta`);
+  },
+
+  async getFollowUps() {
+    return apiFetch<{ data: FollowUp[] }>(`/connections/follow-ups`);
+  },
+
+  async searchNetwork(q: string) {
+    return apiFetch<{ data: { query: string; results: NetworkSearchResult[] } }>(
+      `/connections/network-search?q=${encodeURIComponent(q)}`
+    );
+  },
+
+  async setMeta(
+    connectionId: string,
+    input: { tags?: string[]; followUpAt?: string | null; followUpDone?: boolean }
+  ) {
+    return apiFetch<{ data: ConnectionMeta }>(`/connections/${connectionId}/meta`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async getSuggestions(limit = 5) {
+    return apiFetch<{ data: Array<{
+      id: string;
+      profile: { firstName: string; lastName: string; avatar?: string | null; company?: string | null; position?: string | null; skills?: string[] };
+      gamification?: { fkScore: number; level: number } | null;
+    }> }>(`/connections/suggestions?limit=${limit}`);
   },
 
   async connectViaScan(input: {

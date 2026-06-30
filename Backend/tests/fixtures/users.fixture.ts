@@ -22,7 +22,7 @@ export const adminFixture = {
   firstName: 'Admin',
   lastName: 'User',
   role: 'ADMIN' as const,
-  company: 'Golden Tap Connect',
+  company: 'TapByWisein',
 };
 
 export const invalidUserFixtures = {

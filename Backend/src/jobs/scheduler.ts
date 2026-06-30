@@ -62,7 +62,7 @@ export const initScheduler = (): void => {
 
           const location =
             event.locationType === 'VIRTUAL'
-              ? event.meetingUrl ?? 'Online'
+              ? (event.meetingUrl ?? 'Online')
               : `${event.address ?? ''}, ${event.city ?? ''}, ${event.country ?? ''}`.trim();
 
           await sendEmail(
@@ -197,7 +197,9 @@ export const initScheduler = (): void => {
           where: { eventId: event.id, checkedIn: true, status: { not: 'CANCELLED' } },
           select: {
             userId: true,
-            user: { select: { email: true, profile: { select: { firstName: true, lastName: true } } } },
+            user: {
+              select: { email: true, profile: { select: { firstName: true, lastName: true } } },
+            },
           },
         });
 
@@ -218,8 +220,11 @@ export const initScheduler = (): void => {
           if (myConnections.length === 0) continue;
 
           const others = myConnections.map((c) => {
-            const otherProfile = c.requesterId === reg.userId ? c.receiver.profile : c.requester.profile;
-            return otherProfile ? `${otherProfile.firstName} ${otherProfile.lastName}`.trim() : 'A founder';
+            const otherProfile =
+              c.requesterId === reg.userId ? c.receiver.profile : c.requester.profile;
+            return otherProfile
+              ? `${otherProfile.firstName} ${otherProfile.lastName}`.trim()
+              : 'A founder';
           });
           const name = reg.user.profile
             ? `${reg.user.profile.firstName} ${reg.user.profile.lastName}`.trim()
@@ -300,6 +305,127 @@ export const initScheduler = (): void => {
       }
     } catch (error) {
       logger.error('Scheduler: Error sending 1-hour reminders', { error });
+    }
+  });
+
+  // Connection follow-up reminders — every hour, find due reminders that haven't
+  // been sent and push an in-app notification to the owner, then mark as reminded.
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const now = new Date();
+      const due = await prisma.connectionMeta.findMany({
+        where: { followUpAt: { lte: now }, followUpDone: false, remindedAt: null },
+        take: 200,
+        include: {
+          connection: {
+            include: {
+              requester: {
+                select: { id: true, profile: { select: { firstName: true, lastName: true } } },
+              },
+              receiver: {
+                select: { id: true, profile: { select: { firstName: true, lastName: true } } },
+              },
+            },
+          },
+        },
+      });
+
+      for (const m of due) {
+        const other =
+          m.connection.requester.id === m.userId ? m.connection.receiver : m.connection.requester;
+        const name = other.profile
+          ? `${other.profile.firstName ?? ''} ${other.profile.lastName ?? ''}`.trim() ||
+            'your connection'
+          : 'your connection';
+
+        await notificationsService
+          .createNotification(
+            m.userId,
+            'SYSTEM',
+            'Follow-up reminder',
+            `Time to follow up with ${name}.`,
+            { connectionId: m.connectionId, userId: other.id }
+          )
+          .catch(() => {});
+
+        await prisma.connectionMeta
+          .update({ where: { id: m.id }, data: { remindedAt: now } })
+          .catch(() => {});
+      }
+
+      if (due.length > 0) {
+        logger.info(`Scheduler: ${due.length} connection follow-up reminder(s) sent`);
+      }
+    } catch (error) {
+      logger.error('Scheduler: Error sending follow-up reminders', { error });
+    }
+  });
+
+  // Retry pending Razorpay Route transfers — every 6 hours.
+  // Fires when a payment was captured but the organizer's linked account wasn't
+  // activated yet (transferStatus = 'pending'). Once activated we push the transfer.
+  cron.schedule('0 */6 * * *', async () => {
+    try {
+      const pending = await prisma.payment.findMany({
+        where: { status: 'PAID', transferStatus: 'pending' },
+        include: {
+          event: {
+            select: {
+              organizer: {
+                select: {
+                  id: true,
+                  profile: {
+                    select: { razorpayAccountId: true, razorpayAccountStatus: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+        take: 100,
+      });
+
+      if (pending.length === 0) return;
+
+      const razorpayRouteService = (await import('@modules/payments/razorpay-route.service'))
+        .default;
+      let retried = 0;
+
+      for (const payment of pending) {
+        const organizer = payment.event.organizer;
+        if (!organizer.profile?.razorpayAccountId) continue;
+
+        // Refresh account status from Razorpay before attempting transfer
+        const status = await razorpayRouteService
+          .refreshAccountStatus(organizer.id)
+          .catch(() => null);
+
+        if (status !== 'activated') continue;
+
+        if (!payment.razorpayPaymentId) continue;
+
+        await razorpayRouteService
+          .transferToOrganizer(
+            payment.razorpayPaymentId,
+            organizer.profile.razorpayAccountId,
+            Number(payment.organizerEarning ?? 0),
+            payment.id
+          )
+          .catch((err: Error) =>
+            logger.error('Scheduler: Route transfer retry failed', {
+              paymentId: payment.id,
+              err: err.message,
+            })
+          );
+
+        retried++;
+      }
+
+      if (retried > 0) {
+        logger.info(`Scheduler: Retried ${retried} pending Route transfer(s)`);
+      }
+    } catch (error) {
+      logger.error('Scheduler: Error retrying pending Route transfers', { error });
     }
   });
 

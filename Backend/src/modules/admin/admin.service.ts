@@ -4,12 +4,30 @@ import { NotFoundError, BadRequestError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { UpdateUserDto } from './admin.validation';
 import notificationsService from '@modules/notifications/notifications.service';
+import { sendEmail, cardDispatchedEmail } from '@utils/email';
+
+const TRACKING_URL_TEMPLATES: Record<string, string> = {
+  Delhivery: 'https://www.delhivery.com/track/package/{id}',
+  Shiprocket: 'https://shiprocket.co/tracking/{id}',
+  'India Post': 'https://www.indiapost.gov.in/VAS/Pages/trackconsignment.aspx',
+  DTDC: 'https://www.dtdc.in/trace.asp',
+  BlueDart: 'https://www.bluedart.com/tracking',
+  Ekart: 'https://ekartlogistics.com/track/{id}',
+};
+
+function buildTrackingUrl(provider: string, trackingId: string): string | undefined {
+  const template = TRACKING_URL_TEMPLATES[provider];
+  if (!template) return undefined;
+  return template.replace('{id}', encodeURIComponent(trackingId));
+}
 
 export class AdminService {
   async getDashboardStats() {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const sevenDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
 
     const [
       totalUsers,
@@ -23,6 +41,9 @@ export class AdminService {
       newConnectionsThisMonth,
       activeUsersRows,
       recentAuditLogs,
+      recentUsers,
+      revenueAgg,
+      signupTrendRows,
     ] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
       prisma.event.count({ where: { deletedAt: null } }),
@@ -50,6 +71,23 @@ export class AdminService {
           user: { include: { profile: { select: { firstName: true, lastName: true } } } },
         },
       }),
+      prisma.user.findMany({
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          profile: { select: { firstName: true, lastName: true, avatar: true, company: true } },
+        },
+      }),
+      prisma.cardPurchase.aggregate({
+        where: { status: 'PAID' },
+        _sum: { amount: true },
+      }),
+      prisma.user.findMany({
+        where: { deletedAt: null, createdAt: { gte: sevenDaysAgo } },
+        select: { createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
     ]);
 
     const userGrowth =
@@ -61,12 +99,28 @@ export class AdminService {
 
     const recentActivity = recentAuditLogs.slice(0, 10).map((log) => {
       const name = log.user?.profile
-        ? `${log.user.profile.firstName ?? ''} ${log.user.profile.lastName ?? ''}`.trim() || log.user.email
-        : log.user?.email ?? 'System';
+        ? `${log.user.profile.firstName ?? ''} ${log.user.profile.lastName ?? ''}`.trim() ||
+          log.user.email
+        : (log.user?.email ?? 'System');
       const verb = log.action.replace(/_/g, ' ').toLowerCase();
       const resource = log.resource ? ` ${log.resource.toLowerCase()}` : '';
       return `${name} ${verb}${resource}`;
     });
+
+    // 7-day signup trend bucketed by day
+    const trendByDay: Record<string, number> = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sevenDaysAgo);
+      d.setDate(d.getDate() + i);
+      trendByDay[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const u of signupTrendRows) {
+      const day = new Date(u.createdAt).toISOString().slice(0, 10);
+      if (day in trendByDay) trendByDay[day]++;
+    }
+    const signupTrend = Object.entries(trendByDay).map(([date, count]) => ({ date, count }));
+
+    const totalRevenue = Number(revenueAgg._sum.amount ?? 0);
 
     return {
       totalUsers,
@@ -75,13 +129,135 @@ export class AdminService {
       activeFounderCards,
       totalConnections,
       activeUsers,
+      totalRevenue,
       recentActivity,
+      recentUsers: recentUsers.map((u) => ({
+        id: u.id,
+        email: u.email,
+        createdAt: u.createdAt,
+        profile: u.profile,
+      })),
+      signupTrend,
       monthlyGrowth: {
         users: userGrowth,
         events: newEventsThisMonth,
         connections: newConnectionsThisMonth,
       },
     };
+  }
+
+  async getRevenue(filters: { page?: number; limit?: number; search?: string } = {}) {
+    const pagination = parsePaginationQuery(filters);
+    const where: Record<string, unknown> = {};
+    if (filters.search) {
+      where.user = {
+        OR: [
+          { email: { contains: filters.search, mode: 'insensitive' } },
+          { profile: { firstName: { contains: filters.search, mode: 'insensitive' } } },
+          { profile: { lastName: { contains: filters.search, mode: 'insensitive' } } },
+        ],
+      };
+    }
+    const [items, total] = await Promise.all([
+      prisma.cardPurchase.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+        include: {
+          user: {
+            include: {
+              profile: { select: { firstName: true, lastName: true, avatar: true, company: true } },
+              founderCard: { select: { publicSlug: true, nfcTagId: true, status: true } },
+            },
+          },
+        },
+      }),
+      prisma.cardPurchase.count({ where }),
+    ]);
+    return { items, meta: buildPaginationMeta(total, pagination.page, pagination.limit) };
+  }
+
+  async dispatchOrder(
+    orderId: string,
+    input: {
+      trackingId: string;
+      trackingProvider: string;
+      nfcTagId?: string;
+    }
+  ) {
+    const purchase = await prisma.cardPurchase.findUnique({
+      where: { id: orderId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { firstName: true } },
+          },
+        },
+      },
+    });
+    if (!purchase) throw new NotFoundError('Order');
+    if (purchase.status !== 'PAID') throw new BadRequestError('Order is not in a paid state');
+    if (purchase.fulfillmentStatus === 'DISPATCHED' || purchase.fulfillmentStatus === 'DELIVERED') {
+      throw new BadRequestError('Order has already been dispatched');
+    }
+
+    // Update purchase fulfillment status
+    const updated = await prisma.cardPurchase.update({
+      where: { id: orderId },
+      data: {
+        fulfillmentStatus: 'DISPATCHED',
+        trackingId: input.trackingId,
+        trackingProvider: input.trackingProvider,
+        dispatchedAt: new Date(),
+      },
+    });
+
+    // If admin also provided the NFC tag ID, program the card
+    if (input.nfcTagId) {
+      await prisma.founderCard.updateMany({
+        where: { userId: purchase.userId },
+        data: { nfcTagId: input.nfcTagId },
+      });
+    }
+
+    // Notify user in-app
+    await notificationsService.createNotification(
+      purchase.userId,
+      'SYSTEM',
+      'Your Tap Card has been dispatched!',
+      `Your NFC Founder Card is on its way via ${input.trackingProvider}. Tracking ID: ${input.trackingId}`
+    );
+
+    // Send dispatch email (best-effort — don't fail the API call if email fails)
+    try {
+      const name = purchase.user.profile?.firstName ?? 'there';
+      const trackingUrl = buildTrackingUrl(input.trackingProvider, input.trackingId);
+      await sendEmail(
+        purchase.user.email,
+        'Your Tap Card has been dispatched ⚡',
+        cardDispatchedEmail(name, input.trackingId, input.trackingProvider, trackingUrl)
+      );
+    } catch (err) {
+      // log but don't throw — dispatch is already saved
+      console.error('[dispatchOrder] email failed', err);
+    }
+
+    return updated;
+  }
+
+  async markOrderDelivered(orderId: string) {
+    const purchase = await prisma.cardPurchase.findUnique({ where: { id: orderId } });
+    if (!purchase) throw new NotFoundError('Order');
+    if (purchase.fulfillmentStatus !== 'DISPATCHED') {
+      throw new BadRequestError('Order must be in DISPATCHED state to mark delivered');
+    }
+    return prisma.cardPurchase.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus: 'DELIVERED', deliveredAt: new Date() },
+    });
   }
 
   async getUsers(
@@ -193,10 +369,7 @@ export class AdminService {
     const [audits, registrations, connections] = await Promise.all([
       prisma.auditLog.findMany({
         where: {
-          OR: [
-            { userId },
-            { AND: [{ resource: 'User' }, { resourceId: userId }] },
-          ],
+          OR: [{ userId }, { AND: [{ resource: 'User' }, { resourceId: userId }] }],
         },
         orderBy: { createdAt: 'desc' },
         take: limit,
@@ -212,8 +385,20 @@ export class AdminService {
       prisma.connection.findMany({
         where: { OR: [{ requesterId: userId }, { receiverId: userId }] },
         include: {
-          requester: { select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } } },
-          receiver: { select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } } },
+          requester: {
+            select: {
+              id: true,
+              email: true,
+              profile: { select: { firstName: true, lastName: true } },
+            },
+          },
+          receiver: {
+            select: {
+              id: true,
+              email: true,
+              profile: { select: { firstName: true, lastName: true } },
+            },
+          },
           event: { select: { id: true, title: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -243,17 +428,14 @@ export class AdminService {
    * `wouldRemoveAdmin` is true when the operation strips this user's admin
    * access (role change away from ADMIN, or deactivation).
    */
-  private async assertNotLastAdmin(
-    user: { id: string; role: string },
-    wouldRemoveAdmin: boolean,
-  ) {
+  private async assertNotLastAdmin(user: { id: string; role: string }, wouldRemoveAdmin: boolean) {
     if (!wouldRemoveAdmin || user.role !== 'ADMIN') return;
     const otherAdmins = await prisma.user.count({
       where: { role: 'ADMIN', isActive: true, deletedAt: null, id: { not: user.id } },
     });
     if (otherAdmins === 0) {
       throw new BadRequestError(
-        'Cannot remove the last admin. Promote another user to ADMIN first.',
+        'Cannot remove the last admin. Promote another user to ADMIN first.'
       );
     }
   }
@@ -266,7 +448,7 @@ export class AdminService {
       (dto.role !== undefined && dto.role !== 'ADMIN') || dto.isActive === false;
     if (wouldRemoveAdmin && actingAdminId && userId === actingAdminId) {
       throw new BadRequestError(
-        'You cannot remove your own admin access. Ask another admin to make this change.',
+        'You cannot remove your own admin access. Ask another admin to make this change.'
       );
     }
     await this.assertNotLastAdmin(user, wouldRemoveAdmin);
@@ -297,7 +479,7 @@ export class AdminService {
 
     if (role !== 'ADMIN' && userId === adminId) {
       throw new BadRequestError(
-        'You cannot remove your own admin role. Ask another admin to make this change.',
+        'You cannot remove your own admin role. Ask another admin to make this change.'
       );
     }
     await this.assertNotLastAdmin(user, role !== 'ADMIN');
@@ -340,7 +522,13 @@ export class AdminService {
       const keys = await redis.keys(`refresh_token:${userId}:*`).catch(() => [] as string[]);
       if (keys.length > 0) await redis.del(...keys).catch(() => 0);
       await notificationsService
-        .createNotification(userId, 'SYSTEM', 'Account Suspended', 'Your account has been suspended.', {})
+        .createNotification(
+          userId,
+          'SYSTEM',
+          'Account Suspended',
+          'Your account has been suspended.',
+          {}
+        )
         .catch(() => {});
     }
 
@@ -580,15 +768,88 @@ export class AdminService {
       founderCards,
     ] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
-      prisma.user.count({ where: { deletedAt: null, createdAt: { gte: startDate, lte: endDate } } }),
+      prisma.user.count({
+        where: { deletedAt: null, createdAt: { gte: startDate, lte: endDate } },
+      }),
       prisma.event.count({ where: { deletedAt: null } }),
-      prisma.event.count({ where: { deletedAt: null, createdAt: { gte: startDate, lte: endDate } } }),
+      prisma.event.count({
+        where: { deletedAt: null, createdAt: { gte: startDate, lte: endDate } },
+      }),
       prisma.connection.count({ where: { status: 'ACCEPTED' } }),
-      prisma.connection.count({ where: { status: 'ACCEPTED', createdAt: { gte: startDate, lte: endDate } } }),
+      prisma.connection.count({
+        where: { status: 'ACCEPTED', createdAt: { gte: startDate, lte: endDate } },
+      }),
       prisma.eventRegistration.count(),
       prisma.eventRegistration.count({ where: { registeredAt: { gte: startDate, lte: endDate } } }),
       prisma.founderCard.count({ where: { status: 'ACTIVE' } }),
     ]);
+
+    // ── Time-series for the admin charts ──────────────────────────────────────
+    // Last 6 months of signups, bucketed by month label.
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const recentUsers = await prisma.user.findMany({
+      where: { deletedAt: null, createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true },
+    });
+    const MONTHS = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const signupsByMonth: { month: string; users: number }[] = [];
+    const monthIndex = new Map<string, number>();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthIndex.set(`${d.getFullYear()}-${d.getMonth()}`, signupsByMonth.length);
+      signupsByMonth.push({ month: MONTHS[d.getMonth()], users: 0 });
+    }
+    for (const u of recentUsers) {
+      const d = new Date(u.createdAt);
+      const idx = monthIndex.get(`${d.getFullYear()}-${d.getMonth()}`);
+      if (idx !== undefined) signupsByMonth[idx].users++;
+    }
+
+    // Last 7 days of accepted connections, bucketed by weekday.
+    const sevenDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    const recentConnections = await prisma.connection.findMany({
+      where: { status: 'ACCEPTED', createdAt: { gte: sevenDaysAgo } },
+      select: { createdAt: true },
+    });
+    const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const connectionsByDay: { day: string; connections: number }[] = [];
+    const dayIndex = new Map<string, number>();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().slice(0, 10);
+      dayIndex.set(key, connectionsByDay.length);
+      connectionsByDay.push({ day: DOW[d.getDay()], connections: 0 });
+    }
+    for (const c of recentConnections) {
+      const key = new Date(c.createdAt).toISOString().slice(0, 10);
+      const idx = dayIndex.get(key);
+      if (idx !== undefined) connectionsByDay[idx].connections++;
+    }
+
+    // Events grouped by category (top 8, uncategorised folded into "Other").
+    const eventCategoryGroups = await prisma.event.groupBy({
+      by: ['category'],
+      where: { deletedAt: null },
+      _count: { _all: true },
+    });
+    const eventsByCategory = eventCategoryGroups
+      .map((g) => ({ name: g.category?.trim() || 'Other', events: g._count._all }))
+      .sort((a, b) => b.events - a.events)
+      .slice(0, 8);
 
     return {
       period: { startDate, endDate },
@@ -597,6 +858,9 @@ export class AdminService {
       connections: { total: totalConnections, new: newConnections },
       registrations: { total: totalRegistrations, new: newRegistrations },
       founderCards: { active: founderCards },
+      signupsByMonth,
+      connectionsByDay,
+      eventsByCategory,
     };
   }
 
@@ -642,11 +906,7 @@ export class AdminService {
     };
   }
 
-  async updatePermission(
-    _role: string,
-    _resource: string,
-    _actions: string[]
-  ) {
+  async updatePermission(_role: string, _resource: string, _actions: string[]) {
     // In a full implementation, this would be stored in DB
     return { message: 'Permission updated (stored in memory for this implementation)' };
   }

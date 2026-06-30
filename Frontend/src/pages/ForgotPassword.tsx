@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
-import { apiForgotPassword } from '@/services/auth.service';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 /** Forgot password — enter email, receive a reset link. */
@@ -20,7 +20,10 @@ const ForgotPassword = () => {
     if (!clean) return;
     setLoading(true);
     try {
-      await apiForgotPassword(clean);
+      const { error } = await supabase.auth.resetPasswordForEmail(clean, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw new Error(error.message);
       setSent(true);
     } catch (err) {
       // Backend doesn't reveal whether the email exists — surface only transport errors.

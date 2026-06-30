@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Calendar, MapPin, QrCode, Ticket as TicketIcon, FileText } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { Calendar, MapPin, QrCode, Ticket as TicketIcon, FileText, AlertCircle } from 'lucide-react';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -45,7 +45,7 @@ const fmtDate = (iso?: string) =>
     : 'TBD';
 
 const MyTickets = () => {
-  const { data, isLoading } = useMyRegistrations(1, 100);
+  const { data, isLoading, isError, refetch } = useMyRegistrations(1, 100);
   const cancel = useCancelRegistration();
   const [tab, setTab] = useState<Tab>('upcoming');
   const [qrFor, setQrFor] = useState<EventRegistration | null>(null);
@@ -73,7 +73,7 @@ const MyTickets = () => {
   ];
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">My Tickets</h1>
@@ -81,6 +81,18 @@ const MyTickets = () => {
             Every event you've registered for, with your QR ticket ready anytime.
           </p>
         </div>
+
+        {isError && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <span className="flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Failed to load tickets. Check your connection and try again.
+            </span>
+            <button onClick={() => refetch()} className="shrink-0 text-xs font-medium underline underline-offset-2 hover:opacity-80">
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex items-center gap-1 border-b border-border">
@@ -222,7 +234,7 @@ const MyTickets = () => {
           )}
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

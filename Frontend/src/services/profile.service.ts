@@ -6,6 +6,7 @@ export interface Profile {
   firstName: string;
   lastName: string;
   bio?: string | null;
+  status?: string | null;
   company?: string | null;
   position?: string | null;
   location?: string | null;
@@ -25,6 +26,7 @@ export interface UpdateProfilePayload {
   firstName?: string;
   lastName?: string;
   bio?: string;
+  status?: string;
   company?: string;
   position?: string;
   location?: string;

@@ -42,7 +42,7 @@ const cardSvg = (opts: {
     <rect width="${W}" height="${H}" fill="url(#bg)"/>
 
     <text x="80" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="800" font-size="48" fill="#FACC15">FK</text>
-    <text x="160" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="500" font-size="28" fill="#94A3B8">FounderKey card</text>
+    <text x="160" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="500" font-size="28" fill="#94A3B8">TapByWisein card</text>
 
     <text x="80" y="320" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="800" font-size="84" fill="#FFFFFF">${escapeXml(trunc(name, 28))}</text>
     <text x="80" y="385" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="400" font-size="36" fill="#CBD5E1">${escapeXml(trunc(subtitle, 60))}</text>
@@ -91,7 +91,7 @@ const eventSvg = (opts: {
     <rect width="${W}" height="${H}" fill="url(#bg)"/>
 
     <text x="80" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="800" font-size="48" fill="#FACC15">FK</text>
-    <text x="160" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="500" font-size="28" fill="#94A3B8">Event on FounderKey</text>
+    <text x="160" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="500" font-size="28" fill="#94A3B8">Event on TapByWisein</text>
 
     <text x="80" y="300" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="800" font-size="76" fill="#FFFFFF">${escapeXml(trunc(title, 32))}</text>
     <text x="80" y="370" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="500" font-size="38" fill="#CBD5E1">${escapeXml(trunc(subtitle, 60))}</text>
@@ -164,7 +164,11 @@ export class OgService {
       where: { publicSlug: slug },
       include: {
         user: {
-          include: { profile: { select: { firstName: true, lastName: true, position: true, company: true, bio: true } } },
+          include: {
+            profile: {
+              select: { firstName: true, lastName: true, position: true, company: true, bio: true },
+            },
+          },
         },
       },
     });
@@ -195,13 +199,15 @@ export class OgService {
         address: true,
         locationType: true,
         ticketPrice: true,
-        organizer: { select: { profile: { select: { firstName: true, lastName: true, company: true } } } },
+        organizer: {
+          select: { profile: { select: { firstName: true, lastName: true, company: true } } },
+        },
       },
     });
     if (!event) return null;
     const organizerName = event.organizer?.profile
       ? `${event.organizer.profile.firstName} ${event.organizer.profile.lastName}`.trim()
-      : 'FounderKey';
+      : 'TapByWisein';
     const ld: Record<string, unknown> = {
       '@context': 'https://schema.org',
       '@type': 'Event',
@@ -221,7 +227,8 @@ export class OgService {
           : {
               '@type': 'Place',
               name: [event.address, event.city, event.country].filter(Boolean).join(', ') || 'TBD',
-              address: [event.address, event.city, event.country].filter(Boolean).join(', ') || undefined,
+              address:
+                [event.address, event.city, event.country].filter(Boolean).join(', ') || undefined,
             },
       organizer: { '@type': 'Organization', name: organizerName },
     };
@@ -242,7 +249,8 @@ export class OgService {
     });
     return {
       title: `${event.title} · Founder Key`,
-      description: event.description.slice(0, 200) || `${dateStr}${event.city ? ` · ${event.city}` : ''}`,
+      description:
+        event.description.slice(0, 200) || `${dateStr}${event.city ? ` · ${event.city}` : ''}`,
     };
   }
 }

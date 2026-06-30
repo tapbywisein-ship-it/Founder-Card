@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -121,11 +122,31 @@ enum TapMethod {
   MANUAL
 }
 
+enum FulfillmentStatus {
+  PENDING
+  DISPATCHED
+  DELIVERED
+}
+
+/// Founder membership (recurring subscription) lifecycle.
+/// ACTIVE       — paid & current.
+/// CANCELLED    — cancelled but still entitled until currentPeriodEnd.
+/// HALTED       — a recurring charge failed; Razorpay paused the subscription.
+/// EXPIRED      — period ended without renewal.
+enum MembershipStatus {
+  NONE
+  ACTIVE
+  CANCELLED
+  HALTED
+  EXPIRED
+}
+
 model User {
   id              String    @id @default(uuid())
   email           String    @unique
   username        String?   @unique
   password        String?
+  supabaseId      String?   @unique
   googleId        String?   @unique
   authProvider    String    @default("email")
   role            Role      @default(ATTENDEE)
@@ -147,6 +168,7 @@ model User {
   userBadges          UserBadge[]
   scoreHistory        ScoreHistory[]
   leads               Lead[]              @relation("AttendeeLead")
+  organizedLeads      Lead[]              @relation("OrganizerLead")
   auditLogs           AuditLog[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
@@ -164,11 +186,19 @@ model User {
   coorganizedEvents   EventCoorganizer[]
   pageViews           EventPageView[]
   payments            Payment[]
+  cardPurchases       CardPurchase[]
+  cardViewsReceived   CardView[]          @relation("CardViewsReceived")
+  cardViewsMade       CardView[]          @relation("CardViewsMade")
+  connectionMeta      ConnectionMeta[]
+  cardBlocks          CardBlock[]
+  cardLeads           CardLead[]          @relation("CardLeadsReceived")
   payouts             Payout[]
   blocksMade          BlockedUser[]       @relation("BlocksMade")
   blocksReceived      BlockedUser[]       @relation("BlocksReceived")
+  membership          Membership?
 
   @@index([email])
+  @@index([supabaseId])
   @@index([googleId])
   @@index([username])
   @@index([role])
@@ -182,6 +212,7 @@ model Profile {
   firstName  String
   lastName   String
   bio        String?  @db.Text
+  status     String?
   company    String?
   position   String?
   location   String?
@@ -195,12 +226,15 @@ model Profile {
   website    String?
   instagram  String?
   email      String?
-  // Organizer payout account (revenue-ledger model; admin settles manually).
+  // Organizer payout account (legacy manual fields kept for migration safety).
   payoutUpiId         String?
   payoutAccountName   String?
   payoutBankName      String?
   payoutAccountNumber String?
   payoutIfsc          String?
+  // Razorpay Route linked account for automated splits.
+  razorpayAccountId     String?
+  razorpayAccountStatus String? // created | activated | suspended
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -279,6 +313,7 @@ model Connection {
   receiver  User             @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
   event     Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
   notes     ConnectionNote[]
+  meta      ConnectionMeta[]
 
   @@unique([requesterId, receiverId])
   @@index([requesterId])
@@ -385,6 +420,8 @@ model EventRegistration {
   @@unique([eventId, userId])
   @@index([eventId])
   @@index([userId])
+  // Serves "my registrations filtered by status" in a single index scan.
+  @@index([userId, status])
   @@map("event_registrations")
 }
 
@@ -404,17 +441,125 @@ model Payment {
   ticketTierName    String?
   status            PaymentStatus @default(CREATED)
   notes             Json?
+  // Razorpay Route transfer to organizer's linked account.
+  transferId        String?
+  transferStatus    String?  // pending | processed | failed
+  transferAmount    Decimal? @db.Decimal(10, 2)
+  transferredAt     DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event        Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event        Event              @relation(fields: [eventId], references: [id], onDelete: Restrict)
   registration EventRegistration? @relation(fields: [registrationId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([eventId])
   @@index([razorpayOrderId])
+  @@index([registrationId, status])
+  // Serves the Route-transfer retry cron: PAID payments still pending transfer.
+  @@index([status, transferStatus])
   @@map("payments")
+}
+
+/// A lead captured from a public Tap Card's "leave your details" form. The
+/// visitor may be anonymous (not a registered user), so we store raw contact.
+model CardLead {
+  id        String   @id @default(uuid())
+  ownerId   String
+  name      String
+  email     String
+  message   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  owner User @relation("CardLeadsReceived", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@map("card_leads")
+}
+
+/// A rich content block shown on a user's Tap Card (pitch deck, demo video,
+/// booking link, portfolio, etc.). type drives the icon; ordered by sortOrder.
+model CardBlock {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   @default("link")
+  label     String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sortOrder])
+  @@map("card_blocks")
+}
+
+/// A view of someone's public Tap Card. viewerId is null for anonymous visitors.
+/// Powers the card-analytics dashboard (views, unique viewers, recent viewers).
+model CardView {
+  id        String   @id @default(uuid())
+  ownerId   String
+  viewerId  String?
+  createdAt DateTime @default(now())
+
+  owner  User  @relation("CardViewsReceived", fields: [ownerId], references: [id], onDelete: Cascade)
+  viewer User? @relation("CardViewsMade", fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, createdAt])
+  @@index([viewerId])
+  @@map("card_views")
+}
+
+/// One-time purchase of the physical NFC Tap Card. Kept separate from Payment
+/// (which is event-ticket-specific and requires an eventId).
+model CardPurchase {
+  id                String        @id @default(uuid())
+  userId            String
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("INR")
+  status              PaymentStatus    @default(CREATED)
+  shippingAddress     Json?
+  fulfillmentStatus   FulfillmentStatus @default(PENDING)
+  trackingId          String?
+  trackingProvider    String?
+  dispatchedAt        DateTime?
+  deliveredAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([razorpayOrderId])
+  @@index([fulfillmentStatus])
+  @@map("card_purchases")
+}
+
+/// A founder's recurring membership subscription (Razorpay Subscriptions).
+/// One per user. `currentPeriodEnd` drives entitlement: a CANCELLED member keeps
+/// access until that date.
+model Membership {
+  id                     String           @id @default(uuid())
+  userId                 String           @unique
+  status                 MembershipStatus @default(NONE)
+  plan                   String?          // 'monthly' | 'annual'
+  razorpaySubscriptionId String?          @unique
+  razorpayPlanId         String?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([razorpaySubscriptionId])
+  @@map("memberships")
 }
 
 model Payout {
@@ -478,6 +623,8 @@ model ScoreHistory {
 
   @@index([userId])
   @@index([createdAt])
+  // Serves the score-history feed: one user's entries, newest first.
+  @@index([userId, createdAt])
   @@map("score_history")
 }
 
@@ -524,6 +671,10 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
+  // Serves the notifications feed: one user's notifications, newest first.
+  @@index([userId, createdAt])
+  // Serves the unread-count badge: one user's unread rows.
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
@@ -537,11 +688,12 @@ model Lead {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  event    Event @relation(fields: [eventId], references: [id])
-  attendee User  @relation("AttendeeLead", fields: [attendeeId], references: [id])
+  event     Event @relation(fields: [eventId], references: [id])
+  attendee  User  @relation("AttendeeLead", fields: [attendeeId], references: [id])
+  organizer User  @relation("OrganizerLead", fields: [organizerId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, attendeeId])
-  @@index([organizerId])
+  @@index([organizerId, status])
   @@index([status])
   @@map("leads")
 }
@@ -592,6 +744,28 @@ model ConnectionNote {
   @@map("connection_notes")
 }
 
+/// Per-user CRM metadata on a connection: private tags + a follow-up reminder.
+/// Scoped to (connectionId, userId) so each side keeps their own.
+model ConnectionMeta {
+  id           String    @id @default(uuid())
+  connectionId String
+  userId       String
+  tags         String[]  @default([])
+  followUpAt   DateTime?
+  followUpDone Boolean   @default(false)
+  remindedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, userId])
+  @@index([userId])
+  @@index([followUpAt, followUpDone])
+  @@map("connection_meta")
+}
+
 model SavedEvent {
   id        String   @id @default(uuid())
   userId    String
@@ -638,6 +812,8 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+  // Serves chat history: one conversation's messages in time order.
+  @@index([conversationId, createdAt])
   @@map("messages")
 }
 
@@ -787,7 +963,7 @@ model EventTap {
   scanner User  @relation("TapsInitiated", fields: [scannerUserId], references: [id], onDelete: Cascade)
   target  User  @relation("TapsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
 
-  @@index([eventId])
+  @@index([eventId, createdAt])
   @@index([scannerUserId])
   @@index([targetUserId])
   @@map("event_taps")

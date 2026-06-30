@@ -119,7 +119,7 @@ export const NfcReader = ({ onResult, onSwitchToQr }: NfcReaderProps) => {
           </h4>
           <p className="mt-1 text-xs text-muted-foreground">
             {ios
-              ? "iOS doesn't let websites read NFC tags. Your FounderKey card still works — use the QR scanner to connect."
+              ? "iOS doesn't let websites read NFC tags. Your TapByWisein card still works — use the QR scanner to connect."
               : "Your browser doesn't support Web NFC. Open this page in Chrome on Android, or scan the QR code instead."}
           </p>
         </div>
@@ -142,7 +142,7 @@ export const NfcReader = ({ onResult, onSwitchToQr }: NfcReaderProps) => {
         />
         <p className="text-sm text-foreground">
           {scanning
-            ? 'Hold a FounderKey card near your phone…'
+            ? 'Hold a TapByWisein card near your phone…'
             : done
               ? 'Tag read — connecting…'
               : 'Tap "Start" then bring another phone or sticker close.'}

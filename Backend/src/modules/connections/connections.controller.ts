@@ -120,6 +120,38 @@ export class ConnectionsController {
     sendSuccess(res, null, 'Note deleted');
   }
 
+  async getMeta(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const meta = await connectionsService.getMeta(id, userId);
+    sendSuccess(res, meta, 'Connection meta');
+  }
+
+  async setMeta(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const { tags, followUpAt, followUpDone } = req.body as {
+      tags?: string[];
+      followUpAt?: string | null;
+      followUpDone?: boolean;
+    };
+    const meta = await connectionsService.setMeta(id, userId, { tags, followUpAt, followUpDone });
+    sendSuccess(res, meta, 'Connection meta updated');
+  }
+
+  async getFollowUps(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const followUps = await connectionsService.getFollowUps(userId);
+    sendSuccess(res, followUps, 'Follow-ups retrieved');
+  }
+
+  async searchNetwork(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { q } = req.query as { q?: string };
+    const data = await connectionsService.searchNetwork(userId, q ?? '');
+    sendSuccess(res, data, 'Network search results');
+  }
+
   async connectViaQR(req: Request, res: Response): Promise<void> {
     const scannerId = req.user!.userId;
     const body = req.body as {

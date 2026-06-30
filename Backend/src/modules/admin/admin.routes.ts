@@ -4,7 +4,14 @@ import { authenticate } from '@middlewares/authenticate';
 import { authorize } from '@middlewares/authorize';
 import { adminLimiter } from '@middlewares/rateLimiter';
 import { validate } from '@middlewares/validate';
-import { updateUserSchema, updateUserRoleSchema, updateUserStatusSchema, banUserSchema, updateSettingsSchema, updatePermissionSchema } from './admin.validation';
+import {
+  updateUserSchema,
+  updateUserRoleSchema,
+  updateUserStatusSchema,
+  banUserSchema,
+  updateSettingsSchema,
+  updatePermissionSchema,
+} from './admin.validation';
 
 const router = Router();
 
@@ -18,11 +25,27 @@ router.get('/dashboard', adminController.getDashboard.bind(adminController));
 router.get('/users', adminController.getUsers.bind(adminController));
 router.get('/users/:id', adminController.getUserDetail.bind(adminController));
 router.get('/users/:id/activity', adminController.getUserActivity.bind(adminController));
-router.put('/users/:id', validate(updateUserSchema), adminController.updateUser.bind(adminController));
-router.put('/users/:id/role', validate(updateUserRoleSchema), adminController.updateUserRole.bind(adminController));
-router.put('/users/:id/status', validate(updateUserStatusSchema), adminController.setUserStatus.bind(adminController));
+router.put(
+  '/users/:id',
+  validate(updateUserSchema),
+  adminController.updateUser.bind(adminController)
+);
+router.put(
+  '/users/:id/role',
+  validate(updateUserRoleSchema),
+  adminController.updateUserRole.bind(adminController)
+);
+router.put(
+  '/users/:id/status',
+  validate(updateUserStatusSchema),
+  adminController.setUserStatus.bind(adminController)
+);
 router.delete('/users/:id', adminController.deleteUser.bind(adminController));
-router.post('/users/:id/ban', validate(banUserSchema), adminController.banUser.bind(adminController));
+router.post(
+  '/users/:id/ban',
+  validate(banUserSchema),
+  adminController.banUser.bind(adminController)
+);
 router.post('/users/:id/resend-invite', adminController.resendInvite.bind(adminController));
 
 // Events
@@ -35,17 +58,30 @@ router.get('/analytics', adminController.getAnalytics.bind(adminController));
 
 // Settings
 router.get('/settings', adminController.getSettings.bind(adminController));
-router.put('/settings/:key', validate(updateSettingsSchema), adminController.updateSetting.bind(adminController));
+router.put(
+  '/settings/:key',
+  validate(updateSettingsSchema),
+  adminController.updateSetting.bind(adminController)
+);
 router.post('/settings/email-test', adminController.sendTestEmail.bind(adminController));
 
 // Permissions
 router.get('/permissions', adminController.getPermissions.bind(adminController));
-router.put('/permissions', validate(updatePermissionSchema), adminController.updatePermission.bind(adminController));
+router.put(
+  '/permissions',
+  validate(updatePermissionSchema),
+  adminController.updatePermission.bind(adminController)
+);
 
 // Audit Logs
 router.get('/audit-logs', adminController.getAuditLogs.bind(adminController));
 
 // Health
 router.get('/health', adminController.getHealth.bind(adminController));
+
+// Revenue & order fulfillment
+router.get('/revenue', adminController.getRevenue.bind(adminController));
+router.patch('/orders/:id/dispatch', adminController.dispatchOrder.bind(adminController));
+router.patch('/orders/:id/delivered', adminController.markOrderDelivered.bind(adminController));
 
 export default router;

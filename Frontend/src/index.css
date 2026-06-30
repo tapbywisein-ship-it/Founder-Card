@@ -4,27 +4,30 @@
 
 @layer base {
   :root {
-    /* Light mode — Luma-style off-white + near-black */
+    /* ── TapByWisein Design Tokens — Light mode ─────────────────────────── */
+    /* Primary accent: #3B6FF0 → hsl(224, 85%, 58%) */
+    /* Secondary accent (light blue tint): #D6E4FF → hsl(217, 100%, 92%) */
+
     --background: 0 0% 100%;
-    --foreground: 222 13% 11%;
+    --foreground: 0 0% 4%;               /* #0A0A0A near-black */
 
     --card: 0 0% 100%;
-    --card-foreground: 222 13% 11%;
+    --card-foreground: 0 0% 4%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 13% 11%;
+    --popover-foreground: 0 0% 4%;
 
-    --primary: 239 84% 60%;             /* indigo-600 #4f46e5 */
+    --primary: 224 85% 58%;              /* #3B6FF0 vibrant blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 13% 11%;
+    --secondary: 217 100% 95%;           /* #EAF1FF light blue tint */
+    --secondary-foreground: 224 85% 30%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 217 100% 95%;
+    --muted-foreground: 220 9% 46%;      /* #6B7280 */
 
-    --accent: 239 84% 95%;
-    --accent-foreground: 239 84% 30%;
+    --accent: 217 100% 92%;              /* #D6E4FF */
+    --accent-foreground: 224 85% 30%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -32,43 +35,46 @@
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 239 84% 60%;
+    --border: 0 0% 91%;                  /* rgba(0,0,0,0.06) equivalent */
+    --input: 0 0% 91%;
+    --ring: 224 85% 58%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;                      /* 16px base card radius */
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 13% 11%;
-    --sidebar-primary: 239 84% 60%;
+    --sidebar-foreground: 0 0% 4%;
+    --sidebar-primary: 224 85% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 222 13% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 239 84% 60%;
+    --sidebar-accent: 217 100% 95%;
+    --sidebar-accent-foreground: 0 0% 4%;
+    --sidebar-border: 0 0% 91%;
+    --sidebar-ring: 224 85% 58%;
   }
 
   .dark {
-    /* Dark mode — Luma's off-black + translucent surfaces */
-    --background: 220 13% 9%;             /* #131517 */
-    --foreground: 0 0% 100%;
+    /* ── TapByWisein Design Tokens — Dark / Navy mode ───────────────────── */
+    /* Primary bg: #0A0E2E deep navy → hsl(233, 64%, 11%) */
+    /* Slightly lighter surface: #0D1240 → hsl(232, 71%, 15%) */
 
-    --card: 220 13% 12%;
+    --background: 233 64% 11%;           /* #0A0E2E deep navy */
+    --foreground: 0 0% 100%;            /* #FFFFFF */
+
+    --card: 232 71% 15%;                 /* #0D1240 slightly lighter navy */
     --card-foreground: 0 0% 100%;
 
-    --popover: 220 13% 12%;
+    --popover: 232 71% 15%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 239 84% 67%;
+    --primary: 224 85% 58%;              /* #3B6FF0 same vibrant blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 13% 16%;
+    --secondary: 232 50% 20%;            /* navy tint for secondary surfaces */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 13% 16%;
-    --muted-foreground: 220 9% 64%;
+    --muted: 232 50% 20%;
+    --muted-foreground: 224 22% 75%;     /* #B0B8D1 gray-blue */
 
-    --accent: 220 13% 18%;
+    --accent: 224 85% 25%;              /* dark blue tint for accent backgrounds */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 56%;
@@ -77,18 +83,18 @@
     --success: 142 71% 50%;
     --success-foreground: 0 0% 0%;
 
-    --border: 220 13% 18%;
-    --input: 220 13% 18%;
-    --ring: 239 84% 67%;
+    --border: 233 40% 20%;              /* rgba(255,255,255,0.08) equivalent */
+    --input: 233 40% 20%;
+    --ring: 224 85% 58%;
 
-    --sidebar-background: 220 13% 9%;
+    --sidebar-background: 233 64% 11%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary: 224 85% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 13% 16%;
+    --sidebar-accent: 232 50% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 13% 18%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-border: 233 40% 20%;
+    --sidebar-ring: 224 85% 58%;
   }
 }
 
@@ -98,16 +104,21 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter Variable', Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter Variable', Inter, 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-feature-settings: "cv11", "ss01";
     font-optical-sizing: auto;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: inherit;
-    font-weight: 600;
+    font-weight: 700;
+    line-height: 1.1;
   }
-  h1, h2 { text-wrap: balance; }
+  h1, h2 {
+    font-weight: 800;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
   p { text-wrap: pretty; }
 
   ::selection {
@@ -137,13 +148,13 @@
     background: hsl(var(--primary));
   }
 
-  /* Sidebar navigation item (Organizer + Admin layouts) */
+  /* Sidebar navigation item */
   .nav-item {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 13.5px;
     font-weight: 500;
     color: hsl(var(--muted-foreground));
@@ -156,7 +167,7 @@
   }
   .nav-item.active {
     color: hsl(var(--primary));
-    background: hsl(var(--accent));
+    background: hsl(var(--primary) / 0.1);
   }
   .nav-item.active::before {
     content: '';
@@ -170,23 +181,27 @@
   .section-label {
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: hsl(var(--muted-foreground));
   }
 
-  /* Chip — graphite-neutral inline pill */
+  /* Chip — badge/pill component */
   .chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 3px 10px;
-    border-radius: 100px;
-    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 11.5px;
     font-weight: 500;
     color: hsl(var(--foreground));
-    background: hsl(var(--muted));
+    background: rgba(255, 255, 255, 0.08);
     border: 1px solid hsl(var(--border));
+  }
+  .dark .chip {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.08);
   }
   .chip-primary {
     color: hsl(var(--primary));
@@ -195,7 +210,8 @@
   }
 
   .stat-chip {
-    @apply bg-card border border-border rounded-card text-center;
+    @apply bg-card border border-border text-center;
+    border-radius: 16px;
     padding: 20px 16px;
   }
 
@@ -207,11 +223,15 @@
     flex-shrink: 0;
   }
 
-  /* Per-event theme tinting — event detail/manage pages set
-     `data-event-theme` on a wrapper element and inject `--event-accent`
-     via JS (see lib/eventThemes.ts injectThemeVars). */
+  /* Navy dark section helper — apply to hero/feature sections */
+  .section-navy {
+    background: linear-gradient(135deg, #0A0E2E 0%, #0D1240 100%);
+    color: #FFFFFF;
+  }
+
+  /* Per-event theme tinting */
   [data-event-theme] {
-    --event-accent: hsl(var(--primary));   /* fallback */
+    --event-accent: hsl(var(--primary));
     background: color-mix(in srgb, var(--event-accent) 6%, hsl(var(--background)));
   }
 }

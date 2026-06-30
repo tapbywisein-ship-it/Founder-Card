@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MailWarning } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
-import { apiResendVerification } from '@/services/auth.service';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 /**
@@ -20,7 +20,8 @@ export const VerifyEmailBanner = () => {
   const resend = async () => {
     setSending(true);
     try {
-      await apiResendVerification(user.email);
+      const { error } = await supabase.auth.resend({ type: 'signup', email: user.email });
+      if (error) throw new Error(error.message);
       toast.success('Verification email sent — check your inbox');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not send verification email');

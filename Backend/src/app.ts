@@ -28,8 +28,10 @@ import reportsRoutes from '@modules/reports/reports.routes';
 import messagesRoutes from '@modules/messages/messages.routes';
 import paymentsRoutes from '@modules/payments/payments.routes';
 import payoutsRoutes from '@modules/payouts/payouts.routes';
+import membershipRoutes from '@modules/membership/membership.routes';
 import seoRoutes from '@modules/seo/seo.routes';
 import publicRoutes from '@modules/public/public.routes';
+import searchRoutes from '@modules/search/search.routes';
 import { ogImageRouter, ogHtmlRouter } from '@modules/og/og.routes';
 
 const app = express();
@@ -105,7 +107,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/docs', swaggerUi.serve, (_req: Request, res: Response, next: NextFunction) => {
   swaggerUi.setup(getSwaggerSpec(), {
     customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Golden Tap Connect API',
+    customSiteTitle: 'TapByWisein API',
     swaggerOptions: { persistAuthorization: true },
   })(_req, res, next);
 });
@@ -142,8 +144,10 @@ app.use(`${API_BASE}/reports`, reportsRoutes);
 app.use(`${API_BASE}/messages`, messagesRoutes);
 app.use(`${API_BASE}/payments`, paymentsRoutes);
 app.use(`${API_BASE}/payouts`, payoutsRoutes);
+app.use(`${API_BASE}/membership`, membershipRoutes);
 app.use(`${API_BASE}/seo`, seoRoutes);
 app.use(`${API_BASE}/public`, publicRoutes);
+app.use(`${API_BASE}/search`, searchRoutes);
 app.use(`${API_BASE}/og`, ogImageRouter);
 // Crawler-facing HTML endpoints sit at the root so unfurlers see clean URLs.
 app.use('/og', ogHtmlRouter);

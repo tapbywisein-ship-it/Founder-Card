@@ -1,12 +1,42 @@
 import { Request, Response } from 'express';
-import paymentsService from './payments.service';
+import paymentsService, { CARD_PRICE_INR } from './payments.service';
 import { sendSuccess } from '@utils/response';
 import { CreateOrderDto, VerifyPaymentDto } from './payments.validation';
 
 export class PaymentsController {
   /** Lets the frontend know whether to show the paid-ticket flow at all. */
   async config(_req: Request, res: Response): Promise<void> {
-    sendSuccess(res, { configured: paymentsService.isConfigured() }, 'Payment configuration');
+    sendSuccess(
+      res,
+      { configured: paymentsService.isConfigured(), cardPrice: CARD_PRICE_INR },
+      'Payment configuration'
+    );
+  }
+
+  /** Create a Razorpay order for the one-time NFC Tap Card purchase. */
+  async createCardOrder(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { shippingAddress } = req.body as {
+      shippingAddress?: {
+        fullName: string;
+        phone: string;
+        addressLine1: string;
+        addressLine2?: string;
+        city: string;
+        state: string;
+        pincode: string;
+      };
+    };
+    const result = await paymentsService.createCardOrder(userId, shippingAddress);
+    sendSuccess(res, result, 'Card payment order created');
+  }
+
+  /** Verify a card purchase and activate the Tap Card. */
+  async verifyCard(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const dto = req.body as VerifyPaymentDto;
+    const result = await paymentsService.verifyCardPurchase(userId, dto);
+    sendSuccess(res, result, 'Payment verified — your Tap Card is active');
   }
 
   async createOrder(req: Request, res: Response): Promise<void> {

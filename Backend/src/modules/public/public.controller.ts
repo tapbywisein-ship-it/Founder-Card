@@ -15,7 +15,12 @@ export class PublicController {
     if (!name?.trim() || !email?.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
       throw new BadRequestError('Name and a valid email are required');
     }
-    const data = await publicService.demoRequest({ name: name.trim(), email: email.trim(), company, message });
+    const data = await publicService.demoRequest({
+      name: name.trim(),
+      email: email.trim(),
+      company,
+      message,
+    });
     sendSuccess(res, data, "Thanks! We'll be in touch shortly.");
   }
 }

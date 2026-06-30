@@ -49,12 +49,12 @@ export const ExitIntentPopup = () => {
             <Sparkles className="h-4 w-4 text-primary" /> Before you go…
           </DialogTitle>
           <DialogDescription>
-            Attending an event soon? Set up your Founder Card in 30 seconds and connect instantly.
+            Attending an event soon? Set up your Tap Card in 30 seconds and connect instantly.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2 pt-2">
           <Button asChild>
-            <Link to="/register" onClick={() => setOpen(false)}>Create my Founder Card</Link>
+            <Link to="/register" onClick={() => setOpen(false)}>Create my Tap Card</Link>
           </Button>
           <Button variant="ghost" onClick={() => setOpen(false)}>No thanks</Button>
         </div>

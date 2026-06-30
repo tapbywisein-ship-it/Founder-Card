@@ -4,7 +4,7 @@ import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useEventGuests, useCheckInAttendee } from '@/hooks/useOrganizer';
-import { CheckCircle2, Search, QrCode, Users, ScanLine, X } from 'lucide-react';
+import { CheckCircle2, Search, QrCode, Users, ScanLine, X, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { QrScanner } from '@/components/QrScanner';
 import { founderCardService } from '@/services/founderCard.service';
@@ -15,7 +15,7 @@ const CheckInPage = () => {
   const [scanOpen, setScanOpen] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
 
-  const { data: guestsData, isLoading } = useEventGuests(id!, { search: search || undefined });
+  const { data: guestsData, isLoading } = useEventGuests(id!, { search: search || undefined, liveRefetch: true });
   const checkInMutation = useCheckInAttendee(id!);
 
   const guests = guestsData?.guests ?? [];
@@ -65,7 +65,7 @@ const CheckInPage = () => {
         return;
       }
 
-      // Otherwise treat it as a Founder Card slug/URL.
+      // Otherwise treat it as a Tap Card slug/URL.
       const slug = extractSlug(value);
       if (!slug) {
         toast.error('Could not read QR code.');
@@ -94,6 +94,12 @@ const CheckInPage = () => {
 
   return (
     <div className="space-y-6">
+        {/* Live indicator */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
+          <span>Live — refreshes every 15s</span>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[

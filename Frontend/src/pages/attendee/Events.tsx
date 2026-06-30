@@ -22,7 +22,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import type { Event } from '@/services/events.service';
 import {
   Calendar, Users, MapPin, CheckCircle2, X,
-  Clock, Tag, Ticket, Search,
+  Clock, Tag, Ticket, Search, AlertCircle,
 } from 'lucide-react';
 
 const CATEGORIES = ['All', 'Tech', 'Business', 'Design', 'Health', 'Social', 'Arts', 'Sports', 'Food', 'Startup', 'AI'];
@@ -38,7 +38,7 @@ const EventsPage = () => {
   const [regStep, setRegStep] = useState<'confirm' | 'success'>('confirm');
   const [registrationId, setRegistrationId] = useState<string | null>(null);
 
-  const { data, isLoading } = useEvents({
+  const { data, isLoading, isError, refetch } = useEvents({
     q: search || undefined,
     category: category !== 'All' ? category : undefined,
     status: 'PUBLISHED',
@@ -91,8 +91,8 @@ const EventsPage = () => {
   const closeModal = () => setRegisterModal(null);
 
   const qrValue = registrationId
-    ? `founderkey://registration/${registrationId}`
-    : `founderkey://event/${registerModal?.id}/user/${user?.id}`;
+    ? `tapbywisein://registration/${registrationId}`
+    : `tapbywisein://event/${registerModal?.id}/user/${user?.id}`;
 
   return (
     <AppLayout>
@@ -162,6 +162,17 @@ const EventsPage = () => {
         </div>
 
         {/* Events grid */}
+        {isError && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <span className="flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Failed to load events. Check your connection and try again.
+            </span>
+            <button onClick={() => refetch()} className="shrink-0 text-xs font-medium underline underline-offset-2 hover:opacity-80">
+              Retry
+            </button>
+          </div>
+        )}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[...Array(6)].map((_, i) => (

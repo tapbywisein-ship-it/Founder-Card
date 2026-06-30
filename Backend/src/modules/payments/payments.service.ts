@@ -11,9 +11,13 @@ import {
 import logger from '@utils/logger';
 import { findTier } from '@utils/ticketPricing';
 import { sendEmail, refundConfirmationEmail } from '@utils/email';
+import razorpayRouteService from './razorpay-route.service';
 
 const RAZORPAY_API = 'https://api.razorpay.com/v1';
 const DEFAULT_FEE_PERCENT = 5;
+
+/** One-time price (INR) for the physical NFC Tap Card. */
+export const CARD_PRICE_INR = 499;
 
 /** True when Razorpay keys are present. Other modules use this to decide whether
  *  paid events should be gated behind checkout. */
@@ -190,10 +194,178 @@ export class PaymentsService {
         registrationId: registration.id,
         platformFee,
         organizerEarning,
+        transferStatus: 'pending',
       },
     });
 
+    // Auto-transfer organizer share via Razorpay Route if the organizer has
+    // an activated linked account. Best-effort — never blocks the verify response.
+    this.attemptOrganizerTransfer(
+      updated.id,
+      payment.eventId,
+      razorpayPaymentId,
+      organizerEarning
+    ).catch((err) =>
+      logger.warn('Organizer Route transfer attempt failed', { err, paymentId: updated.id })
+    );
+
     return { payment: updated, registration };
+  }
+
+  private async attemptOrganizerTransfer(
+    paymentId: string,
+    eventId: string,
+    razorpayPaymentId: string,
+    organizerEarning: number
+  ): Promise<void> {
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, deletedAt: null },
+      select: { organizerId: true },
+    });
+    if (!event) return;
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId: event.organizerId },
+      select: { razorpayAccountId: true, razorpayAccountStatus: true },
+    });
+
+    if (!profile?.razorpayAccountId || profile.razorpayAccountStatus !== 'activated') {
+      // Account not yet activated — mark as pending for manual retry later.
+      return;
+    }
+
+    await razorpayRouteService.transferToOrganizer(
+      razorpayPaymentId,
+      profile.razorpayAccountId,
+      organizerEarning,
+      paymentId
+    );
+  }
+
+  // ── NFC Tap Card purchase (one-time) ──────────────────────────────────────
+
+  /**
+   * Create a Razorpay order for the one-time NFC Tap Card purchase and persist a
+   * CREATED CardPurchase row. Rejects if the user already has an ACTIVE card.
+   */
+  async createCardOrder(
+    userId: string,
+    shippingAddress?: {
+      fullName: string;
+      phone: string;
+      addressLine1: string;
+      addressLine2?: string;
+      city: string;
+      state: string;
+      pincode: string;
+    }
+  ) {
+    if (!paymentsConfigured()) {
+      throw new ServiceUnavailableError('Payments are not configured');
+    }
+
+    const existingCard = await prisma.founderCard.findUnique({ where: { userId } });
+    // Block only if physical card is already provisioned (nfcTagId set) or already paid/ordered
+    if (existingCard?.nfcTagId) {
+      throw new ConflictError('You already have an active Tap Card');
+    }
+    const existingPurchase = await prisma.cardPurchase.findFirst({
+      where: { userId, status: 'PAID' },
+    });
+    if (existingPurchase) {
+      throw new ConflictError("You already ordered a Tap Card — it's being prepared for shipment");
+    }
+
+    const amountInr = CARD_PRICE_INR;
+    const amountPaise = Math.round(amountInr * 100);
+    let order: { id: string; amount: number; currency: string };
+    try {
+      const res = await fetch(`${RAZORPAY_API}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: authHeader() },
+        body: JSON.stringify({
+          amount: amountPaise,
+          currency: 'INR',
+          receipt: `card_${userId.slice(0, 8)}_${Date.now()}`,
+          notes: { userId, purpose: 'nfc_card' },
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        logger.error('Razorpay card order create failed', { status: res.status, text });
+        throw new BadRequestError('Could not initiate payment. Please try again.');
+      }
+      order = (await res.json()) as { id: string; amount: number; currency: string };
+    } catch (err) {
+      if (err instanceof BadRequestError) throw err;
+      logger.error('Razorpay card order create error', { err });
+      throw new ServiceUnavailableError('Payment provider is unavailable. Please try again.');
+    }
+
+    await prisma.cardPurchase.create({
+      data: {
+        userId,
+        razorpayOrderId: order.id,
+        amount: amountInr,
+        currency: 'INR',
+        status: 'CREATED',
+        shippingAddress: shippingAddress ?? undefined,
+      },
+    });
+
+    return {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: env.RAZORPAY_KEY_ID,
+    };
+  }
+
+  /**
+   * Verify the Razorpay signature for a card purchase and, on success, activate
+   * the user's Tap Card via autoIssueCard. Idempotent for an already-PAID order.
+   */
+  async verifyCardPurchase(
+    userId: string,
+    input: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }
+  ) {
+    if (!paymentsConfigured()) {
+      throw new ServiceUnavailableError('Payments are not configured');
+    }
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = input;
+
+    const purchase = await prisma.cardPurchase.findUnique({ where: { razorpayOrderId } });
+    if (!purchase) throw new NotFoundError('Payment');
+    if (purchase.userId !== userId) {
+      throw new ForbiddenError('This payment does not belong to you');
+    }
+
+    const expected = crypto
+      .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+      .digest('hex');
+
+    if (!timingSafe(expected, razorpaySignature)) {
+      await prisma.cardPurchase.update({
+        where: { id: purchase.id },
+        data: { status: 'FAILED', razorpayPaymentId, razorpaySignature },
+      });
+      throw new BadRequestError('Payment verification failed');
+    }
+
+    // Idempotent: re-verify of an already-paid purchase just re-returns the card.
+    if (purchase.status !== 'PAID') {
+      await prisma.cardPurchase.update({
+        where: { id: purchase.id },
+        data: { status: 'PAID', razorpayPaymentId, razorpaySignature },
+      });
+    }
+
+    const founderCardsService = (await import('@modules/founder-cards/founder-cards.service'))
+      .default;
+    const card = await founderCardsService.autoIssueCard(userId);
+
+    return { ok: true, card };
   }
 
   /**
@@ -240,14 +412,18 @@ export class PaymentsService {
         where: { id: userId },
         select: { email: true, profile: { select: { firstName: true } } },
       }),
-      prisma.event.findUnique({ where: { id: eventId }, select: { title: true } }),
+      prisma.event.findFirst({ where: { id: eventId, deletedAt: null }, select: { title: true } }),
     ]);
     if (!user?.email) return;
     const name = user.profile?.firstName ?? 'there';
     await sendEmail(
       user.email,
       'Refund processed — Founder Key',
-      refundConfirmationEmail(name, event?.title ?? 'your event', `₹${amount.toLocaleString('en-IN')}`)
+      refundConfirmationEmail(
+        name,
+        event?.title ?? 'your event',
+        `₹${amount.toLocaleString('en-IN')}`
+      )
     );
   }
 
@@ -255,7 +431,10 @@ export class PaymentsService {
    * Generate a printable HTML invoice for a paid registration. Visible to the
    * attendee who paid, the event organizer, or an admin.
    */
-  async getInvoiceHtml(registrationId: string, caller: { userId: string; role: string }): Promise<string> {
+  async getInvoiceHtml(
+    registrationId: string,
+    caller: { userId: string; role: string }
+  ): Promise<string> {
     const reg = await prisma.eventRegistration.findUnique({
       where: { id: registrationId },
       include: {
@@ -284,7 +463,7 @@ export class PaymentsService {
     const amount = Number(payment.amount);
     const inr = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
     const issued = new Date(payment.createdAt).toLocaleDateString('en-IN', { dateStyle: 'long' });
-    const invoiceNo = `FK-INV-${payment.id.slice(0, 8).toUpperCase()}`;
+    const invoiceNo = `TW-INV-${payment.id.slice(0, 8).toUpperCase()}`;
     const status = payment.status === 'REFUNDED' ? 'REFUNDED' : 'PAID';
 
     return `<!doctype html><html><head><meta charset="utf-8"/>
@@ -304,7 +483,7 @@ export class PaymentsService {
   @media print{.noprint{display:none}}
 </style></head><body>
   <div class="head">
-    <div><div class="brand">⚡ FounderKey</div><div class="muted">Invoice</div></div>
+    <div><div class="brand">⚡ TapByWisein</div><div class="muted">Invoice</div></div>
     <div class="right"><div><strong>${invoiceNo}</strong></div><div class="muted">${issued}</div>
       <div style="margin-top:6px"><span class="badge ${status === 'REFUNDED' ? 'r' : ''}">${status}</span></div></div>
   </div>
@@ -336,39 +515,73 @@ export class PaymentsService {
   async handleWebhookEvent(payload: Record<string, unknown>): Promise<void> {
     try {
       const eventType = payload.event as string | undefined;
+
+      // Subscription lifecycle → membership module.
+      if (eventType?.startsWith('subscription.')) {
+        const subEntity =
+          (payload as { payload?: { subscription?: { entity?: Record<string, unknown> } } }).payload
+            ?.subscription?.entity ?? {};
+        const membershipService = (await import('@modules/membership/membership.service')).default;
+        await membershipService.handleSubscriptionEvent(eventType, subEntity);
+        return;
+      }
+
       if (eventType !== 'payment.captured' && eventType !== 'order.paid') return;
 
       const entity =
-        (payload as { payload?: { payment?: { entity?: Record<string, unknown> } } }).payload?.payment
-          ?.entity ?? {};
+        (payload as { payload?: { payment?: { entity?: Record<string, unknown> } } }).payload
+          ?.payment?.entity ?? {};
       const orderId = entity.order_id as string | undefined;
       const paymentId = entity.id as string | undefined;
       if (!orderId || !paymentId) return;
 
       const payment = await prisma.payment.findUnique({ where: { razorpayOrderId: orderId } });
-      if (!payment || payment.status === 'PAID') return;
 
-      // Atomically claim the CREATED -> PAID transition. If a concurrent
-      // verify request beat us to it (or a duplicate webhook fires), updateMany
-      // returns 0 and we exit without re-running finalization.
-      const claim = await prisma.payment.updateMany({
-        where: { id: payment.id, status: 'CREATED' },
+      if (payment) {
+        // ── Ticket payment ────────────────────────────────────────────────────
+        if (payment.status === 'PAID') return;
+
+        const claim = await prisma.payment.updateMany({
+          where: { id: payment.id, status: 'CREATED' },
+          data: { status: 'PAID', razorpayPaymentId: paymentId },
+        });
+        if (claim.count === 0) return;
+
+        const eventsService = (await import('@modules/events/events.service')).default;
+        const registration = await eventsService.finalizePaidRegistration({
+          eventId: payment.eventId,
+          userId: payment.userId,
+          amountPaid: Number(payment.amount),
+          ticketTierId: payment.ticketTierId ?? undefined,
+          ticketTierName: payment.ticketTierName ?? undefined,
+        });
+
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { registrationId: registration.id },
+        });
+        return;
+      }
+
+      // ── NFC card purchase fallback ──────────────────────────────────────────
+      const purchase = await prisma.cardPurchase.findUnique({
+        where: { razorpayOrderId: orderId },
+      });
+      if (!purchase || purchase.status === 'PAID') return;
+
+      const cardClaim = await prisma.cardPurchase.updateMany({
+        where: { id: purchase.id, status: 'CREATED' },
         data: { status: 'PAID', razorpayPaymentId: paymentId },
       });
-      if (claim.count === 0) return;
+      if (cardClaim.count === 0) return;
 
-      const eventsService = (await import('@modules/events/events.service')).default;
-      const registration = await eventsService.finalizePaidRegistration({
-        eventId: payment.eventId,
-        userId: payment.userId,
-        amountPaid: Number(payment.amount),
-        ticketTierId: payment.ticketTierId ?? undefined,
-        ticketTierName: payment.ticketTierName ?? undefined,
-      });
-
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { registrationId: registration.id },
+      const founderCardsService = (await import('@modules/founder-cards/founder-cards.service'))
+        .default;
+      await founderCardsService.autoIssueCard(purchase.userId).catch((err: Error) => {
+        logger.error('Webhook: failed to auto-issue founder card', {
+          err,
+          purchaseId: purchase.id,
+        });
       });
     } catch (err) {
       logger.error('Razorpay webhook processing error', { err });

@@ -29,13 +29,7 @@ export interface ParsedCsv {
   invalid: CsvImportError[];
 }
 
-const VALID_ROLES = new Set([
-  'ATTENDEE',
-  'VIP',
-  'SPEAKER',
-  'STAFF',
-  'SPONSOR',
-]);
+const VALID_ROLES = new Set(['ATTENDEE', 'VIP', 'SPEAKER', 'STAFF', 'SPONSOR']);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -145,9 +139,8 @@ export function parseAttendeeCsv(content: string, maxRows = 500): ParsedCsv {
     seenEmails.add(email);
 
     const role = (raw.eventRole ?? '').trim().toUpperCase();
-    const eventRole = role && VALID_ROLES.has(role)
-      ? (role as ParsedAttendeeRow['eventRole'])
-      : 'ATTENDEE';
+    const eventRole =
+      role && VALID_ROLES.has(role) ? (role as ParsedAttendeeRow['eventRole']) : 'ATTENDEE';
 
     valid.push({
       rowNumber: i,

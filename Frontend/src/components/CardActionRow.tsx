@@ -82,7 +82,7 @@ export const CardActionRow = ({ card, cardUrl, showPersonal }: CardActionRowProp
     if (!cardUrl) return;
     if (navigator.share) {
       navigator
-        .share({ title: `${name} on Founder Key`, url: cardUrl })
+        .share({ title: `${name}${name} on TapByWisein`, url: cardUrl })
         .catch(() => {});
       return;
     }

@@ -125,7 +125,7 @@ export const REDIS_KEYS = {
 // Token Expiry (seconds)
 export const TOKEN_TTL = {
   EMAIL_VERIFY: 24 * 60 * 60, // 24 hours
-  PASSWORD_RESET: 15 * 60,    // 15 minutes
+  PASSWORD_RESET: 15 * 60, // 15 minutes
   REFRESH_TOKEN: 7 * 24 * 60 * 60, // 7 days
 } as const;
 

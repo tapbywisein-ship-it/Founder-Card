@@ -36,7 +36,7 @@ const deriveKey = (secret: string, salt: Buffer): Buffer => {
 };
 
 export const encrypt = (text: string): string => {
-  const secret = env.JWT_ACCESS_SECRET;
+  const secret = env.SUPABASE_SERVICE_ROLE_KEY;
   const salt = crypto.randomBytes(SALT_LENGTH);
   const key = deriveKey(secret, salt);
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -49,7 +49,7 @@ export const encrypt = (text: string): string => {
 };
 
 export const decrypt = (encryptedText: string): string => {
-  const secret = env.JWT_ACCESS_SECRET;
+  const secret = env.SUPABASE_SERVICE_ROLE_KEY;
   const buffer = Buffer.from(encryptedText, 'base64');
 
   const salt = buffer.subarray(0, SALT_LENGTH);

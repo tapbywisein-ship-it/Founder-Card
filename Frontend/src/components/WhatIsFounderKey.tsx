@@ -15,7 +15,7 @@ import { useAppStore } from '@/store/appStore';
 const SEEN_KEY = 'fk:seen-explainer';
 
 /**
- * One-time "What is FounderKey?" explainer for unauthenticated visitors who
+ * One-time "What is TapByWisein?" explainer for unauthenticated visitors who
  * land via a QR/NFC link (public card or event page) and may not know the
  * product. Shows once, then never again (localStorage).
  */
@@ -42,17 +42,17 @@ export const WhatIsFounderKey = () => {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> What is FounderKey?
+            <Sparkles className="h-4 w-4 text-primary" /> What is TapByWisein?
           </DialogTitle>
           <DialogDescription>
-            FounderKey turns event networking into a tap. Here's the gist:
+            TapByWisein turns event networking into a tap. Here's the gist:
           </DialogDescription>
         </DialogHeader>
         <HowItWorks compact />
         <div className="mt-2 flex gap-2">
           <Button asChild className="flex-1">
             <Link to="/register" onClick={() => localStorage.setItem(SEEN_KEY, '1')}>
-              Get your own FounderKey
+              Get your own TapByWisein
             </Link>
           </Button>
           <Button variant="outline" onClick={() => dismiss(false)}>

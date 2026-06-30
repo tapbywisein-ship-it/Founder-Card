@@ -24,7 +24,7 @@ export const CookieConsent = () => {
     <div className="fixed bottom-0 inset-x-0 z-[60] p-3 md:p-4">
       <div className="max-w-3xl mx-auto rounded-xl border border-border bg-card shadow-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <p className="text-sm text-muted-foreground flex-1">
-          We use cookies for analytics to improve FounderKey. You can accept or decline. See our{' '}
+          We use cookies for analytics to improve TapByWisein. You can accept or decline. See our{' '}
           <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
         </p>
         <div className="flex gap-2 shrink-0">

@@ -18,7 +18,7 @@ const Privacy = () => (
         <section>
           <h2 className="text-lg font-semibold text-foreground mb-1">What we collect</h2>
           <p>
-            When you create a FounderKey account we store your profile details (name, email, company,
+            When you create a TapByWisein account we store your profile details (name, email, company,
             role, bio, skills, interests, and an optional photo), the events you register for, and the
             connections you make. Paid registrations are processed by Razorpay; we store the payment
             reference and amount, never your card details.
@@ -27,7 +27,7 @@ const Privacy = () => (
         <section>
           <h2 className="text-lg font-semibold text-foreground mb-1">How we use it</h2>
           <p>
-            To run the networking platform — issue your Founder Card, match you with other founders,
+            To run the networking platform — issue your Tap Card, match you with other founders,
             send event confirmations/reminders, and (with your consent) measure product usage to
             improve the experience.
           </p>

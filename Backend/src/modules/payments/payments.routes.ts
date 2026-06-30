@@ -26,7 +26,24 @@ router.post(
   paymentsController.verify.bind(paymentsController)
 );
 
+// NFC Tap Card purchase (one-time).
+router.post(
+  '/card/order',
+  authenticate,
+  paymentsController.createCardOrder.bind(paymentsController)
+);
+router.post(
+  '/card/verify',
+  authenticate,
+  validate(verifyPaymentSchema),
+  paymentsController.verifyCard.bind(paymentsController)
+);
+
 // Printable HTML invoice for a paid registration.
-router.get('/:registrationId/invoice', authenticate, paymentsController.invoice.bind(paymentsController));
+router.get(
+  '/:registrationId/invoice',
+  authenticate,
+  paymentsController.invoice.bind(paymentsController)
+);
 
 export default router;

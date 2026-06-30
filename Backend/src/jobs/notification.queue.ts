@@ -27,7 +27,7 @@ let notificationQueueInstance = noopQueue as unknown as import('bull').Queue<Not
 if (hasRedis) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Bull = require('bull') as any;
+    const Bull = require('bull');
     const queue = new Bull('notifications', {
       redis: REDIS_URL,
       defaultJobOptions: {
@@ -58,7 +58,8 @@ if (hasRedis) {
 export const notificationQueue = notificationQueueInstance;
 
 async function processNotificationJob(data: NotificationJobData): Promise<void> {
-  const { default: notificationsService } = await import('@modules/notifications/notifications.service');
+  const { default: notificationsService } =
+    await import('@modules/notifications/notifications.service');
   await notificationsService.sendBulkNotification(
     data.userIds,
     data.type,

@@ -46,7 +46,7 @@ export const RequestDemoModal = ({ open, onOpenChange }: { open: boolean; onOpen
         <DialogHeader>
           <DialogTitle>Request a demo</DialogTitle>
           <DialogDescription>
-            Hosting an event? See how FounderKey gets founders connecting in minutes.
+            Hosting an event? See how TapByWisein gets founders connecting in minutes.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">

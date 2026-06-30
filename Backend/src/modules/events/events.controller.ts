@@ -48,7 +48,8 @@ export class EventsController {
   async registerForEvent(req: Request, res: Response): Promise<void> {
     const userId = req.user!.userId;
     const { id } = req.params as Record<string, string>;
-    const { answers } = (req.body as { answers?: Array<{ questionId: string; answer: string }> }) ?? {};
+    const { answers } =
+      (req.body as { answers?: Array<{ questionId: string; answer: string }> }) ?? {};
     const result = await eventsService.registerForEvent(id, userId, answers);
     sendSuccess(res, result.registration, result.message);
   }
@@ -75,17 +76,6 @@ export class EventsController {
     const { id } = req.params as Record<string, string>;
     const dto = req.body as RsvpGuestDto;
     const result = await eventsService.rsvpGuest(id, dto);
-
-    // Drop the refresh token in an httpOnly cookie so the user is auto-signed
-    // in for subsequent requests (mirrors POST /auth/login behavior).
-    if (result.tokens) {
-      res.cookie('refreshToken', result.tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-    }
 
     sendSuccess(res, result, result.message);
   }
@@ -191,22 +181,14 @@ export class EventsController {
     const userId = req.user!.userId;
     const { token } = req.params as Record<string, string>;
     const result = await eventsService.selfCheckIn(token, userId);
-    sendSuccess(
-      res,
-      result,
-      result.alreadyCheckedIn ? "You're already checked in" : 'Checked in!'
-    );
+    sendSuccess(res, result, result.alreadyCheckedIn ? "You're already checked in" : 'Checked in!');
   }
 
   async getEventSuggestions(req: Request, res: Response): Promise<void> {
     const viewerId = req.user!.userId;
     const { id } = req.params as Record<string, string>;
     const { limit } = req.query as { limit?: string };
-    const data = await eventsService.getEventSuggestions(
-      id,
-      viewerId,
-      limit ? Number(limit) : 10
-    );
+    const data = await eventsService.getEventSuggestions(id, viewerId, limit ? Number(limit) : 10);
     sendSuccess(res, data, 'Event suggestions retrieved');
   }
 
@@ -217,7 +199,7 @@ export class EventsController {
       userId: req.user?.userId ?? null,
       ip: req.ip,
       userAgent: req.headers['user-agent'],
-      referrer: req.headers.referer ?? req.headers.referrer as string | undefined,
+      referrer: req.headers.referer ?? (req.headers.referrer as string | undefined),
     });
     res.status(204).end();
   }

@@ -261,12 +261,14 @@ const CreateEventPage = () => {
       return;
     }
 
-    if (!form.title || form.title.length < 3) {
+    if (!form.title || form.title.trim().length < 3) {
       toast.error('Event name must be at least 3 characters.');
       return;
     }
 
-    if (form.description && form.description.length > 0 && form.description.length < 10) {
+    // Backend requires a description (min 10 chars) — enforce it here too so the
+    // user gets a clear message instead of a server-side validation error.
+    if (!form.description || form.description.trim().length < 10) {
       toast.error('Description must be at least 10 characters.');
       return;
     }
@@ -331,15 +333,16 @@ const CreateEventPage = () => {
     }
   };
 
-  // Only the bare-minimum field gates the click; handleSubmit toasts the
-  // specific error for any missing/invalid follow-up (dates, ticket math,
-  // etc.) so users know what to fix instead of seeing a dead button.
-  const canSubmit = form.title.trim().length >= 3;
+  // The button stays clickable; handleSubmit toasts the specific error for any
+  // missing/invalid field (name, description, category, dates, ticket math) so
+  // users always learn what to fix instead of facing a dead disabled button.
 
   // Inline hint under the submit button — surfaces what's still required so
-  // users don't click a disabled button and wonder why nothing happened.
+  // users can see what's left before they even click.
   const missingHints: string[] = [];
   if (form.title.trim().length < 3) missingHints.push('Event name (3+ chars)');
+  if (form.description.trim().length < 10) missingHints.push('Description (10+ chars)');
+  if (!form.category) missingHints.push('Category');
   if (!form.startDate) missingHints.push('Start date');
   if (!form.endDate) missingHints.push('End date');
 
@@ -908,7 +911,7 @@ const CreateEventPage = () => {
             <Button
               className="w-full h-12 text-base font-semibold"
               onClick={handleSubmit}
-              disabled={!canSubmit || createMutation.isPending}
+              disabled={createMutation.isPending}
             >
               {createMutation.isPending ? 'Creating…' : 'Create Event'}
             </Button>

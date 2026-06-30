@@ -1,4 +1,5 @@
-import { apiFetch, apiUpload, getAccessToken } from './api';
+import { apiFetch, apiUpload } from './api';
+import { supabase } from '@/lib/supabase';
 import type { Event, Pagination } from './events.service';
 
 const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/api/v1';
@@ -98,6 +99,17 @@ export interface EventAnalytics {
     conversionRate: number;
     capacityUtilization: number;
   };
+  quality?: {
+    seniorityMix: { name: string; value: number }[];
+    topCompanies: { name: string; count: number }[];
+    repeatAttendees: number;
+    firstTimeAttendees: number;
+  };
+  funnel?: {
+    registered: number;
+    checkedIn: number;
+    connected: number;
+  };
   timeline: { registeredAt: string; _count: number }[];
   leads: Record<string, number>;
 }
@@ -109,6 +121,9 @@ export const organizerService = {
       upcomingEvents: number;
       totalAttendees: number;
       totalLeads: number;
+      totalRevenue: number;
+      checkInRate: number;
+      registrationTrend: { date: string; count: number }[];
       recentEvents: (Event & { registeredCount: number })[];
     } }>('/organizer/dashboard');
   },
@@ -188,7 +203,8 @@ export const organizerService = {
   },
 
   async exportAttendeesCsv(eventId: string): Promise<void> {
-    const token = getAccessToken();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
     const res = await fetch(`${API_URL}/organizer/events/${eventId}/attendees/export`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
@@ -207,6 +223,13 @@ export const organizerService = {
   async sendEventBlast(eventId: string, payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) {
     return apiFetch<{ data: { sent: number; recipients: string[] } }>(
       `/organizer/events/${eventId}/blast`,
+      { method: 'POST', body: JSON.stringify(payload) }
+    );
+  },
+
+  async sendAttendeeBlast(payload: { userIds: string[]; subject: string; body: string }) {
+    return apiFetch<{ data: { sent: number; recipients: string[] } }>(
+      '/organizer/attendees/blast',
       { method: 'POST', body: JSON.stringify(payload) }
     );
   },

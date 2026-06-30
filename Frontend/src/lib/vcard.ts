@@ -9,7 +9,7 @@ interface VCardInput {
   website?: string | null;
   linkedin?: string | null;
   twitter?: string | null;
-  /** Public URL of the FounderKey card so the recipient can open it later. */
+  /** Public URL of the TapByWisein card so the recipient can open it later. */
   cardUrl?: string;
   /** Optional avatar URL — embedded as a PHOTO if reachable. */
   avatarUrl?: string | null;
@@ -43,11 +43,11 @@ export function buildVCard(input: VCardInput): string {
   if (input.website) lines.push(`URL:${esc(input.website)}`);
   if (input.linkedin) lines.push(`URL;TYPE=linkedin:${esc(input.linkedin)}`);
   if (input.twitter) lines.push(`URL;TYPE=twitter:${esc(input.twitter)}`);
-  if (input.cardUrl) lines.push(`URL;TYPE=founderkey:${esc(input.cardUrl)}`);
+  if (input.cardUrl) lines.push(`URL;TYPE=tapbywisein:${esc(input.cardUrl)}`);
   // PHOTO is referenced by URL — inlining base64 would balloon the .vcf size
   // and most contact apps fetch the URL when they have network.
   if (input.avatarUrl) lines.push(`PHOTO;VALUE=URI:${esc(input.avatarUrl)}`);
-  lines.push(`X-FOUNDERKEY-CARD:${esc(input.cardUrl ?? '')}`);
+  lines.push(`X-TAPBYWISEIN-CARD:${esc(input.cardUrl ?? '')}`);
   lines.push('END:VCARD');
 
   // RFC requires CRLF.

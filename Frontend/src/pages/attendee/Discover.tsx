@@ -8,17 +8,17 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEvents } from '@/hooks/useEvents';
 import { getTheme } from '@/lib/eventThemes';
 import { getRegistrationPricing } from '@/lib/ticketPricing';
-import { Calendar, MapPin, Users, Tag, Search, Sparkles } from 'lucide-react';
+import { Calendar, MapPin, Users, Tag, Search, Sparkles, AlertCircle, Cpu, TrendingUp, Palette, Heart, PartyPopper, Music, Dumbbell, UtensilsCrossed } from 'lucide-react';
 
 const CATEGORIES = [
-  { id: 'tech', label: 'Tech', emoji: '💻', color: 'from-blue-600/30 to-blue-800/10' },
-  { id: 'business', label: 'Business', emoji: '💼', color: 'from-amber-600/30 to-amber-800/10' },
-  { id: 'design', label: 'Design', emoji: '🎨', color: 'from-purple-600/30 to-purple-800/10' },
-  { id: 'health', label: 'Health', emoji: '🏃', color: 'from-emerald-600/30 to-emerald-800/10' },
-  { id: 'social', label: 'Social', emoji: '🎉', color: 'from-rose-600/30 to-rose-800/10' },
-  { id: 'arts', label: 'Arts', emoji: '🎭', color: 'from-pink-600/30 to-pink-800/10' },
-  { id: 'sports', label: 'Sports', emoji: '⚽', color: 'from-orange-600/30 to-orange-800/10' },
-  { id: 'food', label: 'Food', emoji: '🍽️', color: 'from-yellow-600/30 to-yellow-800/10' },
+  { id: 'tech',     label: 'Tech',     icon: Cpu,             color: 'from-blue-600/30 to-blue-800/10' },
+  { id: 'business', label: 'Business', icon: TrendingUp,      color: 'from-amber-600/30 to-amber-800/10' },
+  { id: 'design',   label: 'Design',   icon: Palette,         color: 'from-purple-600/30 to-purple-800/10' },
+  { id: 'health',   label: 'Health',   icon: Heart,           color: 'from-emerald-600/30 to-emerald-800/10' },
+  { id: 'social',   label: 'Social',   icon: PartyPopper,     color: 'from-rose-600/30 to-rose-800/10' },
+  { id: 'arts',     label: 'Arts',     icon: Music,           color: 'from-pink-600/30 to-pink-800/10' },
+  { id: 'sports',   label: 'Sports',   icon: Dumbbell,        color: 'from-orange-600/30 to-orange-800/10' },
+  { id: 'food',     label: 'Food',     icon: UtensilsCrossed, color: 'from-yellow-600/30 to-yellow-800/10' },
 ];
 
 const DiscoverPage = () => {
@@ -29,7 +29,7 @@ const DiscoverPage = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [priceFilter, setPriceFilter] = useState<'' | 'free' | 'paid'>('');
 
-  const { data, isLoading } = useEvents({
+  const { data, isLoading, isError, refetch } = useEvents({
     q: search || undefined,
     category: selectedCategory || undefined,
     city: city || undefined,
@@ -117,7 +117,7 @@ const DiscoverPage = () => {
                     : 'border-border hover:border-primary/40 hover:scale-95'
                 }`}
               >
-                <span className="text-xl">{cat.emoji}</span>
+                <cat.icon className="w-5 h-5 text-foreground/70" />
                 <span className="text-[10px] font-medium text-foreground">{cat.label}</span>
               </button>
             ))}
@@ -139,6 +139,17 @@ const DiscoverPage = () => {
             )}
           </div>
 
+          {isError && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <span className="flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                Failed to load events. Check your connection and try again.
+              </span>
+              <button onClick={() => refetch()} className="shrink-0 text-xs font-medium underline underline-offset-2 hover:opacity-80">
+                Retry
+              </button>
+            </div>
+          )}
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[...Array(4)].map((_, i) => (

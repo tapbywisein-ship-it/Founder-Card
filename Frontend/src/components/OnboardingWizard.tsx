@@ -46,12 +46,12 @@ interface OnboardingWizardProps {
 type Step = 'intro' | 'avatar' | 'skills' | 'interests' | 'lookingFor' | 'card';
 
 const STEPS: { id: Step; title: string; subtitle: string }[] = [
-  { id: 'intro', title: 'Welcome to FounderKey', subtitle: 'Networking at events, in three taps.' },
+  { id: 'intro', title: 'Welcome to TapByWisein', subtitle: 'Networking at events, in three taps.' },
   { id: 'avatar', title: 'Set up your profile', subtitle: 'A photo, your role and company help founders recognize you.' },
   { id: 'skills', title: 'What do you do?', subtitle: 'Add 3+ skills so other founders can find you.' },
   { id: 'interests', title: 'What are you into?', subtitle: 'Pick a few topics you love talking about.' },
   { id: 'lookingFor', title: "Who're you here to meet?", subtitle: 'We\'ll match you with attendees that fit.' },
-  { id: 'card', title: 'Your Founder Card is ready', subtitle: 'We\'ve issued your verified card with a unique member ID.' },
+  { id: 'card', title: 'Your Tap Card is ready', subtitle: 'We\'ve issued your verified card with a unique member ID.' },
 ];
 
 /**
@@ -61,7 +61,7 @@ const STEPS: { id: Step; title: string; subtitle: string }[] = [
  */
 export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) => {
   const { data: profileData, refetch } = useMyProfile();
-  const updateMutation = useUpdateProfile();
+  const updateMutation = useUpdateProfile({ silent: true });
   const activateCard = useAppStore((s) => s.activateCard);
   const updateUser = useAppStore((s) => s.updateUser);
   const [stepIdx, setStepIdx] = useState(0);
@@ -105,17 +105,24 @@ export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) 
 
   const save = useMutation({
     mutationFn: () =>
-      updateMutation.mutateAsync({ avatar, bio, company, position, skills, interests, lookingFor }),
+      updateMutation.mutateAsync({ ...(avatar ? { avatar } : {}), bio, company, position, skills, interests, lookingFor }),
     onSuccess: () => {
       refetch();
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to save — please try again');
     },
   });
 
   const [issuing, setIssuing] = useState(false);
 
   const next = async () => {
-    // Save progressively so partial completion sticks.
-    await save.mutateAsync().catch(() => {});
+    try {
+      await save.mutateAsync();
+    } catch {
+      // onError already shows the toast; don't advance if save failed.
+      return;
+    }
     if (stepIdx < STEPS.length - 1) {
       setStepIdx(stepIdx + 1);
     } else {
@@ -123,14 +130,14 @@ export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) 
     }
   };
 
-  // Finishing onboarding auto-issues the user's ACTIVE Founder Card (FK-XXXXX).
+  // Finishing onboarding auto-issues the user's ACTIVE <Sparkles className="h-4 w-4 text-primary" /> Tap Card (TW-XXXXX).
   const finish = async () => {
     setIssuing(true);
     try {
       const res = await profileService.completeOnboarding();
       activateCard();
       if (res.data?.memberId) updateUser({ memberId: res.data.memberId });
-      toast.success('Your Founder Card is ready!');
+      toast.success('Your Tap Card is ready!');
     } catch {
       // Even if card issuance hiccups, don't trap the user in onboarding.
       toast.success("You're all set");
@@ -252,10 +259,10 @@ export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) 
         {step.id === 'card' && (
           <div className="rounded-card border border-primary/30 bg-primary/5 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Sparkles className="h-4 w-4 text-primary" /> Founder Card
+              <Sparkles className="h-4 w-4 text-primary" /> Tap Card
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Tap "Finish" and we'll instantly issue your verified Founder Card with a unique
+              Tap "Finish" and we'll instantly issue your verified <Sparkles className="h-4 w-4 text-primary" /> Tap Card with a unique
               FK member ID, your QR code, and a shareable public profile.
             </p>
           </div>

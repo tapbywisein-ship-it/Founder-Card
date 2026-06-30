@@ -37,9 +37,14 @@ export class PayoutsService {
       grossTotal += gross;
       feeTotal += fee;
       earningTotal += earning;
-      const e =
-        byEvent.get(p.eventId) ??
-        { eventId: p.eventId, title: p.event.title, gross: 0, fee: 0, earning: 0, sales: 0 };
+      const e = byEvent.get(p.eventId) ?? {
+        eventId: p.eventId,
+        title: p.event.title,
+        gross: 0,
+        fee: 0,
+        earning: 0,
+        sales: 0,
+      };
       e.gross += gross;
       e.fee += fee;
       e.earning += earning;
@@ -137,7 +142,9 @@ export class PayoutsService {
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: {
-        organizer: { select: { email: true, profile: { select: { firstName: true, lastName: true } } } },
+        organizer: {
+          select: { email: true, profile: { select: { firstName: true, lastName: true } } },
+        },
       },
     });
 

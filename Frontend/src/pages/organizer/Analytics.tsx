@@ -10,12 +10,13 @@ import {
   BarChart3,
   Zap,
   Trophy,
+  AlertCircle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const AnalyticsPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { data: analytics, isLoading } = useEventAnalytics(id!);
+  const { data: analytics, isLoading, isError } = useEventAnalytics(id!);
   const { data: networking } = useNetworkingAnalytics(id!);
 
   if (isLoading) {
@@ -31,6 +32,17 @@ const AnalyticsPage = () => {
     );
   }
 
+  if (isError) {
+    return (
+      <>
+        <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          Failed to load analytics. Try refreshing the page.
+        </div>
+      </>
+    );
+  }
+
   if (!analytics) {
     return (
       <>
@@ -41,8 +53,10 @@ const AnalyticsPage = () => {
     );
   }
 
-  const { event, registrations, leads } = analytics;
+  const { event, registrations, leads, quality, funnel } = analytics;
   const leadStatusEntries = Object.entries(leads);
+  const totalSeniority = (quality?.seniorityMix ?? []).reduce((s, x) => s + x.value, 0);
+  const repeatTotal = (quality?.repeatAttendees ?? 0) + (quality?.firstTimeAttendees ?? 0);
 
   return (
     <div className="space-y-6">
@@ -102,6 +116,97 @@ const AnalyticsPage = () => {
             </div>
           </Surface>
         </div>
+
+        {/* Attendee quality + funnel */}
+        {quality && funnel && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Engagement funnel */}
+            <Surface>
+              <div className="mb-4 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-medium text-foreground">Engagement funnel</h2>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: 'Registered', value: funnel.registered, color: 'bg-primary' },
+                  { label: 'Checked in', value: funnel.checkedIn, color: 'bg-emerald-500' },
+                  { label: 'Made a connection', value: funnel.connected, color: 'bg-amber-500' },
+                ].map((step) => {
+                  const pct = funnel.registered > 0 ? Math.round((step.value / funnel.registered) * 100) : 0;
+                  return (
+                    <div key={step.label}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-foreground">{step.label}</span>
+                        <span className="text-muted-foreground">{step.value} · {pct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+                        <motion.div className={`h-full ${step.color}`} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Surface>
+
+            {/* Seniority mix + repeat */}
+            <Surface>
+              <div className="mb-4 flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-medium text-foreground">Who showed up</h2>
+              </div>
+
+              {totalSeniority > 0 ? (
+                <div className="space-y-2 mb-4">
+                  {quality.seniorityMix.map((s) => {
+                    const pct = Math.round((s.value / totalSeniority) * 100);
+                    return (
+                      <div key={s.name} className="flex items-center gap-2 text-xs">
+                        <span className="w-20 text-muted-foreground shrink-0">{s.name}</span>
+                        <div className="flex-1 h-2 rounded-full bg-muted/40 overflow-hidden">
+                          <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="w-12 text-right text-foreground">{s.value} ({pct}%)</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mb-4">No role data yet.</p>
+              )}
+
+              {repeatTotal > 0 && (
+                <div className="flex gap-2 pt-3 border-t border-border">
+                  <div className="flex-1 text-center">
+                    <p className="text-lg font-bold text-foreground">{quality.repeatAttendees}</p>
+                    <p className="text-[11px] text-muted-foreground">Returning</p>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <p className="text-lg font-bold text-foreground">{quality.firstTimeAttendees}</p>
+                    <p className="text-[11px] text-muted-foreground">First-time</p>
+                  </div>
+                </div>
+              )}
+            </Surface>
+          </div>
+        )}
+
+        {/* Top companies */}
+        {quality?.topCompanies && quality.topCompanies.length > 0 && (
+          <Surface>
+            <div className="mb-4 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-medium text-foreground">Top companies represented</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {quality.topCompanies.map((c) => (
+                <span key={c.name} className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-foreground">
+                  {c.name}
+                  <span className="text-[10px] text-muted-foreground">{c.count}</span>
+                </span>
+              ))}
+            </div>
+          </Surface>
+        )}
 
         {/* Networking — Phase 3 */}
         {networking && (

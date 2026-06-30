@@ -1,5 +1,5 @@
-import { apiFetch, setTokens } from './api';
-import { mapBackendUser, type BackendUser, type BackendTokens } from './auth.service';
+import { apiFetch } from './api';
+import { mapBackendUser, type BackendUser } from './auth.service';
 import type { User } from '@/store/appStore';
 
 export interface EventLocation {
@@ -248,7 +248,7 @@ export const eventsService = {
     message: string;
     isNewUser: boolean;
     user: User | null;
-    tokens: BackendTokens | null;
+    tokens: null;
     requiresSignIn: boolean;
   }> {
     const res = await apiFetch<{
@@ -258,7 +258,7 @@ export const eventsService = {
         isNewUser: boolean;
         userEmail: string;
         user: BackendUser | null;
-        tokens: BackendTokens | null;
+        tokens: null;
         requiresSignIn: boolean;
       };
     }>(`/events/${eventId}/rsvp-guest`, {
@@ -266,15 +266,12 @@ export const eventsService = {
       body: JSON.stringify(payload),
     });
 
-    if (res.data.tokens) {
-      setTokens(res.data.tokens.accessToken, res.data.tokens.refreshToken);
-    }
     return {
       registration: res.data.registration,
       message: res.data.message,
       isNewUser: res.data.isNewUser,
       user: res.data.user ? mapBackendUser(res.data.user) : null,
-      tokens: res.data.tokens,
+      tokens: null,
       requiresSignIn: res.data.requiresSignIn,
     };
   },

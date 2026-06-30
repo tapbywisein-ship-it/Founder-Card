@@ -9,7 +9,7 @@ const STEPS = [
   {
     icon: IdCard,
     title: 'See their card',
-    body: 'View who they are, what they’re building, and what they’re looking for — all on one Founder Card.',
+    body: 'View who they are, what they’re building, and what they’re looking for — all on one Tap Card.',
   },
   {
     icon: Handshake,

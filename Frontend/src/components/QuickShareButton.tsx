@@ -16,7 +16,7 @@ export const QuickShareButton = () => {
   const share = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: `${user.name} · FounderKey`, url });
+        await navigator.share({ title: `${user.name} · TapByWisein`, url });
       } else {
         await navigator.clipboard.writeText(url);
         toast.success('Your card link is copied');

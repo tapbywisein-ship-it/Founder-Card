@@ -1,6 +1,6 @@
 /**
  * One-shot backfill: ensure every active user holds an ACTIVE Founder Card with
- * a human-readable member ID (FK-XXXXX), a public slug, and a QR code. Run once
+ * a human-readable member ID (TW-XXXXX), a public slug, and a QR code. Run once
  * after applying the `add_founder_member_id` migration:
  *
  *   npm run backfill:cards
@@ -15,7 +15,7 @@ import { generateQRCode } from '../src/utils/qrcode';
 
 const prisma = new PrismaClient();
 
-const memberIdFromSeq = (n: number): string => `FK-${String(n).padStart(5, '0')}`;
+const memberIdFromSeq = (n: number): string => `TW-${String(n).padStart(5, '0')}`;
 
 async function nextMemberId(): Promise<string> {
   const rows = await prisma.$queryRaw<{ nextval: bigint }[]>`SELECT nextval('founder_member_seq') AS nextval`;

@@ -14,21 +14,48 @@ router.get('/leads', organizerController.getLeads.bind(organizerController));
 router.put('/leads/:id', organizerController.updateLeadStatus.bind(organizerController));
 router.get('/leads/export', organizerController.exportLeads.bind(organizerController));
 router.get('/attendees', organizerController.getAttendeeDirectory.bind(organizerController));
-router.get('/events/:id/analytics', organizerController.getEventAnalytics.bind(organizerController));
+router.post('/attendees/blast', organizerController.sendAttendeeBlast.bind(organizerController));
+
+// Razorpay Route payout account
+router.get('/payouts/account', organizerController.getRouteAccount.bind(organizerController));
+router.post('/payouts/onboard', organizerController.onboardRoute.bind(organizerController));
+router.post(
+  '/payouts/refresh-status',
+  organizerController.refreshRouteStatus.bind(organizerController)
+);
+router.get(
+  '/events/:id/analytics',
+  organizerController.getEventAnalytics.bind(organizerController)
+);
 router.post('/events/:id/blast', organizerController.sendEventBlast.bind(organizerController));
 router.post('/events/:id/checkin', organizerController.checkInAttendee.bind(organizerController));
 router.get('/events/:id/guests', organizerController.getEventGuests.bind(organizerController));
 
 // Phase 5 — co-organizers
-router.get('/events/:id/coorganizers',           organizerController.listCoorganizers.bind(organizerController));
-router.post('/events/:id/coorganizers',          organizerController.addCoorganizer.bind(organizerController));
-router.delete('/events/:id/coorganizers/:userId', organizerController.removeCoorganizer.bind(organizerController));
+router.get(
+  '/events/:id/coorganizers',
+  organizerController.listCoorganizers.bind(organizerController)
+);
+router.post(
+  '/events/:id/coorganizers',
+  organizerController.addCoorganizer.bind(organizerController)
+);
+router.delete(
+  '/events/:id/coorganizers/:userId',
+  organizerController.removeCoorganizer.bind(organizerController)
+);
 
 // Phase 5 — speakers + agenda
-router.post('/events/:id/speakers',           organizerController.createSpeaker.bind(organizerController));
-router.delete('/events/:id/speakers/:speakerId', organizerController.deleteSpeaker.bind(organizerController));
-router.post('/events/:id/agenda',             organizerController.createAgendaItem.bind(organizerController));
-router.delete('/events/:id/agenda/:itemId',   organizerController.deleteAgendaItem.bind(organizerController));
+router.post('/events/:id/speakers', organizerController.createSpeaker.bind(organizerController));
+router.delete(
+  '/events/:id/speakers/:speakerId',
+  organizerController.deleteSpeaker.bind(organizerController)
+);
+router.post('/events/:id/agenda', organizerController.createAgendaItem.bind(organizerController));
+router.delete(
+  '/events/:id/agenda/:itemId',
+  organizerController.deleteAgendaItem.bind(organizerController)
+);
 
 // Phase 5 — custom registration questions
 router.post(
@@ -80,10 +107,7 @@ router.get(
 );
 
 // Duplicate event + export attendees CSV
-router.post(
-  '/events/:id/duplicate',
-  organizerController.duplicateEvent.bind(organizerController)
-);
+router.post('/events/:id/duplicate', organizerController.duplicateEvent.bind(organizerController));
 router.get(
   '/events/:id/attendees/export',
   organizerController.exportAttendeesCsv.bind(organizerController)

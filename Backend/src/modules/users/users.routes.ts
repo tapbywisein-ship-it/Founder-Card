@@ -87,11 +87,7 @@ router.get(
  *     tags: [Users]
  *     summary: Claim or update my username
  */
-router.put(
-  '/me/username',
-  authenticate,
-  usersController.claimUsername.bind(usersController)
-);
+router.put('/me/username', authenticate, usersController.claimUsername.bind(usersController));
 
 /**
  * @openapi
@@ -122,7 +118,11 @@ router.get('/me/blocks', authenticate, usersController.listBlocks.bind(usersCont
  *     tags: [Users]
  *     summary: Update organizer payout account (UPI / bank)
  */
-router.put('/me/payout-account', authenticate, usersController.updatePayoutAccount.bind(usersController));
+router.put(
+  '/me/payout-account',
+  authenticate,
+  usersController.updatePayoutAccount.bind(usersController)
+);
 
 /**
  * @openapi
@@ -134,6 +134,12 @@ router.put('/me/payout-account', authenticate, usersController.updatePayoutAccou
  *     tags: [Users]
  *     summary: Unblock a user
  */
+router.post(
+  '/me/request-organizer',
+  authenticate,
+  usersController.requestOrganizerRole.bind(usersController)
+);
+
 router.post('/:id/block', authenticate, usersController.blockUser.bind(usersController));
 router.delete('/:id/block', authenticate, usersController.unblockUser.bind(usersController));
 

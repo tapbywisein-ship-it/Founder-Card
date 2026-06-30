@@ -13,6 +13,29 @@ export interface FounderCard {
   reason?: string | null;
   appliedAt: string;
   reviewedAt?: string | null;
+  physicalCardOrdered?: boolean;
+  fulfillmentStatus?: 'PENDING' | 'DISPATCHED' | 'DELIVERED' | null;
+  trackingId?: string | null;
+  trackingProvider?: string | null;
+  dispatchedAt?: string | null;
+  deliveredAt?: string | null;
+}
+
+export interface CardBlock {
+  id: string;
+  userId: string;
+  type: string;
+  label: string;
+  url: string;
+  sortOrder: number;
+}
+
+export interface CardLead {
+  id: string;
+  name: string;
+  email: string;
+  message: string | null;
+  createdAt: string;
 }
 
 export interface PublicCard {
@@ -22,6 +45,7 @@ export interface PublicCard {
   memberId: string | null;
   slug: string | null;
   qrCodeUrl: string | null;
+  blocks?: CardBlock[];
   user: {
     id: string;
     email: string;
@@ -32,6 +56,7 @@ export interface PublicCard {
       company: string | null;
       position: string | null;
       bio: string | null;
+      status: string | null;
       location: string | null;
       twitter: string | null;
       linkedin: string | null;
@@ -45,9 +70,57 @@ export interface PublicCard {
   };
 }
 
+export interface CardAnalytics {
+  totalViews: number;
+  uniqueViewers: number;
+  taps: number;
+  connections: number;
+  timeseries: { date: string; views: number }[];
+  recentViewers: {
+    id: string;
+    at: string;
+    anonymous: boolean;
+    userId: string | null;
+    name: string | null;
+    avatar: string | null;
+    company: string | null;
+    position: string | null;
+  }[];
+}
+
 export const founderCardService = {
   async getMyCard() {
     return apiFetch<{ data: FounderCard | null }>('/founder-cards/me');
+  },
+
+  async getCardAnalytics() {
+    return apiFetch<{ data: CardAnalytics }>('/founder-cards/me/analytics');
+  },
+
+  async listBlocks() {
+    return apiFetch<{ data: CardBlock[] }>('/founder-cards/me/blocks');
+  },
+
+  async createBlock(input: { type: string; label: string; url: string }) {
+    return apiFetch<{ data: CardBlock }>('/founder-cards/me/blocks', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteBlock(blockId: string) {
+    return apiFetch<{ data: null }>(`/founder-cards/me/blocks/${blockId}`, { method: 'DELETE' });
+  },
+
+  async captureLead(userId: string, input: { name: string; email: string; message?: string }) {
+    return apiFetch<{ data: { ok: boolean } }>(`/founder-cards/public/user/${userId}/lead`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async listLeads() {
+    return apiFetch<{ data: CardLead[] }>('/founder-cards/me/leads');
   },
 
   async applyForCard(message?: string) {

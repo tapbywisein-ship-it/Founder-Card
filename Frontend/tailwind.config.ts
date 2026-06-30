@@ -14,21 +14,23 @@ export default {
     },
     extend: {
       fontFamily: {
-        // System font stack matching Luma — feels native on every device
-        sans: [
-          '-apple-system', 'BlinkMacSystemFont',
-          '"Inter Variable"', 'Inter',
-          '"Segoe UI"', 'Roboto',
-          '"Helvetica Neue"', 'Arial', 'sans-serif',
-        ],
-        body: [
-          '-apple-system', 'BlinkMacSystemFont',
-          '"Inter Variable"', 'Inter',
-          '"Segoe UI"', 'Roboto', 'sans-serif',
-        ],
+        sans: ['"Inter Variable"', 'Inter', '"Geist Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+        body: ['"Inter Variable"', 'Inter', '"Geist Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
         mono: ['"SF Mono"', 'Menlo', 'Monaco', 'Consolas', '"Courier New"', 'monospace'],
       },
       colors: {
+        /* Brand palette — use these in one-off sections/components */
+        navy: {
+          DEFAULT: "#0A0E2E",
+          deep: "#0A0E2E",
+          mid: "#0D1240",
+          light: "#131A52",
+        },
+        "brand-blue": {
+          DEFAULT: "#3B6FF0",
+          light: "#D6E4FF",
+          lighter: "#EAF1FF",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -78,13 +80,16 @@ export default {
         },
       },
       borderRadius: {
-        sm: "4px",
-        DEFAULT: "8px",
-        md: "8px",
-        lg: "var(--radius)",
-        card: "12px",
-        xl: "24px",
+        sm: "6px",
+        DEFAULT: "10px",
+        md: "10px",
+        lg: "var(--radius)",          /* 16px */
+        card: "16px",
+        xl: "20px",
+        "2xl": "24px",
+        "3xl": "32px",
         modal: "32px",
+        pill: "9999px",
       },
       maxWidth: {
         content: "820px",

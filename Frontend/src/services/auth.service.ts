@@ -1,4 +1,4 @@
-import { apiFetch, setTokens, clearTokens } from './api';
+import { apiFetch } from './api';
 import type { User, UserRole, UserTier, CardStatus } from '@/store/appStore';
 
 // ─── Backend shapes ───────────────────────────────────────────────────────────
@@ -38,31 +38,13 @@ export interface BackendUser {
   } | null;
 }
 
-export interface BackendTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface BackendAuthResponse {
-  user: BackendUser;
-  tokens: BackendTokens;
-}
-
 interface ApiEnvelope<T> {
   success: boolean;
   message: string;
   data: T;
 }
 
-// ─── Role / tier mapping ──────────────────────────────────────────────────────
-
-function mapRole(r: string): UserRole {
-  return r.toLowerCase() as UserRole;
-}
-
-function mapTier(t: string): UserTier {
-  return t.toLowerCase() as UserTier;
-}
+// ─── Mapping helpers ──────────────────────────────────────────────────────────
 
 function mapCardStatus(status?: string): CardStatus {
   if (!status) return 'none';
@@ -75,7 +57,6 @@ function mapCardStatus(status?: string): CardStatus {
   return map[status] ?? 'none';
 }
 
-/** Convert a backend user to the frontend User shape */
 export function mapBackendUser(bu: BackendUser): User {
   const firstName = bu.profile?.firstName ?? '';
   const lastName = bu.profile?.lastName ?? '';
@@ -85,8 +66,8 @@ export function mapBackendUser(bu: BackendUser): User {
   return {
     id: bu.id,
     email: bu.email,
-    role: mapRole(bu.role),
-    tier: mapTier(bu.tier),
+    role: bu.role.toLowerCase() as UserRole,
+    tier: bu.tier.toLowerCase() as UserTier,
     name,
     avatar: bu.profile?.avatar ?? undefined,
     designation: bu.profile?.position ?? undefined,
@@ -111,15 +92,11 @@ export function mapBackendUser(bu: BackendUser): User {
   };
 }
 
-// ─── Auth API calls ───────────────────────────────────────────────────────────
+// ─── API calls ────────────────────────────────────────────────────────────────
 
-export async function apiLogin(email: string, password: string): Promise<{ user: User; tokens: BackendTokens }> {
-  const res = await apiFetch<ApiEnvelope<BackendAuthResponse>>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-  setTokens(res.data.tokens.accessToken, res.data.tokens.refreshToken);
-  return { user: mapBackendUser(res.data.user), tokens: res.data.tokens };
+export async function apiGetMe(): Promise<User> {
+  const res = await apiFetch<ApiEnvelope<BackendUser>>('/auth/me');
+  return mapBackendUser(res.data);
 }
 
 export interface ClaimTokenInfo {
@@ -138,100 +115,13 @@ export async function apiValidateClaim(token: string): Promise<ClaimTokenInfo> {
 export async function apiClaimAccount(
   token: string,
   password: string
-): Promise<{ user: User; tokens: BackendTokens }> {
-  const res = await apiFetch<ApiEnvelope<BackendAuthResponse>>(
+): Promise<{ user: User }> {
+  const res = await apiFetch<ApiEnvelope<{ user: BackendUser }>>(
     `/auth/claim/${encodeURIComponent(token)}`,
     {
       method: 'POST',
       body: JSON.stringify({ password }),
     }
   );
-  setTokens(res.data.tokens.accessToken, res.data.tokens.refreshToken);
-  return { user: mapBackendUser(res.data.user), tokens: res.data.tokens };
-}
-
-export async function apiRegister(data: {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role?: string;
-  company?: string;
-}): Promise<{ user: User; tokens: BackendTokens }> {
-  const res = await apiFetch<ApiEnvelope<BackendAuthResponse>>('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({
-      ...data,
-      role: data.role?.toUpperCase() ?? 'ATTENDEE',
-    }),
-  });
-  setTokens(res.data.tokens.accessToken, res.data.tokens.refreshToken);
-  return { user: mapBackendUser(res.data.user), tokens: res.data.tokens };
-}
-
-export async function apiGoogleVerify(supabaseToken: string): Promise<{ user: User; tokens: BackendTokens }> {
-  // Intentionally NO `role` field — the backend defaults new OAuth users to
-  // ATTENDEE and keeps existing users' roles unchanged. Forwarding a client-
-  // controlled role would let an XSS-stuffed localStorage value escalate
-  // privileges on first sign-up.
-  const res = await apiFetch<ApiEnvelope<BackendAuthResponse>>('/auth/google/verify', {
-    method: 'POST',
-    body: JSON.stringify({ supabaseToken }),
-  });
-  setTokens(res.data.tokens.accessToken, res.data.tokens.refreshToken);
-  return { user: mapBackendUser(res.data.user), tokens: res.data.tokens };
-}
-
-export async function apiLogout(): Promise<void> {
-  try {
-    await apiFetch('/auth/logout', { method: 'POST' });
-  } catch {
-    // Ignore errors — clear local tokens regardless
-  }
-  clearTokens();
-}
-
-export async function apiGetMe(): Promise<User> {
-  const res = await apiFetch<ApiEnvelope<BackendUser>>('/auth/me');
-  return mapBackendUser(res.data);
-}
-
-export async function apiGetGoogleOAuthUrl(redirectTo: string): Promise<string> {
-  const res = await apiFetch<ApiEnvelope<{ url: string }>>(
-    `/auth/google/url?redirectTo=${encodeURIComponent(redirectTo)}`
-  );
-  return res.data.url;
-}
-
-/** Request a password-reset email. Backend always responds 200 (no email enumeration). */
-export async function apiForgotPassword(email: string): Promise<void> {
-  await apiFetch('/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email: email.trim().toLowerCase() }),
-  });
-}
-
-/** Complete a password reset with the emailed token. Backend requires confirmPassword. */
-export async function apiResetPassword(
-  token: string,
-  password: string,
-  confirmPassword?: string
-): Promise<void> {
-  await apiFetch('/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ token, password, confirmPassword: confirmPassword ?? password }),
-  });
-}
-
-/** Re-send the email verification link. Public — pass the account email. */
-export async function apiResendVerification(email?: string): Promise<void> {
-  await apiFetch('/auth/resend-verification', {
-    method: 'POST',
-    body: email ? JSON.stringify({ email }) : undefined,
-  });
-}
-
-/** Confirm an email-verification token from the emailed link. */
-export async function apiVerifyEmail(token: string): Promise<void> {
-  await apiFetch(`/auth/verify-email/${encodeURIComponent(token)}`);
+  return { user: mapBackendUser(res.data.user) };
 }

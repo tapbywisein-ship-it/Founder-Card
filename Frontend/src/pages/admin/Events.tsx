@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 import { AdminLayout } from '@/components/AdminLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Calendar, Users, Pause, Play, Trash2, Filter, CheckCircle2, Clock, Circle } from 'lucide-react';
+import { Search, Calendar, Users, Pause, Trash2, Filter, CheckCircle2, Clock, Circle, AlertCircle, ExternalLink } from 'lucide-react';
 import { useAdminEvents } from '@/hooks/useAdmin';
 import { adminService } from '@/services/admin.service';
 
@@ -32,8 +33,14 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 const AdminEventsPage = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const { data, isLoading } = useAdminEvents({ search: search || undefined, status: statusFilter || undefined });
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const selectAll = (ids: string[]) => setSelected(new Set(ids));
+  const clearSelect = () => setSelected(new Set());
+
+  const { data, isLoading, isError } = useAdminEvents({ search: search || undefined, status: statusFilter || undefined });
   const events = (data?.data as AdminEvent[]) ?? [];
   const qc = useQueryClient();
   const suspend = useMutation({
@@ -61,6 +68,13 @@ const AdminEventsPage = () => {
           <p className="text-sm text-muted-foreground mt-0.5">{events.length} events across all organizers</p>
         </div>
 
+        {isError && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            Failed to load events. Try refreshing the page.
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total Events', value: events.length, color: 'text-foreground' },
@@ -76,6 +90,39 @@ const AdminEventsPage = () => {
             </motion.div>
           ))}
         </div>
+
+        {selected.size > 0 && (
+          <Surface className="flex items-center gap-3 bg-primary/5 border-primary/20">
+            <span className="text-sm font-medium text-foreground">{selected.size} selected</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+              onClick={async () => {
+                if (!window.confirm(`Suspend ${selected.size} events?`)) return;
+                await Promise.all([...selected].map((id) => suspend.mutateAsync(id)));
+                clearSelect();
+              }}
+              disabled={suspend.isPending}
+            >
+              <Pause className="w-3 h-3 mr-1" /> Suspend all
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-red-400 border-red-400/30 hover:bg-red-500/10"
+              onClick={async () => {
+                if (!window.confirm(`Delete ${selected.size} events? This cannot be undone.`)) return;
+                await Promise.all([...selected].map((id) => remove.mutateAsync(id)));
+                clearSelect();
+              }}
+              disabled={remove.isPending}
+            >
+              <Trash2 className="w-3 h-3 mr-1" /> Delete all
+            </Button>
+            <button onClick={clearSelect} className="text-xs text-muted-foreground hover:text-foreground ml-auto">Clear</button>
+          </Surface>
+        )}
 
         <Surface className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-48">
@@ -103,7 +150,15 @@ const AdminEventsPage = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  {['Event', 'Organizer', 'Date', 'Location', 'Attendees', 'Status', 'Actions'].map((h) => (
+                  <th className="px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={selected.size === events.length && events.length > 0}
+                      onChange={(e) => e.target.checked ? selectAll(events.map((ev) => ev.id)) : clearSelect()}
+                    />
+                  </th>
+                  {['Event', 'Organizer', 'Date', 'Attendees', 'Status', 'Actions'].map((h) => (
                     <th key={h} className="text-left text-xs text-muted-foreground font-medium px-4 py-3 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -114,7 +169,7 @@ const AdminEventsPage = () => {
                     <tr key={i}><td colSpan={7} className="px-4 py-3"><div className="h-10 bg-muted/50 rounded animate-pulse" /></td></tr>
                   ))
                 ) : events.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">No events found.</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">No events found.</td></tr>
                 ) : (
                   <AnimatePresence>
                     {events.map((e, i) => {
@@ -122,6 +177,7 @@ const AdminEventsPage = () => {
                       const orgName = e.organizer?.profile
                         ? `${e.organizer.profile.firstName} ${e.organizer.profile.lastName}`
                         : e.organizer?.email ?? '—';
+                      const isSelected = selected.has(e.id);
                       return (
                         <motion.tr
                           key={e.id}
@@ -129,15 +185,26 @@ const AdminEventsPage = () => {
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           transition={{ delay: i * 0.04 }}
-                          className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                          className={`border-b border-border/50 hover:bg-muted/20 transition-colors group ${isSelected ? 'bg-primary/5' : ''}`}
                         >
                           <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              className="rounded"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(e.id)}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                                <Calendar className="w-4 h-4" />
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <Calendar className="w-4 h-4 text-primary" />
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-foreground whitespace-nowrap">{e.title}</p>
+                                <p className="text-sm font-medium text-foreground whitespace-nowrap flex items-center gap-1">
+                                  {e.title}
+                                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                                </p>
                                 {e.category && <span className="text-[10px] text-muted-foreground">{e.category}</span>}
                               </div>
                             </div>
@@ -146,7 +213,6 @@ const AdminEventsPage = () => {
                           <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap max-w-32 truncate">{e.location ?? 'TBD'}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5 text-xs text-foreground">
                               <Users className="w-3 h-3 text-muted-foreground" />

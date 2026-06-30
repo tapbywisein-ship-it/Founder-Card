@@ -16,9 +16,9 @@ const Terms = () => (
 
       <div className="space-y-5 text-sm text-muted-foreground leading-relaxed">
         <section>
-          <h2 className="text-lg font-semibold text-foreground mb-1">Using FounderKey</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-1">Using TapByWisein</h2>
           <p>
-            FounderKey is an NFC/QR event-networking platform for founders. You're responsible for the
+            TapByWisein is an NFC/QR event-networking platform for founders. You're responsible for the
             accuracy of your profile and for using the platform lawfully and respectfully. We may
             suspend accounts that abuse the service or other members.
           </p>

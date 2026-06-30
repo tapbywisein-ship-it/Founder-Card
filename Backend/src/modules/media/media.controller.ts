@@ -42,16 +42,10 @@ export class MediaController {
     sendSuccess(res, null, 'File deleted successfully');
   }
 
-  async getPresignedUrl(req: Request, res: Response): Promise<void> {
+  async getPublicUrl(req: Request, res: Response): Promise<void> {
     const { key } = req.params as Record<string, string>;
-    const { expiresIn } = req.query as { expiresIn?: string };
-
-    const url = await mediaService.getPresignedUrl(
-      decodeURIComponent(key),
-      expiresIn ? Number(expiresIn) : 3600
-    );
-
-    sendSuccess(res, { url, expiresIn: expiresIn ? Number(expiresIn) : 3600 }, 'Presigned URL generated');
+    const url = mediaService.getPublicUrl(decodeURIComponent(key));
+    sendSuccess(res, { url }, 'Public URL retrieved');
   }
 }
 

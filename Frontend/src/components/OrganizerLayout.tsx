@@ -4,17 +4,25 @@ import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
-  LayoutDashboard, Calendar, Users, Download, LogOut, Compass, Wallet,
+  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus,
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/organizer/dashboard' },
-  { label: 'Create Event', icon: Calendar, path: '/organizer/events/create' },
-  { label: 'Attendees', icon: Users, path: '/organizer/attendees' },
-  { label: 'Leads', icon: Download, path: '/organizer/leads' },
-  { label: 'Payouts', icon: Wallet, path: '/organizer/payouts' },
-  // Cross-link to the attendee surfaces — same account can host AND attend.
-  { label: 'My Tickets', icon: Compass, path: '/dashboard' },
+  { label: 'Dashboard',    icon: LayoutDashboard, path: '/organizer/dashboard' },
+  { label: 'Create Event', icon: Calendar,         path: '/organizer/events/create' },
+  { label: 'Attendees',    icon: Users,            path: '/organizer/attendees' },
+  { label: 'Leads',        icon: Download,         path: '/organizer/leads' },
+  { label: 'Payouts',      icon: Wallet,           path: '/organizer/payouts' },
+  { label: 'My Tickets',   icon: Ticket,           path: '/my-tickets' },
+  { label: 'Profile',      icon: UserCircle,       path: '/profile' },
+];
+
+const mobileNav = [
+  { label: 'Home',      icon: LayoutDashboard, path: '/organizer/dashboard' },
+  { label: 'Attendees', icon: Users,            path: '/organizer/attendees' },
+  { label: 'New',       icon: Plus,             path: '/organizer/events/create' },
+  { label: 'Leads',     icon: Download,         path: '/organizer/leads' },
+  { label: 'Profile',   icon: UserCircle,       path: '/profile' },
 ];
 
 export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
@@ -57,8 +65,28 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
         </div>
       </aside>
       <div className="flex-1 md:ml-60 min-h-screen">
-        <main className="p-4 md:p-8 max-w-xwide mx-auto">{children}</main>
+        <main className="p-4 md:p-8 max-w-xwide mx-auto pb-24 md:pb-8">{children}</main>
       </div>
+
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border flex items-center justify-around px-2 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}>
+        {mobileNav.map((item) => {
+          const active = location.pathname === item.path;
+          const isNew = item.label === 'New';
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              <div className={isNew ? 'w-8 h-8 rounded-full bg-primary flex items-center justify-center' : ''}>
+                <item.icon className={`${isNew ? 'w-4 h-4 text-primary-foreground' : 'w-5 h-5'}`} />
+              </div>
+              {!isNew && <span className="text-[10px] font-medium">{item.label}</span>}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 };

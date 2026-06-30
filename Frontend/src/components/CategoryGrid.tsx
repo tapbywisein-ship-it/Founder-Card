@@ -1,22 +1,23 @@
 import { motion } from 'framer-motion';
+import { Cpu, TrendingUp, Palette, Heart, Users, Bot, Rocket, Sparkles } from 'lucide-react';
 
 export interface Category {
   id: string;
   label: string;
-  emoji: string;
+  icon: React.ElementType;
   gradient: string;
   count?: number;
 }
 
 export const CATEGORIES: Category[] = [
-  { id: 'Tech',        label: 'Tech',       emoji: '💻', gradient: 'from-blue-500/20 to-indigo-500/20' },
-  { id: 'Business',   label: 'Business',   emoji: '📈', gradient: 'from-amber-500/20 to-orange-500/20' },
-  { id: 'Design',     label: 'Design',     emoji: '🎨', gradient: 'from-pink-500/20 to-rose-500/20' },
-  { id: 'Health',     label: 'Health',     emoji: '🧘', gradient: 'from-green-500/20 to-emerald-500/20' },
-  { id: 'Social',     label: 'Social',     emoji: '🤝', gradient: 'from-violet-500/20 to-purple-500/20' },
-  { id: 'AI',         label: 'AI / ML',    emoji: '🤖', gradient: 'from-cyan-500/20 to-teal-500/20' },
-  { id: 'Startup',    label: 'Startup',    emoji: '🚀', gradient: 'from-yellow-500/20 to-amber-500/20' },
-  { id: 'Other',      label: 'Other',      emoji: '✨', gradient: 'from-slate-500/20 to-gray-500/20' },
+  { id: 'Tech',      label: 'Tech',     icon: Cpu,        gradient: 'from-blue-500/20 to-indigo-500/20' },
+  { id: 'Business',  label: 'Business', icon: TrendingUp, gradient: 'from-amber-500/20 to-orange-500/20' },
+  { id: 'Design',    label: 'Design',   icon: Palette,    gradient: 'from-pink-500/20 to-rose-500/20' },
+  { id: 'Health',    label: 'Health',   icon: Heart,      gradient: 'from-green-500/20 to-emerald-500/20' },
+  { id: 'Social',    label: 'Social',   icon: Users,      gradient: 'from-violet-500/20 to-purple-500/20' },
+  { id: 'AI',        label: 'AI / ML',  icon: Bot,        gradient: 'from-cyan-500/20 to-teal-500/20' },
+  { id: 'Startup',   label: 'Startup',  icon: Rocket,     gradient: 'from-yellow-500/20 to-amber-500/20' },
+  { id: 'Other',     label: 'Other',    icon: Sparkles,   gradient: 'from-slate-500/20 to-gray-500/20' },
 ];
 
 interface CategoryGridProps {
@@ -29,6 +30,7 @@ export const CategoryGrid = ({ selected, onSelect, counts }: CategoryGridProps) 
   <div className="grid grid-cols-4 gap-2.5">
     {CATEGORIES.map((cat, i) => {
       const active = selected === cat.id;
+      const Icon = cat.icon;
       return (
         <motion.button
           key={cat.id}
@@ -42,8 +44,8 @@ export const CategoryGrid = ({ selected, onSelect, counts }: CategoryGridProps) 
               : 'border-border hover:border-primary/20 hover:bg-muted/40'
           }`}
         >
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-gradient-to-br ${cat.gradient}`}>
-            {cat.emoji}
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${cat.gradient}`}>
+            <Icon className={`w-5 h-5 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
           </div>
           <span className={`text-[10px] font-medium text-center leading-tight ${active ? 'text-primary' : 'text-muted-foreground'}`}>
             {cat.label}

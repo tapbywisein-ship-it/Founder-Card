@@ -8,7 +8,7 @@ const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    document.title = "Page not found | FounderKey";
+    document.title = "Page not found | TapByWisein";
     console.error("404 Error: route not found:", location.pathname);
   }, [location.pathname]);
 

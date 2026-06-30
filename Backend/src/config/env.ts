@@ -19,29 +19,16 @@ const envSchema = z.object({
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
   REDIS_PASSWORD: z.string().optional(),
 
-  // JWT
-  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
-
-  // Bcrypt
+  // Bcrypt (still used for claim-account password hashing)
   BCRYPT_ROUNDS: z.coerce.number().int().min(8).max(20).default(12),
 
-  // SMTP
-  SMTP_HOST: z.string().default('smtp.gmail.com'),
-  SMTP_PORT: z.coerce.number().int().positive().default(587),
-  SMTP_USER: z.string().default(''),
-  SMTP_PASS: z.string().default(''),
-  SMTP_FROM: z.string().email().default('noreply@goldentap.com'),
-  SMTP_FROM_NAME: z.string().default('Golden Tap Connect'),
+  // Resend — transactional emails
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  EMAIL_FROM: z.string().default('onboarding@resend.dev'),
 
-  // AWS S3
-  AWS_ACCESS_KEY_ID: z.string().optional(),
-  AWS_SECRET_ACCESS_KEY: z.string().optional(),
-  AWS_REGION: z.string().default('us-east-1'),
-  AWS_S3_BUCKET: z.string().optional(),
-  AWS_S3_BASE_URL: z.string().optional(),
+  // Supabase Storage buckets
+  SUPABASE_STORAGE_AVATAR_BUCKET: z.string().default('avatars'),
+  SUPABASE_STORAGE_COVER_BUCKET: z.string().default('covers'),
 
   // CORS / Frontend
   FRONTEND_URL: z.string().default('http://localhost:5173'),
@@ -60,14 +47,12 @@ const envSchema = z.object({
 
   // File Uploads
   UPLOAD_MAX_SIZE_MB: z.coerce.number().int().positive().default(5),
-  UPLOAD_ALLOWED_TYPES: z
-    .string()
-    .default('image/jpeg,image/jpg,image/png,image/webp,image/gif'),
+  UPLOAD_ALLOWED_TYPES: z.string().default('image/jpeg,image/jpg,image/png,image/webp,image/gif'),
 
   // Bull Queues
   BULL_REDIS_URL: z.string().default('redis://localhost:6379'),
 
-  // Supabase (for Google OAuth)
+  // Supabase — auth, storage, database
   SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
   SUPABASE_ANON_KEY: z.string().min(1, 'SUPABASE_ANON_KEY is required'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),

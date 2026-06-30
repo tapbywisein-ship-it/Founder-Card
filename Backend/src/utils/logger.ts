@@ -51,7 +51,7 @@ if (env.NODE_ENV !== 'production') {
 export const logger = winston.createLogger({
   level: env.LOG_LEVEL || 'info',
   format: combine(errors({ stack: true }), json()),
-  defaultMeta: { service: 'golden-tap-backend' },
+  defaultMeta: { service: 'tapbywisein-backend' },
   transports,
   exceptionHandlers: [
     new DailyRotateFile({

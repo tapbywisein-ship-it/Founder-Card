@@ -5,7 +5,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { TrendingUp, Users, Zap, Calendar, CreditCard, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, Users, Zap, Calendar, CreditCard, ArrowUpRight, AlertCircle } from 'lucide-react';
 import { useAdminDashboard, useAdminAnalytics } from '@/hooks/useAdmin';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -27,8 +27,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const TIER_COLORS = ['#6B7280', '#D4A853'];
 
 const AdminAnalyticsPage = () => {
-  const { data: stats } = useAdminDashboard();
-  const { data: analytics } = useAdminAnalytics();
+  const { data: stats, isError: statsError } = useAdminDashboard();
+  const { data: analytics, isError: analyticsError } = useAdminAnalytics();
+  const hasError = statsError || analyticsError;
 
   // Use real data if available, otherwise show placeholder structure
   const signupData = (analytics as any)?.signupsByMonth ?? [
@@ -53,7 +54,7 @@ const AdminAnalyticsPage = () => {
     { label: 'Active Users (30d)', value: stats?.activeUsers?.toLocaleString() ?? '—', icon: TrendingUp },
     { label: 'Total Connections', value: stats?.totalConnections?.toLocaleString() ?? '—', icon: Zap },
     { label: 'Active Events', value: stats?.totalEvents?.toLocaleString() ?? '—', icon: Calendar },
-    { label: 'Founder Cards', value: stats?.totalFounderCards?.toLocaleString() ?? '—', icon: CreditCard },
+    { label: 'Tap Cards', value: stats?.totalFounderCards?.toLocaleString() ?? '—', icon: CreditCard },
     { label: 'Events Created', value: stats?.totalEvents?.toLocaleString() ?? '—', icon: Calendar },
   ];
 
@@ -64,6 +65,13 @@ const AdminAnalyticsPage = () => {
           <h1 className="text-3xl font-semibold text-foreground">Platform Analytics</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Real-time platform data</p>
         </div>
+
+        {hasError && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            Failed to load analytics data. Some metrics may be unavailable.
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {kpis.map(({ label, value, icon: Icon }, i) => (
@@ -76,7 +84,7 @@ const AdminAnalyticsPage = () => {
                   </div>
                   <ArrowUpRight className="w-3 h-3 text-emerald-400" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">{value}</p>
+                <p className={`text-2xl font-bold ${statsError ? 'text-muted-foreground/50' : 'text-foreground'}`}>{value}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
               </Surface>
             </motion.div>

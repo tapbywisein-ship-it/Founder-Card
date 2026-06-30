@@ -1,142 +1,68 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import fs from 'fs';
-import path from 'path';
+import { supabaseAdmin } from '@config/supabase';
 import { env } from '@config/env';
 import logger from '@utils/logger';
 
-const hasS3Config =
-  env.AWS_ACCESS_KEY_ID &&
-  env.AWS_SECRET_ACCESS_KEY &&
-  env.AWS_S3_BUCKET;
-
-let s3Client: S3Client | null = null;
-
-if (hasS3Config) {
-  s3Client = new S3Client({
-    region: env.AWS_REGION,
-    credentials: {
-      accessKeyId: env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-}
-
 export class MediaService {
-  private useS3 = Boolean(hasS3Config);
-
   async uploadFile(
     buffer: Buffer,
     key: string,
     mimeType: string,
-    acl: 'public-read' | 'private' = 'public-read'
+    bucket?: string
   ): Promise<string> {
-    if (this.useS3) {
-      return this.uploadToS3(buffer, key, mimeType, acl);
-    }
-    return this.uploadLocal(buffer, key);
-  }
+    const targetBucket = bucket ?? env.SUPABASE_STORAGE_AVATAR_BUCKET;
 
-  async uploadToS3(
-    buffer: Buffer,
-    key: string,
-    mimeType: string,
-    _acl: 'public-read' | 'private' = 'public-read'
-  ): Promise<string> {
-    if (!s3Client || !env.AWS_S3_BUCKET) {
-      throw new Error('S3 is not configured');
-    }
+    const { error } = await supabaseAdmin.storage
+      .from(targetBucket)
+      .upload(key, buffer, { contentType: mimeType, upsert: true });
 
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: env.AWS_S3_BUCKET,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-      })
-    );
-
-    return this.getPublicUrl(key);
-  }
-
-  async deleteFromS3(key: string): Promise<void> {
-    if (!s3Client || !env.AWS_S3_BUCKET) {
-      throw new Error('S3 is not configured');
+    if (error) {
+      logger.error('Supabase Storage upload failed', {
+        key,
+        bucket: targetBucket,
+        error: error.message,
+      });
+      throw new Error(`Storage upload failed: ${error.message}`);
     }
 
-    const objectKey = key.startsWith('http') ? this.extractKeyFromUrl(key) : key;
-
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: env.AWS_S3_BUCKET,
-        Key: objectKey,
-      })
-    );
+    return this.getPublicUrl(key, targetBucket);
   }
 
-  async getPresignedUrl(key: string, expiresIn = 3600): Promise<string> {
-    if (!s3Client || !env.AWS_S3_BUCKET) {
-      throw new Error('S3 is not configured');
-    }
+  async deleteFile(url: string, bucket?: string): Promise<void> {
+    const key = this.extractKeyFromUrl(url);
+    const targetBucket = bucket ?? this.guessBucket(url);
 
-    const command = new GetObjectCommand({
-      Bucket: env.AWS_S3_BUCKET,
-      Key: key,
-    });
+    const { error } = await supabaseAdmin.storage.from(targetBucket).remove([key]);
 
-    return getSignedUrl(s3Client, command, { expiresIn });
-  }
-
-  async uploadLocal(buffer: Buffer, filename: string, dir = 'uploads'): Promise<string> {
-    const uploadDir = path.join(process.cwd(), dir, path.dirname(filename));
-
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const filePath = path.join(process.cwd(), dir, filename);
-    await fs.promises.writeFile(filePath, buffer);
-
-    // Return the public URL path
-    return `/uploads/${filename}`;
-  }
-
-  async deleteLocal(filepath: string): Promise<void> {
-    try {
-      const localPath = filepath.startsWith('/uploads/')
-        ? path.join(process.cwd(), filepath)
-        : filepath;
-
-      if (fs.existsSync(localPath)) {
-        await fs.promises.unlink(localPath);
-      }
-    } catch (error) {
-      logger.warn('Failed to delete local file', { filepath, error });
+    if (error) {
+      logger.warn('Supabase Storage delete failed', {
+        key,
+        bucket: targetBucket,
+        error: error.message,
+      });
     }
   }
 
-  async deleteFile(url: string): Promise<void> {
-    if (this.useS3 && url.includes('.amazonaws.com')) {
-      await this.deleteFromS3(url);
-    } else {
-      await this.deleteLocal(url);
-    }
+  getPublicUrl(key: string, bucket?: string): string {
+    const targetBucket = bucket ?? env.SUPABASE_STORAGE_AVATAR_BUCKET;
+    const { data } = supabaseAdmin.storage.from(targetBucket).getPublicUrl(key);
+    return data.publicUrl;
   }
 
-  getPublicUrl(key: string): string {
-    if (env.AWS_S3_BASE_URL) {
-      return `${env.AWS_S3_BASE_URL}/${key}`;
+  private guessBucket(url: string): string {
+    if (url.includes(`/${env.SUPABASE_STORAGE_COVER_BUCKET}/`)) {
+      return env.SUPABASE_STORAGE_COVER_BUCKET;
     }
-    if (env.AWS_S3_BUCKET && env.AWS_REGION) {
-      return `https://${env.AWS_S3_BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
-    }
-    return `/uploads/${key}`;
+    return env.SUPABASE_STORAGE_AVATAR_BUCKET;
   }
 
   private extractKeyFromUrl(url: string): string {
     try {
       const urlObj = new URL(url);
-      return urlObj.pathname.substring(1); // Remove leading slash
+      // Supabase Storage public URLs look like:
+      // https://<ref>.supabase.co/storage/v1/object/public/<bucket>/<key>
+      const parts = urlObj.pathname.split('/');
+      const bucketIdx = parts.indexOf('public') + 1;
+      return parts.slice(bucketIdx + 1).join('/');
     } catch {
       return url;
     }

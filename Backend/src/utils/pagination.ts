@@ -25,11 +25,7 @@ export const parsePaginationQuery = (query: PaginationQuery): ParsedPagination =
   };
 };
 
-export const buildPaginationMeta = (
-  total: number,
-  page: number,
-  limit: number
-): PaginationMeta => {
+export const buildPaginationMeta = (total: number, page: number, limit: number): PaginationMeta => {
   const totalPages = Math.ceil(total / limit);
 
   return {

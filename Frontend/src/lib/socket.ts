@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { getAccessToken } from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -8,10 +8,15 @@ const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL as string) || 'http://localh
 
 let socket: Socket | null = null;
 
-export function connectSocket(): Socket {
+async function getToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+export async function connectSocket(): Promise<Socket> {
   if (socket?.connected) return socket;
 
-  const token = getAccessToken();
+  const token = await getToken();
   socket = io(SOCKET_URL, {
     auth: { token },
     transports: ['websocket', 'polling'],
@@ -34,44 +39,63 @@ export function getSocket(): Socket | null {
   return socket;
 }
 
-/** Hook: connect on mount, disconnect on unmount, invalidate notifications on new notification */
 export function useSocket() {
   const qc = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) return;
+    let mounted = true;
 
-    const s = connectSocket();
-    socketRef.current = s;
+    getToken().then((token) => {
+      if (!token || !mounted) return;
 
-    s.on('connect', () => {
-      // socket connected
-    });
+      connectSocket().then((s) => {
+        if (!mounted) return;
+        socketRef.current = s;
 
-    s.on('notification:new', (notif: { title: string; message: string }) => {
-      // Invalidate notification queries so the badge/list refreshes
-      qc.invalidateQueries({ queryKey: ['notifications'] });
-      toast.info(notif.title, { description: notif.message });
-    });
+        // Notifications — refetch active queries immediately so badge updates now,
+        // not after the 30-60s polling interval.
+        s.on('notification:new', (notif: { title: string; message: string }) => {
+          qc.refetchQueries({ queryKey: ['notifications'], type: 'active' });
+          toast.info(notif.title, { description: notif.message });
+        });
 
-    const onMessage = (payload: { conversationId: string }) => {
-      qc.invalidateQueries({ queryKey: ['conversations'] });
-      qc.invalidateQueries({ queryKey: ['conversation', payload.conversationId] });
-      qc.invalidateQueries({ queryKey: ['messages', 'unread'] });
-    };
-    s.on('message:new', onMessage);
-    s.on('message:sent', onMessage);
+        // Messages — refetch active conversation + list so chat updates instantly.
+        const onMessage = (payload: { conversationId: string }) => {
+          qc.refetchQueries({ queryKey: ['messages', 'list'], type: 'active' });
+          qc.refetchQueries({ queryKey: ['messages', 'thread', payload.conversationId], type: 'active' });
+          qc.refetchQueries({ queryKey: ['messages', 'unread'], type: 'active' });
+        };
+        s.on('message:new', onMessage);
+        s.on('message:sent', onMessage);
 
-    s.on('connect_error', () => {
-      // Silently handle — socket is optional
+        // Connections — update list when another user accepts or declines.
+        const onConnection = () => {
+          qc.refetchQueries({ queryKey: ['connections'], type: 'active' });
+        };
+        s.on('connection:accepted', onConnection);
+        s.on('connection:rejected', onConnection);
+        s.on('connection:withdrawn', onConnection);
+
+        // Re-fetch unread counts when socket reconnects in case events were missed.
+        s.on('connect', () => {
+          qc.refetchQueries({ queryKey: ['notifications', 'unread-count'], type: 'active' });
+          qc.refetchQueries({ queryKey: ['messages', 'unread'], type: 'active' });
+        });
+      });
     });
 
     return () => {
-      s.off('notification:new');
-      s.off('message:new', onMessage);
-      s.off('message:sent', onMessage);
+      mounted = false;
+      if (socketRef.current) {
+        socketRef.current.off('notification:new');
+        socketRef.current.off('message:new');
+        socketRef.current.off('message:sent');
+        socketRef.current.off('connection:accepted');
+        socketRef.current.off('connection:rejected');
+        socketRef.current.off('connection:withdrawn');
+        socketRef.current.off('connect');
+      }
     };
   }, [qc]);
 

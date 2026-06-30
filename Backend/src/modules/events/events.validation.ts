@@ -8,39 +8,50 @@ const locationSchema = z.object({
   meetingUrl: z.string().url().optional().or(z.literal('')),
 });
 
-export const createEventSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters').max(200).trim(),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(10000).trim(),
-  startDate: z.coerce.date().refine((d) => d > new Date(), 'Start date must be in the future'),
-  endDate: z.coerce.date(),
-  location: locationSchema.optional(),
-  capacity: z.coerce.number().int().min(1).max(100000).default(100),
-  // Restrict event creation to in-person only.
-  // This prevents new events from being created/updated with VIRTUAL/HYBRID types.
-  type: z.enum(['IN_PERSON']).default('IN_PERSON'),
-  tags: z.array(z.string().max(50).trim()).max(10).optional().default([]),
-  ticketPrice: z.coerce.number().min(0).optional(),
-  coverImage: z.string().optional(),
-  category: z.string().min(1, 'Category is required').max(100),
-  theme: z.string().max(50).optional().default('default'),
-  slug: z.string().max(200).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens').optional(),
-  requiresApproval: z.boolean().optional().default(false),
-  waitlistEnabled: z.boolean().optional().default(true),
-  visibility: z.enum(['PUBLIC', 'PRIVATE', 'UNLISTED']).optional().default('PUBLIC'),
-  timezone: z.string().max(100).optional().default('UTC'),
-  ticketTypes: z.array(z.object({
-    id: z.string(),
-    name: z.string().max(100),
-    price: z.coerce.number().min(0),
-    count: z.coerce.number().int().min(0),
-    benefits: z.array(z.string().max(200)).max(20),
-    color: z.string().max(50).optional(),
-    isEnabled: z.boolean().optional().default(true),
-  })).max(10).optional(),
-}).refine(
-  (data) => data.endDate > data.startDate,
-  { message: 'End date must be after start date', path: ['endDate'] }
-);
+export const createEventSchema = z
+  .object({
+    title: z.string().min(3, 'Title must be at least 3 characters').max(200).trim(),
+    description: z.string().min(10, 'Description must be at least 10 characters').max(10000).trim(),
+    startDate: z.coerce.date().refine((d) => d > new Date(), 'Start date must be in the future'),
+    endDate: z.coerce.date(),
+    location: locationSchema.optional(),
+    capacity: z.coerce.number().int().min(1).max(100000).default(100),
+    // Restrict event creation to in-person only.
+    // This prevents new events from being created/updated with VIRTUAL/HYBRID types.
+    type: z.enum(['IN_PERSON']).default('IN_PERSON'),
+    tags: z.array(z.string().max(50).trim()).max(10).optional().default([]),
+    ticketPrice: z.coerce.number().min(0).optional(),
+    coverImage: z.string().optional(),
+    category: z.string().min(1, 'Category is required').max(100),
+    theme: z.string().max(50).optional().default('default'),
+    slug: z
+      .string()
+      .max(200)
+      .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens')
+      .optional(),
+    requiresApproval: z.boolean().optional().default(false),
+    waitlistEnabled: z.boolean().optional().default(true),
+    visibility: z.enum(['PUBLIC', 'PRIVATE', 'UNLISTED']).optional().default('PUBLIC'),
+    timezone: z.string().max(100).optional().default('UTC'),
+    ticketTypes: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string().max(100),
+          price: z.coerce.number().min(0),
+          count: z.coerce.number().int().min(0),
+          benefits: z.array(z.string().max(200)).max(20),
+          color: z.string().max(50).optional(),
+          isEnabled: z.boolean().optional().default(true),
+        })
+      )
+      .max(10)
+      .optional(),
+  })
+  .refine((data) => data.endDate > data.startDate, {
+    message: 'End date must be after start date',
+    path: ['endDate'],
+  });
 
 export const updateEventSchema = z.object({
   title: z.string().min(3).max(200).trim().optional(),
@@ -60,15 +71,20 @@ export const updateEventSchema = z.object({
   waitlistEnabled: z.boolean().optional(),
   visibility: z.enum(['PUBLIC', 'PRIVATE', 'UNLISTED']).optional(),
   timezone: z.string().max(100).optional(),
-  ticketTypes: z.array(z.object({
-    id: z.string(),
-    name: z.string().max(100),
-    price: z.coerce.number().min(0),
-    count: z.coerce.number().int().min(0),
-    benefits: z.array(z.string().max(200)).max(20),
-    color: z.string().max(50).optional(),
-    isEnabled: z.boolean().optional(),
-  })).max(10).optional(),
+  ticketTypes: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string().max(100),
+        price: z.coerce.number().min(0),
+        count: z.coerce.number().int().min(0),
+        benefits: z.array(z.string().max(200)).max(20),
+        color: z.string().max(50).optional(),
+        isEnabled: z.boolean().optional(),
+      })
+    )
+    .max(10)
+    .optional(),
 });
 
 export const searchEventsSchema = z.object({

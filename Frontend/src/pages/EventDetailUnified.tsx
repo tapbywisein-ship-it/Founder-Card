@@ -25,7 +25,7 @@ import { ReportButton } from '@/components/ReportButton';
 import { requireVerifiedEmail } from '@/components/VerifyEmailBanner';
 import { eventsService } from '@/services/events.service';
 import { useAppStore } from '@/store/appStore';
-import { getAccessToken, ApiError } from '@/services/api';
+import { ApiError } from '@/services/api';
 import {
   useEvent, useRegisterForEvent, useCancelRegistration, useMyRegistrations, useEventAttendees,
 } from '@/hooks/useEvents';
@@ -35,6 +35,7 @@ import { useJsonLd } from '@/lib/useJsonLd';
 import { getRegistrationPricing } from '@/lib/ticketPricing';
 import { formatINR } from '@/lib/currency';
 import { paymentsService, loadRazorpayScript, openRazorpayCheckout } from '@/services/payments.service';
+import { useHomePath } from '@/lib/useHomePath';
 
 /**
  * Unified event detail page rendered by both `/event/:id` (auth) and
@@ -124,7 +125,7 @@ const EventDetailUnified = () => {
             '@type': 'Organization',
             name: event.organizer?.profile
               ? `${event.organizer.profile.firstName} ${event.organizer.profile.lastName}`.trim()
-              : 'FounderKey',
+              : 'TapByWisein',
           },
         }
       : null
@@ -218,16 +219,11 @@ const EventDetailUnified = () => {
 
   const qrValue = myRegistration?.id
     ? `reg:${myRegistration.id}`
-    : `founderkey://event/${event.id}/user/${user?.id ?? 'guest'}`;
+    : `tapbywisein://event/${event.id}/user/${user?.id ?? 'guest'}`;
 
   // ── Handlers ─────────────────────────────────────────────────────────
 
   const handleRegister = () => {
-    if (isAuthenticated && !getAccessToken()) {
-      logout();
-      navigate('/login', { state: { from: { pathname: `/e/${id}` } } });
-      return;
-    }
     // Soft email-verification gate for signed-in users.
     if (isAuthenticated && !requireVerifiedEmail(user)) return;
     // Paid events go through Razorpay checkout (requires an account).
@@ -724,7 +720,7 @@ const EventDetailUnified = () => {
                     className="h-10 w-10 rounded-full overflow-hidden bg-secondary flex items-center justify-center text-xs font-semibold text-foreground border border-border"
                   >
                     {a.user.profile?.avatar ? (
-                      <img src={a.user.profile.avatar} alt={name} className="h-full w-full object-cover" />
+                      <img src={a.user.profile.avatar} alt={name} loading="lazy" className="h-full w-full object-cover" />
                     ) : (
                       name.charAt(0).toUpperCase()
                     )}
@@ -778,6 +774,7 @@ const GuestRsvpModal = ({
   eventTitle,
 }: GuestRsvpModalProps) => {
   const navigate = useNavigate();
+  const homePath = useHomePath();
   const login = useAppStore((s) => s.login);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -924,7 +921,7 @@ const GuestRsvpModal = ({
                   onClick={() => {
                     onOpenChange(false);
                     reset();
-                    navigate('/dashboard');
+                    navigate(homePath);
                   }}
                 >
                   View your dashboard

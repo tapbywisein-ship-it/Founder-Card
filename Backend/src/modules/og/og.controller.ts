@@ -5,7 +5,8 @@ import { env } from '@config/env';
 const CACHE_HEADER = 'public, max-age=300, s-maxage=900';
 
 const baseUrl = (req: Request) => {
-  const proto = (req.headers['x-forwarded-proto'] as string)?.split(',')[0] ?? req.protocol ?? 'https';
+  const proto =
+    (req.headers['x-forwarded-proto'] as string)?.split(',')[0] ?? req.protocol ?? 'https';
   const host = (req.headers['x-forwarded-host'] as string) ?? req.headers.host ?? '';
   return `${proto}://${host}`;
 };
@@ -42,15 +43,24 @@ export class OgController {
       const spaUrl = `${env.FRONTEND_URL}/c/${encodeURIComponent(slug)}`;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', CACHE_HEADER);
-      res.send(renderCrawlerHtml({ title: meta.title, description: meta.description, imgUrl, redirectUrl: spaUrl }));
+      res.send(
+        renderCrawlerHtml({
+          title: meta.title,
+          description: meta.description,
+          imgUrl,
+          redirectUrl: spaUrl,
+        })
+      );
     } catch {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(404).send(renderCrawlerHtml({
-        title: 'Card not found · Founder Key',
-        description: 'This Founder Key card link is no longer valid.',
-        imgUrl: `${env.FRONTEND_URL}/og-default.png`,
-        redirectUrl: env.FRONTEND_URL,
-      }));
+      res.status(404).send(
+        renderCrawlerHtml({
+          title: 'Card not found · Founder Key',
+          description: 'This Founder Key card link is no longer valid.',
+          imgUrl: `${env.FRONTEND_URL}/og-default.png`,
+          redirectUrl: env.FRONTEND_URL,
+        })
+      );
     }
   }
 
@@ -63,15 +73,25 @@ export class OgController {
       const jsonLd = await ogService.eventJsonLd(id, spaUrl);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', CACHE_HEADER);
-      res.send(renderCrawlerHtml({ title: meta.title, description: meta.description, imgUrl, redirectUrl: spaUrl, jsonLd: jsonLd ?? undefined }));
+      res.send(
+        renderCrawlerHtml({
+          title: meta.title,
+          description: meta.description,
+          imgUrl,
+          redirectUrl: spaUrl,
+          jsonLd: jsonLd ?? undefined,
+        })
+      );
     } catch {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(404).send(renderCrawlerHtml({
-        title: 'Event not found · Founder Key',
-        description: 'This Founder Key event link is no longer valid.',
-        imgUrl: `${env.FRONTEND_URL}/og-default.png`,
-        redirectUrl: env.FRONTEND_URL,
-      }));
+      res.status(404).send(
+        renderCrawlerHtml({
+          title: 'Event not found · Founder Key',
+          description: 'This Founder Key event link is no longer valid.',
+          imgUrl: `${env.FRONTEND_URL}/og-default.png`,
+          redirectUrl: env.FRONTEND_URL,
+        })
+      );
     }
   }
 }
@@ -117,7 +137,7 @@ function renderCrawlerHtml(opts: {
 <meta property="og:description" content="${d}"/>
 <meta property="og:image" content="${img}"/>
 <meta property="og:url" content="${url}"/>
-<meta property="og:site_name" content="FounderKey"/>
+<meta property="og:site_name" content="TapByWisein"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="${t}"/>
 <meta name="twitter:description" content="${d}"/>

@@ -8,7 +8,6 @@ import { CreateEventDto, UpdateEventDto, SearchEventsDto, RsvpGuestDto } from '.
 import { sendEmail, eventRsvpConfirmationEmail } from '@utils/email';
 import { env } from '@config/env';
 import logger from '@utils/logger';
-import authService from '@modules/auth/auth.service';
 import gamificationService from '@modules/gamification/gamification.service';
 import notificationsService from '@modules/notifications/notifications.service';
 import { hasFreeOption } from '@utils/ticketPricing';
@@ -17,15 +16,13 @@ import paymentsService, { paymentsConfigured } from '@modules/payments/payments.
 // Maps a Prisma User (with profile / founderCard / gamification eager-loaded)
 // to the shape /auth/login returns. Used by guest RSVP auto-sign-in.
 function buildAuthUser(
-  user:
-    | (Prisma.UserGetPayload<{
-        include: {
-          profile: true;
-          founderCard: { select: { id: true; status: true; qrCodeUrl: true } };
-          gamification: { select: { fkScore: true; level: true } };
-        };
-      }>)
-    | null
+  user: Prisma.UserGetPayload<{
+    include: {
+      profile: true;
+      founderCard: { select: { id: true; status: true; qrCodeUrl: true } };
+      gamification: { select: { fkScore: true; level: true } };
+    };
+  }> | null
 ) {
   if (!user) return null;
   return {
@@ -174,7 +171,9 @@ export class EventsService {
         ...(dto.waitlistEnabled !== undefined && { waitlistEnabled: dto.waitlistEnabled }),
         ...(dto.visibility !== undefined && { visibility: dto.visibility }),
         ...(dto.timezone !== undefined && { timezone: dto.timezone }),
-        ...(dto.ticketTypes !== undefined && { ticketTypes: JSON.parse(JSON.stringify(dto.ticketTypes)) }),
+        ...(dto.ticketTypes !== undefined && {
+          ticketTypes: JSON.parse(JSON.stringify(dto.ticketTypes)),
+        }),
       },
       include: { organizer: { include: { profile: true } } },
     });
@@ -209,8 +208,9 @@ export class EventsService {
     // Accept either the UUID or the human-friendly slug (/e/founder-coffee-meetup).
     // Branch on a UUID regex so a slug that *looks* like a UUID prefix doesn't
     // collide with an actual UUID match. Slug is fully unique by index.
-    const looksLikeUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdOrSlug);
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      eventIdOrSlug
+    );
     const where = looksLikeUuid
       ? { id: eventIdOrSlug, deletedAt: null }
       : { slug: eventIdOrSlug, deletedAt: null };
@@ -357,7 +357,11 @@ export class EventsService {
     };
   }
 
-  async registerForEvent(eventId: string, userId: string, answers?: Array<{ questionId: string; answer: string }>) {
+  async registerForEvent(
+    eventId: string,
+    userId: string,
+    answers?: Array<{ questionId: string; answer: string }>
+  ) {
     // PENDING_APPROVAL doesn't occupy a slot until accepted, so it must be
     // excluded from the count along with CANCELLED.
     const event = await prisma.event.findFirst({
@@ -424,7 +428,7 @@ export class EventsService {
     const registration = await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(
         `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
-        eventId,
+        eventId
       );
       const currentCount = await tx.eventRegistration.count({
         where: { eventId, status: { notIn: ['CANCELLED', 'PENDING_APPROVAL'] } },
@@ -511,7 +515,10 @@ export class EventsService {
 
     // Fire registration confirmation email with QR ticket attachment.
     this.sendRegistrationConfirmation(registration.id).catch((err) =>
-      logger.warn('Failed to send registration confirmation', { err, registrationId: registration.id })
+      logger.warn('Failed to send registration confirmation', {
+        err,
+        registrationId: registration.id,
+      })
     );
 
     return { registration, message: 'Successfully registered for event' };
@@ -590,7 +597,9 @@ export class EventsService {
     if (!reg) return;
 
     await gamificationService
-      .addScore(reg.userId, 'EVENT_REGISTERED', SCORE_VALUES.EVENT_REGISTERED, { eventId: reg.eventId })
+      .addScore(reg.userId, 'EVENT_REGISTERED', SCORE_VALUES.EVENT_REGISTERED, {
+        eventId: reg.eventId,
+      })
       .catch(() => {});
     await prisma.lead
       .upsert({
@@ -632,9 +641,10 @@ export class EventsService {
       timeStyle: 'short',
       timeZone: reg.event.timezone ?? 'Asia/Kolkata',
     });
-    const location = reg.event.locationType === 'VIRTUAL'
-      ? (reg.event.meetingUrl ?? 'Online')
-      : [reg.event.city, reg.event.country].filter(Boolean).join(', ') || 'TBD';
+    const location =
+      reg.event.locationType === 'VIRTUAL'
+        ? (reg.event.meetingUrl ?? 'Online')
+        : [reg.event.city, reg.event.country].filter(Boolean).join(', ') || 'TBD';
     const { addEmailJob } = await import('@jobs/email.queue');
     await addEmailJob('eventRegistrationConfirmation', {
       to: reg.user.email,
@@ -729,18 +739,15 @@ export class EventsService {
       `You're going to ${event.title}`,
       eventRsvpConfirmationEmail(user.profile?.firstName ?? dto.name, event.title, eventUrl)
     ).catch((err: Error) =>
-      logger.error('Failed to send RSVP confirmation', { email: user!.email, error: err.message })
+      logger.error('Failed to send RSVP confirmation', { email: user.email, error: err.message })
     );
 
-    // Auto-sign-in (Luma-style) — only for accounts that AREN'T password
-    // protected. If the email already has a password set, the account is
-    // "claimed"; we don't hand out tokens to whoever guessed the email.
-    // They still get registered and emailed; they sign in normally to manage.
-    let tokens: { accessToken: string; refreshToken: string } | null = null;
+    // Auto-sign-in tokens removed — Supabase Auth handles session management.
+    // Guests must sign in via Supabase (email/password or Google) to manage their registration.
+    const tokens: null = null;
     let authUser: ReturnType<typeof buildAuthUser> | null = null;
 
     if (!hasPassword) {
-      tokens = await authService.generateTokenPair(user.id, user.role, user.tier);
       const fullUser = await prisma.user.findUnique({
         where: { id: user.id },
         include: {
@@ -772,7 +779,8 @@ export class EventsService {
       throw new BadRequestError('Registration is already cancelled');
     }
 
-    const wasRegistered = registration.status === 'REGISTERED' || registration.status === 'ATTENDED';
+    const wasRegistered =
+      registration.status === 'REGISTERED' || registration.status === 'ATTENDED';
 
     // Cancel + promote oldest WAITLISTED in a single transaction. Uses
     // FOR UPDATE SKIP LOCKED so two concurrent cancellations can't double-promote.
@@ -801,7 +809,9 @@ export class EventsService {
     });
 
     if (promotedUserId) {
-      // Notify + email outside the transaction.
+      // Notify + email outside the transaction (network I/O can't run inside a
+      // Prisma interactive transaction). The DB promotion is already committed,
+      // so failures here are best-effort — we log them so they're visible.
       try {
         const event = await prisma.event.findUnique({ where: { id: eventId } });
         const promotedUser = await prisma.user.findUnique({
@@ -817,7 +827,9 @@ export class EventsService {
               `A spot just opened for "${event.title}" and you're now confirmed.`,
               { eventId }
             )
-            .catch(() => {});
+            .catch((err) =>
+              logger.warn('Failed to notify waitlist-promoted user', { promotedUserId, err })
+            );
           const { addEmailJob } = await import('@jobs/email.queue');
           const date = new Date(event.startDate).toLocaleString('en-IN', {
             dateStyle: 'medium',
@@ -876,7 +888,10 @@ export class EventsService {
             .catch(() => {});
         }
       } catch (err) {
-        logger.warn('Failed to refund cancelled paid registration', { registrationId: registration.id, err });
+        logger.warn('Failed to refund cancelled paid registration', {
+          registrationId: registration.id,
+          err,
+        });
       }
     }
   }
@@ -1030,7 +1045,11 @@ export class EventsService {
           event: {
             include: {
               organizer: {
-                include: { profile: { select: { firstName: true, lastName: true, avatar: true, company: true } } },
+                include: {
+                  profile: {
+                    select: { firstName: true, lastName: true, avatar: true, company: true },
+                  },
+                },
               },
               _count: { select: { registrations: true } },
             },
@@ -1097,9 +1116,7 @@ export class EventsService {
       where: { eventId_userId: { eventId: event.id, userId } },
     });
     if (!reg || reg.status === 'CANCELLED') {
-      throw new ForbiddenError(
-        'You need to register for this event before checking in'
-      );
+      throw new ForbiddenError('You need to register for this event before checking in');
     }
     if (reg.checkedIn) {
       return { event, registration: reg, alreadyCheckedIn: true };
@@ -1148,9 +1165,7 @@ export class EventsService {
         select: { id: true, status: true },
       });
       if (!reg || reg.status === 'CANCELLED') {
-        throw new ForbiddenError(
-          'Only registered attendees can see who else is attending'
-        );
+        throw new ForbiddenError('Only registered attendees can see who else is attending');
       }
     }
 
@@ -1195,8 +1210,7 @@ export class EventsService {
       registeredAt: r.registeredAt,
       user: {
         id: r.user.id,
-        email:
-          isOrganizer || r.userId === viewerId ? r.user.email : undefined,
+        email: isOrganizer || r.userId === viewerId ? r.user.email : undefined,
         profile: r.user.profile,
         founderCard: r.user.founderCard,
         gamification: r.user.gamification,
@@ -1226,9 +1240,7 @@ export class EventsService {
     });
     const isOrganizer = event.organizerId === viewerId;
     if ((!viewerReg || viewerReg.status === 'CANCELLED') && !isOrganizer) {
-      throw new ForbiddenError(
-        'Suggestions are only available to registered attendees'
-      );
+      throw new ForbiddenError('Suggestions are only available to registered attendees');
     }
 
     const viewerProfile = await prisma.profile.findUnique({
@@ -1289,8 +1301,7 @@ export class EventsService {
       take: 200,
     });
 
-    const intersect = (a: string[], b: string[]) =>
-      a.filter((x) => b.includes(x)).length;
+    const intersect = (a: string[], b: string[]) => a.filter((x) => b.includes(x)).length;
 
     const ranked = pool
       .map((r) => {
@@ -1298,13 +1309,8 @@ export class EventsService {
         const skillOverlap = p ? intersect(skills, p.skills ?? []) : 0;
         const interestOverlap = p ? intersect(interests, p.interests ?? []) : 0;
         // I'm looking-for x; they have skills x → high signal
-        const lookingForMatchTheirSkills = p
-          ? intersect(lookingFor, p.skills ?? [])
-          : 0;
-        const score =
-          2 * skillOverlap +
-          1.5 * interestOverlap +
-          3 * lookingForMatchTheirSkills;
+        const lookingForMatchTheirSkills = p ? intersect(lookingFor, p.skills ?? []) : 0;
+        const score = 2 * skillOverlap + 1.5 * interestOverlap + 3 * lookingForMatchTheirSkills;
         return { registration: r, score };
       })
       .filter((x) => x.score > 0)
@@ -1399,7 +1405,8 @@ export class EventsService {
   }
 
   // Bot user-agent regex — matches the common crawlers without a dependency.
-  private static BOT_UA = /bot|crawler|spider|crawling|preview|whatsapp|slackbot|twitterbot|facebookexternalhit|linkedinbot/i;
+  private static BOT_UA =
+    /bot|crawler|spider|crawling|preview|whatsapp|slackbot|twitterbot|facebookexternalhit|linkedinbot/i;
 
   /**
    * Record a public event-page view. Upserts on (eventId, sessionId) so repeat
@@ -1408,7 +1415,13 @@ export class EventsService {
    */
   async trackPageView(
     eventId: string,
-    opts: { sessionId?: string; userId?: string | null; ip?: string; userAgent?: string; referrer?: string }
+    opts: {
+      sessionId?: string;
+      userId?: string | null;
+      ip?: string;
+      userAgent?: string;
+      referrer?: string;
+    }
   ) {
     if (!opts.sessionId) return; // No session cookie → silently skip
     const event = await prisma.event.findFirst({
@@ -1418,7 +1431,11 @@ export class EventsService {
     if (!event) return;
 
     const ipHash = opts.ip
-      ? crypto.createHash('sha256').update(`${opts.ip}|${new Date().toISOString().slice(0, 10)}`).digest('hex').slice(0, 32)
+      ? crypto
+          .createHash('sha256')
+          .update(`${opts.ip}|${new Date().toISOString().slice(0, 10)}`)
+          .digest('hex')
+          .slice(0, 32)
       : null;
     const isBot = opts.userAgent ? EventsService.BOT_UA.test(opts.userAgent) : false;
 
@@ -1448,9 +1465,13 @@ export class EventsService {
       select: { id: true, organizerId: true },
     });
     if (!event) throw new NotFoundError('Event');
-    const isCoorganizer = event.organizerId === callerId
-      ? true
-      : !!(await prisma.eventCoorganizer.findFirst({ where: { eventId, userId: callerId }, select: { id: true } }));
+    const isCoorganizer =
+      event.organizerId === callerId
+        ? true
+        : !!(await prisma.eventCoorganizer.findFirst({
+            where: { eventId, userId: callerId },
+            select: { id: true },
+          }));
     if (!isCoorganizer) throw new ForbiddenError('You cannot view visitors for this event');
 
     const [totalViews, uniqueAuthed, anonViews] = await Promise.all([
@@ -1465,10 +1486,12 @@ export class EventsService {
 
     const authedIds = uniqueAuthed.map((v) => v.userId!).filter(Boolean);
     const registeredIds = authedIds.length
-      ? (await prisma.eventRegistration.findMany({
-          where: { eventId, userId: { in: authedIds } },
-          select: { userId: true },
-        })).map((r) => r.userId)
+      ? (
+          await prisma.eventRegistration.findMany({
+            where: { eventId, userId: { in: authedIds } },
+            select: { userId: true },
+          })
+        ).map((r) => r.userId)
       : [];
     const registeredSet = new Set(registeredIds);
 
@@ -1476,7 +1499,15 @@ export class EventsService {
       ? await prisma.user.findMany({
           where: { id: { in: authedIds }, deletedAt: null, isActive: true },
           include: {
-            profile: { select: { firstName: true, lastName: true, avatar: true, company: true, position: true } },
+            profile: {
+              select: {
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                company: true,
+                position: true,
+              },
+            },
           },
         })
       : [];

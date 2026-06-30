@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { useAppStore, type UserRole } from '@/store/appStore';
-import { apiLogin } from '@/services/auth.service';
-import { setTokens } from '@/services/api';
+import { apiGetMe } from '@/services/auth.service';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import {
@@ -59,23 +58,18 @@ const LoginPage = () => {
 
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
-    // Trim leading/trailing whitespace — copy-paste from emails / chat /
-    // password managers frequently appends a stray space, which would
-    // silently fail the bcrypt compare on the backend.
     const cleanEmail = email.trim();
     const cleanPassword = password.trim();
     if (!cleanEmail || !cleanPassword) return;
     setLoading(true);
     try {
-      const { user, tokens } = await apiLogin(cleanEmail, cleanPassword);
-      setTokens(tokens.accessToken, tokens.refreshToken);
+      const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
+      if (error) throw new Error(error.message);
+      const user = await apiGetMe();
       login(user);
       toast.success('Welcome back');
       goAfterAuth(user.role);
     } catch (err) {
-      // Surface the real error — no silent demo-mode fallback. Wrong
-      // password / unreachable backend should both show up so the user
-      // can act on it instead of being mysteriously signed in as a stub.
       const msg = err instanceof Error ? err.message : 'Sign-in failed';
       toast.error(msg);
     } finally {
@@ -116,7 +110,7 @@ const LoginPage = () => {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Welcome to Founder Key
+              Welcome to TapByWisein
             </h1>
             <p className="text-sm text-muted-foreground">
               Sign in with your email and password, or continue with Google.
@@ -210,7 +204,7 @@ const LoginPage = () => {
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            New to Founder Key?{' '}
+            New to TapByWisein?{' '}
             <Link to="/register" className="text-primary hover:underline">
               Create an account
             </Link>

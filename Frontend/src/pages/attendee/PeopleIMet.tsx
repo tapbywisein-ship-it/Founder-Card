@@ -1,11 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Calendar, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, AlertCircle, NotebookPen } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
+import { ConnectionCRMDrawer } from '@/components/ConnectionCRMDrawer';
 import { connectionsService, type Connection } from '@/services/connections.service';
 
 interface ConnectionRow {
@@ -18,7 +19,8 @@ interface ConnectionRow {
 
 const PeopleIMetPage = () => {
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({
+  const [crmTarget, setCrmTarget] = useState<{ id: string; name: string } | null>(null);
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['connections', 'people-i-met'],
     queryFn: () => connectionsService.getConnections(1, 100),
   });
@@ -65,6 +67,13 @@ const PeopleIMetPage = () => {
           </p>
         </header>
 
+        {isError && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            Failed to load connections. Try refreshing the page.
+          </div>
+        )}
+
         {isLoading && (
           <Surface className="text-center">
             <p className="text-sm text-muted-foreground">Loading…</p>
@@ -85,7 +94,7 @@ const PeopleIMetPage = () => {
               </div>
               <div className="grid gap-2">
                 {rows.map((c) => (
-                  <PersonRow key={c.id} c={c} />
+                  <PersonRow key={c.id} c={c} onNotes={setCrmTarget} />
                 ))}
               </div>
             </section>
@@ -97,7 +106,7 @@ const PeopleIMetPage = () => {
             <h2 className="text-base font-semibold text-foreground">Other connections</h2>
             <div className="grid gap-2">
               {groups.noEvent.map((c) => (
-                <PersonRow key={c.id} c={c} />
+                <PersonRow key={c.id} c={c} onNotes={setCrmTarget} />
               ))}
             </div>
           </section>
@@ -116,38 +125,55 @@ const PeopleIMetPage = () => {
             </Surface>
           )}
       </div>
+
+      <ConnectionCRMDrawer
+        connectionId={crmTarget?.id ?? null}
+        name={crmTarget?.name ?? ''}
+        onClose={() => setCrmTarget(null)}
+      />
     </AppLayout>
   );
 };
 
-const PersonRow = ({ c }: { c: ConnectionRow }) => {
+const PersonRow = ({ c, onNotes }: { c: ConnectionRow; onNotes: (t: { id: string; name: string }) => void }) => {
   const navigate = useNavigate();
   const p = c.user?.profile;
   const name = p ? `${p.firstName} ${p.lastName}`.trim() : c.user?.email ?? '—';
   return (
-    <button
-      onClick={() => c.user?.id && navigate(`/card/${c.user.id}`)}
-      className="flex w-full items-center gap-3 rounded-card border border-border bg-card p-3 text-left transition-colors hover:bg-secondary"
-    >
-      {p?.avatar ? (
-        <img src={p.avatar} alt={name} className="h-10 w-10 rounded-full object-cover" />
-      ) : (
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground">
-          {name.charAt(0).toUpperCase()}
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{name}</p>
-        {(p?.position || p?.company) && (
-          <p className="truncate text-xs text-muted-foreground">
-            {[p?.position, p?.company].filter(Boolean).join(' · ')}
-          </p>
+    <div className="flex w-full items-center gap-3 rounded-card border border-border bg-card p-3 transition-colors hover:bg-secondary">
+      <button
+        onClick={() => c.user?.id && navigate(`/card/${c.user.id}`)}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        {p?.avatar ? (
+          <img src={p.avatar} alt={name} loading="lazy" className="h-10 w-10 rounded-full object-cover" />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground">
+            {name.charAt(0).toUpperCase()}
+          </div>
         )}
-      </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">{name}</p>
+          {(p?.position || p?.company) && (
+            <p className="truncate text-xs text-muted-foreground">
+              {[p?.position, p?.company].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+      </button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 shrink-0 p-0"
+        title="Notes & follow-up"
+        onClick={() => onNotes({ id: c.id, name })}
+      >
+        <NotebookPen className="h-4 w-4" />
+      </Button>
       <p className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
         {format(new Date(c.createdAt), 'PP')}
       </p>
-    </button>
+    </div>
   );
 };
 

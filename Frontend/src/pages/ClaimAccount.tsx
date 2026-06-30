@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/store/appStore';
-import { setTokens } from '@/services/api';
 import {
   apiClaimAccount,
   apiValidateClaim,
@@ -39,13 +38,10 @@ const ClaimAccountPage = () => {
 
   const claim = useMutation({
     mutationFn: () => apiClaimAccount(token!, password),
-    onSuccess: ({ user, tokens }) => {
-      // Fully sign the user in — without calling login() the store's
-      // isAuthenticated stays false and ProtectedRoute bounces back to /login.
-      setTokens(tokens.accessToken, tokens.refreshToken);
+    onSuccess: ({ user }) => {
       login(user);
-      toast.success("Welcome to Founder Key");
-      navigate('/dashboard');
+      toast.success('Account claimed! Sign in to continue.');
+      navigate('/login');
     },
     onError: (err) =>
       toast.error(err instanceof Error ? err.message : 'Could not claim account'),

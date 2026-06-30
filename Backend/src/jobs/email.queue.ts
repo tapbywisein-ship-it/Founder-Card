@@ -67,7 +67,7 @@ let emailQueueInstance = noopQueue as unknown as import('bull').Queue<EmailJobDa
 if (hasRedis) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Bull = require('bull') as any;
+    const Bull = require('bull');
     const queue = new Bull('email', {
       redis: REDIS_URL,
       defaultJobOptions: {
@@ -118,7 +118,11 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
       subject = 'Password Reset Request - Founder Key';
       break;
     case 'connectionRequest':
-      html = connectionRequestEmail(data.name, data.requesterName ?? 'Someone', data.requesterCompany);
+      html = connectionRequestEmail(
+        data.name,
+        data.requesterName ?? 'Someone',
+        data.requesterCompany
+      );
       subject = 'New Connection Request - Founder Key';
       break;
     case 'founderCardApproved':
@@ -129,7 +133,13 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
       if (!data.eventTitle || !data.eventDate || !data.eventLocation || !data.eventUrl) {
         throw new Error('Event details required');
       }
-      html = eventReminderEmail(data.name, data.eventTitle, data.eventDate, data.eventLocation, data.eventUrl);
+      html = eventReminderEmail(
+        data.name,
+        data.eventTitle,
+        data.eventDate,
+        data.eventLocation,
+        data.eventUrl
+      );
       subject = `Reminder: ${data.eventTitle} is tomorrow!`;
       break;
     case 'eventRegistrationConfirmation': {
@@ -142,7 +152,7 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
         data.eventDate,
         data.eventLocation ?? '',
         data.eventUrl,
-        !!data.qrPngBase64,
+        !!data.qrPngBase64
       );
       subject = `You're in: ${data.eventTitle}`;
       if (data.qrPngBase64) {

@@ -5,14 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
-import { apiResetPassword } from '@/services/auth.service';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-/** Reset password — token comes from the emailed link (?token=...). */
+/** Reset password — Supabase sets the session via the emailed magic link. */
 const ResetPassword = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const token = params.get('token') ?? '';
+  // Supabase recovery links include access_token in the URL hash, which the
+  // Supabase JS client processes automatically on page load. We just need the
+  // session to be active before calling updateUser.
+  const token = params.get('token') ?? 'supabase-handled';
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -33,7 +36,8 @@ const ResetPassword = () => {
     }
     setLoading(true);
     try {
-      await apiResetPassword(token, password, confirm);
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw new Error(error.message);
       toast.success('Password updated — please sign in');
       navigate('/login');
     } catch (err) {

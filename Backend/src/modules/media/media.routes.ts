@@ -9,6 +9,6 @@ router.use(authenticate);
 
 router.post('/upload', uploadSingle('file'), mediaController.uploadFile.bind(mediaController));
 router.delete('/:key', mediaController.deleteFile.bind(mediaController));
-router.get('/presigned/:key', mediaController.getPresignedUrl.bind(mediaController));
+router.get('/url/:key', mediaController.getPublicUrl.bind(mediaController));
 
 export default router;

@@ -27,7 +27,7 @@ const ConnectPage = () => {
   const profile = profileData?.profile;
   const fullName = profile ? `${profile.firstName} ${profile.lastName}` : user?.name ?? '';
 
-  // The QR encodes the public-card URL. Anyone scanning it (FounderKey app or a
+  // The QR encodes the public-card URL. Anyone scanning it (TapByWisein app or a
   // generic QR reader) lands on the same /c/:slug page.
   const cardSlug = (card as { publicSlug?: string | null } | undefined)?.publicSlug;
   const cardUrl = cardSlug
@@ -102,7 +102,7 @@ const ConnectPage = () => {
             {card?.status === 'ACTIVE' && (
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Sparkles className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-primary">FounderKey Card Active</span>
+                <span className="text-sm font-medium text-primary">TapByWisein Card Active</span>
               </div>
             )}
 
@@ -114,7 +114,7 @@ const ConnectPage = () => {
               onClick={() => {
                 if (navigator.share) {
                   navigator
-                    .share({ title: `Connect with ${fullName} on FounderKey`, url: cardUrl })
+                    .share({ title: `Connect with ${fullName} on TapByWisein`, url: cardUrl })
                     .catch(() => {});
                 } else {
                   navigator.clipboard?.writeText(cardUrl).then(
@@ -141,7 +141,7 @@ const ConnectPage = () => {
             <div className="mb-3">
               <h3 className="text-lg font-semibold text-foreground">Scan a card</h3>
               <p className="text-xs text-muted-foreground">
-                Point your camera at another person's FounderKey QR code.
+                Point your camera at another person's TapByWisein QR code.
                 {activeEventId && ' This scan will be tagged to this event.'}
               </p>
             </div>
@@ -158,7 +158,7 @@ const ConnectPage = () => {
             <div className="mb-3">
               <h3 className="text-lg font-semibold text-foreground">Tap to connect</h3>
               <p className="text-xs text-muted-foreground">
-                Bring two FounderKey-enabled phones close to exchange cards.
+                Bring two TapByWisein-enabled phones close to exchange cards.
                 {activeEventId && ' This tap will be tagged to this event.'}
               </p>
             </div>

@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useEventGuests, useCheckInAttendee } from '@/hooks/useOrganizer';
+import { useEventGuests, useCheckInAttendee, orgKeys } from '@/hooks/useOrganizer';
 import { useEventContext } from '@/components/OrganizerEventLayout';
 import { organizerService } from '@/services/organizer.service';
 import { RoleBadge } from '@/components/RoleBadge';
@@ -37,7 +37,7 @@ const GuestsTab = () => {
     mutationFn: ({ userId, role }: { userId: string; role: EventRole }) =>
       organizerService.setEventRole(id!, userId, role),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organizer', 'event-guests', id] });
+      qc.invalidateQueries({ queryKey: orgKeys.guests(id!) });
       toast.success('Role updated');
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not update role'),
@@ -45,7 +45,7 @@ const GuestsTab = () => {
   const refundMutation = useMutation({
     mutationFn: (userId: string) => organizerService.refundAttendee(id!, userId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organizer', 'event-guests', id] });
+      qc.invalidateQueries({ queryKey: orgKeys.guests(id!) });
       toast.success('Refunded — attendee notified');
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not refund'),
@@ -63,7 +63,7 @@ const GuestsTab = () => {
       organizerService.actionPendingApproval(id!, regId, act),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['organizer', 'pending-approvals', id] });
-      qc.invalidateQueries({ queryKey: ['organizer', 'event-guests', id] });
+      qc.invalidateQueries({ queryKey: orgKeys.guests(id!) });
       toast.success(vars.act === 'APPROVE' ? 'Approved' : 'Denied');
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not action'),
@@ -133,7 +133,7 @@ const GuestsTab = () => {
                   className="flex items-start gap-3 rounded-card border border-border bg-card p-3"
                 >
                   {p.user.profile?.avatar ? (
-                    <img src={p.user.profile.avatar} alt={name} className="h-10 w-10 rounded-full object-cover" />
+                    <img src={p.user.profile.avatar} alt={name} loading="lazy" className="h-10 w-10 rounded-full object-cover" />
                   ) : (
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold">
                       {name.charAt(0).toUpperCase()}

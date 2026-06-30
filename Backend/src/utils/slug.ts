@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 
-const ALPHABET =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const BASE = ALPHABET.length; // 62
 
 function toBase62(buf: Buffer): string {
@@ -25,7 +24,7 @@ function toBase62(buf: Buffer): string {
  * FounderCard row at create time and queried by unique index.
  */
 export function cardIdToSlug(cardId: string): string {
-  const secret = process.env.CARD_SLUG_SECRET || 'founderkey-card-slug-v1';
+  const secret = process.env.CARD_SLUG_SECRET || 'tapbywisein-card-slug-v1';
   const digest = crypto.createHmac('sha256', secret).update(cardId).digest();
   const slug = toBase62(digest.subarray(0, 6));
   return slug.padStart(8, ALPHABET[0]).slice(-8);

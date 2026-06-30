@@ -75,7 +75,7 @@ export class FounderCardsService {
       });
       const name = user?.profile
         ? `${user.profile.firstName} ${user.profile.lastName}`
-        : user?.email ?? 'A user';
+        : (user?.email ?? 'A user');
 
       await notificationsService
         .sendBulkNotification(
@@ -91,11 +91,13 @@ export class FounderCardsService {
     return card;
   }
 
-  /** Mint the next human-readable member ID: FK-00001, FK-00002, … */
+  /** Mint the next human-readable member ID: TW-00001, TW-00002, … */
   private async generateMemberId(): Promise<string> {
-    const rows = await prisma.$queryRaw<{ nextval: bigint }[]>`SELECT nextval('founder_member_seq') AS nextval`;
+    const rows = await prisma.$queryRaw<
+      { nextval: bigint }[]
+    >`SELECT nextval('founder_member_seq') AS nextval`;
     const n = Number(rows[0]?.nextval ?? 0);
-    return `FK-${String(n).padStart(5, '0')}`;
+    return `TW-${String(n).padStart(5, '0')}`;
   }
 
   /**
@@ -111,12 +113,12 @@ export class FounderCardsService {
     });
     if (!user) throw new NotFoundError('User');
 
-    let card = await prisma.founderCard.findUnique({ where: { userId } });
-    if (!card) {
-      card = await prisma.founderCard.create({
-        data: { userId, status: 'ACTIVE', reviewedAt: new Date() },
-      });
-    }
+    // upsert is atomic — concurrent onboarding calls can't both create a card.
+    let card = await prisma.founderCard.upsert({
+      where: { userId },
+      create: { userId, status: 'ACTIVE', reviewedAt: new Date() },
+      update: {},
+    });
 
     const data: Record<string, unknown> = {};
     if (!card.memberId) data.memberId = await this.generateMemberId();
@@ -147,7 +149,9 @@ export class FounderCardsService {
     });
     if (tierFlip.count === 1) {
       await gamificationService
-        .addScore(userId, 'FOUNDER_CARD_ACTIVE', SCORE_VALUES.FOUNDER_CARD_ACTIVE, { cardId: card.id })
+        .addScore(userId, 'FOUNDER_CARD_ACTIVE', SCORE_VALUES.FOUNDER_CARD_ACTIVE, {
+          cardId: card.id,
+        })
         .catch(() => {});
       await prisma.auditLog
         .create({
@@ -180,7 +184,26 @@ export class FounderCardsService {
   async getMyCard(userId: string) {
     const card = await prisma.founderCard.findUnique({ where: { userId } });
     if (!card) throw new NotFoundError('Founder Card');
-    return card;
+    const purchase = await prisma.cardPurchase.findFirst({
+      where: { userId, status: 'PAID' },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        fulfillmentStatus: true,
+        trackingId: true,
+        trackingProvider: true,
+        dispatchedAt: true,
+        deliveredAt: true,
+      },
+    });
+    return {
+      ...card,
+      physicalCardOrdered: !!purchase,
+      fulfillmentStatus: purchase?.fulfillmentStatus ?? null,
+      trackingId: purchase?.trackingId ?? null,
+      trackingProvider: purchase?.trackingProvider ?? null,
+      dispatchedAt: purchase?.dispatchedAt ?? null,
+      deliveredAt: purchase?.deliveredAt ?? null,
+    };
   }
 
   /** Fire a throttled "viewed your card" notification (≤1 per viewer/owner/day). */
@@ -209,6 +232,209 @@ export class FounderCardsService {
     } catch {
       /* best-effort, never block the page render */
     }
+  }
+
+  /** Persist a card view for analytics. Skips self-views; anonymous views (no
+   *  viewerId) are still counted. Best-effort — never blocks page render. */
+  private async recordCardView(ownerId: string, viewerId?: string): Promise<void> {
+    if (viewerId && viewerId === ownerId) return;
+    try {
+      await prisma.cardView.create({ data: { ownerId, viewerId: viewerId ?? null } });
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  /**
+   * Analytics for the signed-in user's own Tap Card: total + unique views,
+   * recent viewers (named when not anonymous), taps, connections, and a 14-day
+   * view timeseries for a sparkline.
+   */
+  async getCardAnalytics(userId: string) {
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+    const [totalViews, uniqueViewerRows, recentViews, taps, connections, windowViews] =
+      await Promise.all([
+        prisma.cardView.count({ where: { ownerId: userId } }),
+        prisma.cardView.findMany({
+          where: { ownerId: userId, viewerId: { not: null } },
+          distinct: ['viewerId'],
+          select: { viewerId: true },
+        }),
+        prisma.cardView.findMany({
+          where: { ownerId: userId },
+          orderBy: { createdAt: 'desc' },
+          take: 15,
+          include: {
+            viewer: {
+              select: {
+                id: true,
+                profile: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                    company: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.eventTap.count({ where: { targetUserId: userId } }),
+        prisma.connection.count({
+          where: { OR: [{ requesterId: userId }, { receiverId: userId }], status: 'ACCEPTED' },
+        }),
+        prisma.cardView.findMany({
+          where: { ownerId: userId, createdAt: { gte: since } },
+          select: { createdAt: true },
+        }),
+      ]);
+
+    // Build a 14-day daily bucket (oldest → newest) for the sparkline.
+    const days: { date: string; views: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().slice(0, 10);
+      days.push({ date: key, views: 0 });
+    }
+    const byDay = new Map(days.map((d) => [d.date, d]));
+    for (const v of windowViews) {
+      const key = v.createdAt.toISOString().slice(0, 10);
+      const bucket = byDay.get(key);
+      if (bucket) bucket.views += 1;
+    }
+
+    return {
+      totalViews,
+      uniqueViewers: uniqueViewerRows.length,
+      taps,
+      connections,
+      timeseries: days,
+      recentViewers: recentViews.map((v) => ({
+        id: v.id,
+        at: v.createdAt,
+        anonymous: !v.viewer,
+        userId: v.viewer?.id ?? null,
+        name: v.viewer?.profile
+          ? `${v.viewer.profile.firstName ?? ''} ${v.viewer.profile.lastName ?? ''}`.trim() ||
+            'Member'
+          : null,
+        avatar: v.viewer?.profile?.avatar ?? null,
+        company: v.viewer?.profile?.company ?? null,
+        position: v.viewer?.profile?.position ?? null,
+      })),
+    };
+  }
+
+  // ── Card content blocks (deck / video / booking / link) ───────────────────
+
+  private static readonly BLOCK_TYPES = ['link', 'video', 'deck', 'booking', 'portfolio'];
+
+  async listBlocks(userId: string) {
+    return prisma.cardBlock.findMany({
+      where: { userId },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async createBlock(userId: string, input: { type?: string; label: string; url: string }) {
+    const label = input.label?.trim();
+    const url = input.url?.trim();
+    if (!label) throw new BadRequestError('Label is required');
+    if (!url || !/^https?:\/\//i.test(url)) {
+      throw new BadRequestError('A valid URL (starting with http:// or https://) is required');
+    }
+    const type = FounderCardsService.BLOCK_TYPES.includes(input.type ?? '')
+      ? (input.type as string)
+      : 'link';
+
+    const count = await prisma.cardBlock.count({ where: { userId } });
+    if (count >= 12) throw new BadRequestError('You can add up to 12 blocks');
+
+    return prisma.cardBlock.create({
+      data: { userId, type, label: label.slice(0, 80), url, sortOrder: count },
+    });
+  }
+
+  async updateBlock(
+    userId: string,
+    blockId: string,
+    input: { type?: string; label?: string; url?: string }
+  ) {
+    const block = await prisma.cardBlock.findUnique({ where: { id: blockId } });
+    if (!block || block.userId !== userId) throw new NotFoundError('Block');
+
+    const data: { type?: string; label?: string; url?: string } = {};
+    if (input.label !== undefined) {
+      const label = input.label.trim();
+      if (!label) throw new BadRequestError('Label cannot be empty');
+      data.label = label.slice(0, 80);
+    }
+    if (input.url !== undefined) {
+      const url = input.url.trim();
+      if (!/^https?:\/\//i.test(url)) throw new BadRequestError('A valid URL is required');
+      data.url = url;
+    }
+    if (input.type !== undefined && FounderCardsService.BLOCK_TYPES.includes(input.type)) {
+      data.type = input.type;
+    }
+    return prisma.cardBlock.update({ where: { id: blockId }, data });
+  }
+
+  async deleteBlock(userId: string, blockId: string): Promise<void> {
+    const block = await prisma.cardBlock.findUnique({ where: { id: blockId } });
+    if (!block || block.userId !== userId) throw new NotFoundError('Block');
+    await prisma.cardBlock.delete({ where: { id: blockId } });
+  }
+
+  // ── Card lead capture ("leave your details") ──────────────────────────────
+
+  /** Anonymous visitor leaves contact details on someone's public card. */
+  async captureLead(ownerId: string, input: { name: string; email: string; message?: string }) {
+    const name = input.name?.trim();
+    const email = input.email?.trim();
+    if (!name) throw new BadRequestError('Name is required');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestError('A valid email is required');
+    }
+
+    const owner = await prisma.user.findFirst({
+      where: { id: ownerId, isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (!owner) throw new NotFoundError('User');
+
+    const lead = await prisma.cardLead.create({
+      data: {
+        ownerId,
+        name: name.slice(0, 120),
+        email: email.slice(0, 160),
+        message: input.message?.trim().slice(0, 1000) || null,
+      },
+    });
+
+    notificationsService
+      .createNotification(
+        ownerId,
+        'SYSTEM',
+        'New lead from your card',
+        `${name} left their details on your Tap Card.`,
+        { leadId: lead.id, email }
+      )
+      .catch(() => {});
+
+    return { ok: true };
+  }
+
+  /** Owner lists leads captured from their card. */
+  async listLeads(ownerId: string) {
+    return prisma.cardLead.findMany({
+      where: { ownerId },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
   }
 
   async generateQR(userId: string) {
@@ -387,9 +613,16 @@ export class FounderCardsService {
   async listPendingCards(page?: number, limit?: number) {
     const pagination = parsePaginationQuery({ page, limit });
 
+    // "Pending" = paid for a physical card but not yet provisioned (no nfcTagId)
+    const paidUserIds = await prisma.cardPurchase.findMany({
+      where: { status: 'PAID' },
+      select: { userId: true },
+    });
+    const userIds = paidUserIds.map((p) => p.userId);
+
     const [cards, total] = await Promise.all([
       prisma.founderCard.findMany({
-        where: { status: 'PENDING' },
+        where: { userId: { in: userIds }, nfcTagId: null },
         include: {
           user: {
             include: {
@@ -409,7 +642,7 @@ export class FounderCardsService {
         take: pagination.limit,
         orderBy: { appliedAt: 'asc' },
       }),
-      prisma.founderCard.count({ where: { status: 'PENDING' } }),
+      prisma.founderCard.count({ where: { userId: { in: userIds }, nfcTagId: null } }),
     ]);
 
     return {
@@ -483,7 +716,9 @@ export class FounderCardsService {
     }
 
     void this.notifyCardViewed(card.userId, viewerId);
-    return this.publicCardShape(card);
+    void this.recordCardView(card.userId, viewerId);
+    const blocks = await this.listBlocks(card.userId);
+    return { ...this.publicCardShape(card), blocks };
   }
 
   async getPublicCardByUsername(rawUsername: string, viewerId?: string) {
@@ -519,6 +754,7 @@ export class FounderCardsService {
     }
 
     void this.notifyCardViewed(user.id, viewerId);
+    void this.recordCardView(user.id, viewerId);
 
     let card = await prisma.founderCard.findUnique({
       where: { userId },
@@ -549,7 +785,8 @@ export class FounderCardsService {
       });
     }
 
-    if (card) return this.publicCardShape(card);
+    const blocks = await this.listBlocks(user.id);
+    if (card) return { ...this.publicCardShape(card), blocks };
 
     // No FounderCard row — return a card-shaped envelope built from the user
     // alone so the public page can still render their profile.
@@ -566,6 +803,7 @@ export class FounderCardsService {
         profile: user.profile,
         gamification: user.gamification,
       },
+      blocks,
     };
   }
 
@@ -586,6 +824,7 @@ export class FounderCardsService {
         company: string | null;
         position: string | null;
         bio: string | null;
+        status: string | null;
         location: string | null;
         twitter: string | null;
         linkedin: string | null;
@@ -639,6 +878,24 @@ export class FounderCardsService {
     });
   }
 
+  async provisionNfcByCardId(cardId: string, nfcTagId: string) {
+    const trimmed = nfcTagId.trim();
+    if (!trimmed) throw new BadRequestError('NFC tag id is required');
+
+    const card = await prisma.founderCard.findUnique({ where: { id: cardId } });
+    if (!card) throw new NotFoundError('Founder Card');
+
+    const collision = await prisma.founderCard.findUnique({ where: { nfcTagId: trimmed } });
+    if (collision && collision.id !== card.id) {
+      throw new ConflictError('This NFC tag is already linked to another card');
+    }
+
+    return prisma.founderCard.update({
+      where: { id: cardId },
+      data: { nfcTagId: trimmed, status: 'ACTIVE', reviewedAt: new Date() },
+    });
+  }
+
   async getAllCards(page?: number, limit?: number, status?: string) {
     const pagination = parsePaginationQuery({ page, limit });
     const where: Record<string, unknown> = {};
@@ -651,7 +908,13 @@ export class FounderCardsService {
           user: {
             include: {
               profile: {
-                select: { firstName: true, lastName: true, avatar: true, company: true, position: true },
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                  company: true,
+                  position: true,
+                },
               },
               gamification: { select: { fkScore: true, level: true } },
             },

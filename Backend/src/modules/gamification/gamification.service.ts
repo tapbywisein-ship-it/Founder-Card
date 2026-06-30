@@ -40,7 +40,9 @@ export class GamificationService {
         userId,
         action,
         points,
-        metadata: metadata ? (metadata as import('@prisma/client').Prisma.InputJsonValue) : undefined,
+        metadata: metadata
+          ? (metadata as import('@prisma/client').Prisma.InputJsonValue)
+          : undefined,
       },
     });
 
@@ -114,21 +116,37 @@ export class GamificationService {
   }
 
   async checkAndAwardBadges(userId: string): Promise<void> {
-    const [connectionCount, eventCount, gamification, badgeCount, hasFounderCard] =
-      await Promise.all([
-        prisma.connection.count({
-          where: {
-            status: 'ACCEPTED',
-            OR: [{ requesterId: userId }, { receiverId: userId }],
-          },
-        }),
-        prisma.eventRegistration.count({
-          where: { userId, status: { in: ['REGISTERED', 'ATTENDED'] } },
-        }),
-        prisma.gamification.findUnique({ where: { userId } }),
-        prisma.userBadge.count({ where: { userId } }),
-        prisma.founderCard.findUnique({ where: { userId, status: 'ACTIVE' } } as { where: { userId: string; status: 'ACTIVE' } }),
-      ]);
+    const [
+      connectionCount,
+      eventCount,
+      gamification,
+      badgeCount,
+      hasFounderCard,
+      qrScanCount,
+      profile,
+      user,
+    ] = await Promise.all([
+      prisma.connection.count({
+        where: {
+          status: 'ACCEPTED',
+          OR: [{ requesterId: userId }, { receiverId: userId }],
+        },
+      }),
+      prisma.eventRegistration.count({
+        where: { userId, status: { in: ['REGISTERED', 'ATTENDED'] } },
+      }),
+      prisma.gamification.findUnique({ where: { userId } }),
+      prisma.userBadge.count({ where: { userId } }),
+      prisma.founderCard.findUnique({ where: { userId, status: 'ACTIVE' } } as {
+        where: { userId: string; status: 'ACTIVE' };
+      }),
+      prisma.scoreHistory.count({ where: { userId, action: 'QR_SCAN' } }),
+      prisma.profile.findUnique({
+        where: { userId },
+        select: { firstName: true, lastName: true, bio: true, avatar: true, skills: true },
+      }),
+      prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
+    ]);
 
     const earnedBadgeNames = await prisma.userBadge
       .findMany({
@@ -165,6 +183,33 @@ export class GamificationService {
       badgesToAward.push(BADGE_NAMES.COMMUNITY_PILLAR);
     }
 
+    // QR_MASTER: scanned 10+ QR codes
+    if (qrScanCount >= 10 && !earnedBadgeNames.has(BADGE_NAMES.QR_MASTER)) {
+      badgesToAward.push(BADGE_NAMES.QR_MASTER);
+    }
+
+    // PROFILE_CHAMPION: profile fully complete
+    const isProfileComplete =
+      !!profile?.firstName &&
+      !!profile?.lastName &&
+      !!profile?.bio &&
+      !!profile?.avatar &&
+      (profile?.skills?.length ?? 0) > 0;
+    if (isProfileComplete && !earnedBadgeNames.has(BADGE_NAMES.PROFILE_CHAMPION)) {
+      badgesToAward.push(BADGE_NAMES.PROFILE_CHAMPION);
+    }
+
+    // EARLY_ADOPTER: signed up within the first 90 days of launch (2024-01-01)
+    const LAUNCH_DATE = new Date('2024-01-01T00:00:00Z');
+    const EARLY_CUTOFF = new Date(LAUNCH_DATE.getTime() + 90 * 24 * 60 * 60 * 1000);
+    if (
+      user &&
+      user.createdAt <= EARLY_CUTOFF &&
+      !earnedBadgeNames.has(BADGE_NAMES.EARLY_ADOPTER)
+    ) {
+      badgesToAward.push(BADGE_NAMES.EARLY_ADOPTER);
+    }
+
     // Award new badges
     for (const badgeName of badgesToAward) {
       const badge = await prisma.badge.findUnique({ where: { name: badgeName } });
@@ -190,7 +235,7 @@ export class GamificationService {
       }).catch(() => {});
     }
 
-    void badgeCount; // suppress unused warning
+    void badgeCount; // suppress unused-var warning
   }
 
   calculateLevel(score: number): number {

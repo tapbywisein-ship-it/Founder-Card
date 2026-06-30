@@ -73,12 +73,9 @@ export const uploadFields = (fields: Array<{ name: string; maxCount?: number }>)
 
 export const uploadDiskSingle = (fieldName: string) => multerDiskConfig.single(fieldName);
 
-const csvFileFilter = (
-  _req: Request,
-  file: Express.Multer.File,
-  cb: FileFilterCallback
-): void => {
-  const ok = ['text/csv', 'application/vnd.ms-excel', 'text/plain'].includes(file.mimetype) ||
+const csvFileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
+  const ok =
+    ['text/csv', 'application/vnd.ms-excel', 'text/plain'].includes(file.mimetype) ||
     file.originalname.toLowerCase().endsWith('.csv');
   if (ok) cb(null, true);
   else cb(new BadRequestError('Only .csv files are accepted'));
@@ -101,15 +98,11 @@ export const processImage = async (
   let pipeline = sharp(buffer);
 
   if (width || height) {
-    pipeline = pipeline.resize(
-      width ?? UPLOAD.AVATAR_SIZE,
-      height ?? UPLOAD.AVATAR_SIZE,
-      {
-        fit: 'cover',
-        position: 'center',
-        withoutEnlargement: true,
-      }
-    );
+    pipeline = pipeline.resize(width ?? UPLOAD.AVATAR_SIZE, height ?? UPLOAD.AVATAR_SIZE, {
+      fit: 'cover',
+      position: 'center',
+      withoutEnlargement: true,
+    });
   }
 
   if (format === 'jpeg') {

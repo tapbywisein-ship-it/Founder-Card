@@ -183,6 +183,37 @@ export class AdminController {
     sendSuccess(res, health, 'Platform health retrieved');
   }
 
+  async getRevenue(req: Request, res: Response): Promise<void> {
+    const { page, limit, search } = req.query as { page?: string; limit?: string; search?: string };
+    const result = await adminService.getRevenue({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      search,
+    });
+    sendPaginated(res, result.items, result.meta, 'Revenue retrieved');
+  }
+
+  async dispatchOrder(req: Request, res: Response): Promise<void> {
+    const { id } = req.params as Record<string, string>;
+    const { trackingId, trackingProvider, nfcTagId } = req.body as {
+      trackingId: string;
+      trackingProvider: string;
+      nfcTagId?: string;
+    };
+    if (!trackingId?.trim() || !trackingProvider?.trim()) {
+      res.status(400).json({ message: 'trackingId and trackingProvider are required' });
+      return;
+    }
+    const result = await adminService.dispatchOrder(id, { trackingId, trackingProvider, nfcTagId });
+    sendSuccess(res, result, 'Order dispatched successfully');
+  }
+
+  async markOrderDelivered(req: Request, res: Response): Promise<void> {
+    const { id } = req.params as Record<string, string>;
+    const result = await adminService.markOrderDelivered(id);
+    sendSuccess(res, result, 'Order marked as delivered');
+  }
+
   async getUserActivity(req: Request, res: Response): Promise<void> {
     const { id } = req.params as Record<string, string>;
     const data = await adminService.getUserActivity(id);
@@ -203,7 +234,7 @@ export class AdminController {
       : user.email;
     await sendEmail(
       user.email,
-      "Your Founder Key invite — claim your account",
+      'Your Founder Key invite — claim your account',
       inviteClaimEmail(name, claimUrl, 'Founder Key')
     );
     sendSuccess(res, { sent: true }, 'Invite re-sent');

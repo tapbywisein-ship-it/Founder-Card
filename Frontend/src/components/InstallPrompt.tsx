@@ -96,7 +96,7 @@ export const InstallPrompt = () => {
   return (
     <div
       role="dialog"
-      aria-label="Install Founder Key"
+      aria-label="Install TapByWisein"
       className="fixed bottom-4 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-card border border-border bg-card p-4 shadow-card"
     >
       <button
@@ -111,7 +111,7 @@ export const InstallPrompt = () => {
           <Download className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">Install Founder Key</p>
+          <p className="text-sm font-semibold text-foreground">Install TapByWisein</p>
           {iosHint ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Tap{' '}

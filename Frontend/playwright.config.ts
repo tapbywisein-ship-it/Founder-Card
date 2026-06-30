@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Standard Playwright config for the FounderKey frontend e2e tests.
+// Standard Playwright config for the TapByWisein frontend e2e tests.
 // Tests live under `tests/` (or `e2e/`); the dev server runs on :8080.
 export default defineConfig({
   testDir: "tests",

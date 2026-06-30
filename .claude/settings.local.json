@@ -5,5 +5,11 @@
       "Bash(rm -f package-lock.json bun.lock)",
       "Bash(npm install *)"
     ]
+  },
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=fadfvwcerhzfzresmwqf"
+    }
   }
 }

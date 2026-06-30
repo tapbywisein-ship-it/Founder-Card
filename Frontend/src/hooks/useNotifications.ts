@@ -21,7 +21,8 @@ export function useUnreadCount() {
     queryKey: notifKeys.unreadCount(),
     queryFn: () => notificationsService.getUnreadCount(),
     select: (res) => res.data.count,
-    refetchInterval: 30_000,
+    // Socket refetches this immediately on notification:new.
+    refetchInterval: 60_000,
   });
 }
 

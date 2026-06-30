@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   MapPin, Linkedin, Twitter, Globe, Mail, Edit3, Check, X, Camera,
-  Calendar, BadgeCheck, Loader2, Phone, AtSign,
+  Calendar, BadgeCheck, Loader2, Phone, AtSign, Crown,
 } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { useMembership } from '@/hooks/useMembership';
+import { PortalLayout } from '@/components/PortalLayout';
+import { CardBlocksEditor } from '@/components/CardBlocksEditor';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +20,7 @@ import { apiUpload } from '@/services/api';
 import { profileService } from '@/services/profile.service';
 
 /**
- * Profile — Posh-style oversized FK Score numeric display, graphite Founder Card chip,
+ * Profile — Posh-style oversized FK Score numeric display, graphite Tap Card chip,
  * Events Hosted (organizers only) and Events Attending lists.
  */
 const ProfilePage = () => {
@@ -110,6 +112,7 @@ const ProfilePage = () => {
       firstName: profile.firstName ?? '',
       lastName: profile.lastName ?? '',
       bio: profile.bio ?? '',
+      status: profile.status ?? '',
       company: profile.company ?? '',
       position: profile.position ?? '',
       location: profile.location ?? '',
@@ -122,12 +125,19 @@ const ProfilePage = () => {
   };
 
   const saveEditWithPhone = async () => {
-    const payload = { ...form };
-    if (payload.phone) {
-      const digits = payload.phone.replace(/\D/g, '');
+    const payload: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(form)) {
+      if (k === 'phone') continue;
+      // firstName/lastName have a min(2) backend constraint — omit if empty
+      if ((k === 'firstName' || k === 'lastName') && !v.trim()) continue;
+      payload[k] = v;
+    }
+    const phoneRaw = form.phone ?? '';
+    if (phoneRaw) {
+      const digits = phoneRaw.replace(/\D/g, '');
       payload.phone = digits ? `+91${digits.slice(-10)}` : '';
     }
-    await updateMutation.mutateAsync(payload);
+    await updateMutation.mutateAsync(payload as Parameters<typeof updateMutation.mutateAsync>[0]);
     setEditing(false);
   };
 
@@ -135,12 +145,12 @@ const ProfilePage = () => {
 
   if (profileLoading) {
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="space-y-4 animate-pulse max-w-content mx-auto">
           <div className="h-32 rounded-card bg-muted" />
           <div className="h-24 rounded-card bg-muted" />
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
@@ -150,9 +160,10 @@ const ProfilePage = () => {
 
   const registrations = regsData?.registrations ?? [];
   const hosted = hostedData?.events ?? [];
+  const { data: membership } = useMembership();
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-8 max-w-content mx-auto">
         {/* Hero — avatar + name + FK Score */}
         <Surface elevated padding="lg">
@@ -230,6 +241,14 @@ const ProfilePage = () => {
                     }
                     placeholder="Company"
                   />
+                  <Input
+                    value={form.status ?? ''}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, status: e.target.value }))
+                    }
+                    maxLength={80}
+                    placeholder="Live status — e.g. Raising a seed round, Hiring engineers"
+                  />
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-1 text-xs rounded-md bg-muted text-muted-foreground border border-border">+91</span>
                     <Input
@@ -256,6 +275,12 @@ const ProfilePage = () => {
                         .join(' · ')}
                     </p>
                   )}
+                  {profile?.status && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary mt-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                      {profile.status}
+                    </span>
+                  )}
                   <div className="flex items-center gap-3 pt-1 flex-wrap">
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                       <Mail className="w-3 h-3" /> {email}
@@ -272,7 +297,7 @@ const ProfilePage = () => {
                     )}
                     {cardActive && (
                       <span className="inline-flex items-center gap-1 chip">
-                        <BadgeCheck className="w-3 h-3" /> Founder Card · Active
+                        <BadgeCheck className="w-3 h-3" /> Tap Card · Active
                       </span>
                     )}
                   </div>
@@ -336,14 +361,17 @@ const ProfilePage = () => {
                 <AtSign className="w-3.5 h-3.5" /> Your card URL
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Share a short link to your Founder Card.
+                Share a short link to your Tap Card.
               </p>
             </div>
+            <Link to="/card-analytics" className="text-xs text-primary hover:underline whitespace-nowrap">
+              View analytics →
+            </Link>
           </div>
           {currentUsername ? (
             <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border">
               <code className="text-sm font-mono text-foreground truncate">
-                founderkey.app/card/{currentUsername}
+                tapbywisein.com/card/{currentUsername}
               </code>
               <Button
                 size="sm"
@@ -359,7 +387,7 @@ const ProfilePage = () => {
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">founderkey.app/card/</span>
+                <span className="text-sm text-muted-foreground">tapbywisein.com/card/</span>
                 <Input
                   value={usernameDraft}
                   onChange={(e) => setUsernameDraft(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 30))}
@@ -472,6 +500,9 @@ const ProfilePage = () => {
           )}
         </Surface>
 
+        {/* Card blocks — pitch deck, video, booking link */}
+        <CardBlocksEditor />
+
         {/* Skills + Interests + Looking for */}
         <TagListSurface
           title="Skills"
@@ -549,6 +580,30 @@ const ProfilePage = () => {
           </Surface>
         )}
 
+        {/* Founder membership — quick link / status */}
+        <Link to="/membership" className="block">
+          <Surface hover className="border-amber-500/25 bg-amber-500/5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Founder Membership</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {membership?.isActive
+                      ? `Active · ${membership.plan === 'annual' ? 'Annual' : 'Monthly'} plan`
+                      : 'Unlimited follow-ups, network search & more'}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs text-primary whitespace-nowrap">
+                {membership?.isActive ? 'Manage →' : 'Upgrade →'}
+              </span>
+            </div>
+          </Surface>
+        </Link>
+
         {/* People I met — quick link */}
         <Surface>
           <div className="flex items-center justify-between">
@@ -610,7 +665,7 @@ const ProfilePage = () => {
           )}
         </Surface>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

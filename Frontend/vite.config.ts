@@ -29,9 +29,9 @@ export default defineConfig(({ mode }) => ({
         "icon-source.svg",
       ],
       manifest: {
-        name: "FounderKey",
-        short_name: "FounderKey",
-        description: "Network at events with FounderCard — scan, tap, connect.",
+        name: "TapByWisein",
+        short_name: "TapByWisein",
+        description: "Network at events with TapByWisein — scan, tap, connect.",
         theme_color: "#0F172A",
         background_color: "#0F172A",
         display: "standalone",
@@ -74,5 +74,20 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  build: {
+    // Split large, rarely-changing vendor libs into their own chunks so they
+    // cache independently of app code and don't bloat any single route chunk.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "charts": ["recharts"],
+          "motion": ["framer-motion"],
+          "query": ["@tanstack/react-query"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 900,
   },
 }));

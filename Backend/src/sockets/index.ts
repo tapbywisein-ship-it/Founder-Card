@@ -2,7 +2,8 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { env } from '@config/env';
 import redis from '@config/redis';
-import { verifyAccessToken } from '@utils/jwt';
+import { supabaseAdmin } from '@config/supabase';
+import prisma from '@config/database';
 import { REDIS_KEYS } from '@config/constants';
 import logger from '@utils/logger';
 import { notificationHandler } from './handlers/notification.handler';
@@ -32,17 +33,25 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
   io.use(async (socket: Socket, next) => {
     try {
       const token =
-        socket.handshake.auth.token as string | undefined ??
+        (socket.handshake.auth.token as string | undefined) ??
         socket.handshake.headers.authorization?.replace('Bearer ', '');
 
       if (!token) {
         return next(new Error('Authentication token required'));
       }
 
-      const decoded = verifyAccessToken(token);
-      socket.data.userId = decoded.userId;
-      socket.data.email = decoded.email;
-      socket.data.role = decoded.role;
+      const { data, error } = await supabaseAdmin.auth.getUser(token);
+      if (error || !data.user?.email) {
+        return next(new Error('Invalid authentication token'));
+      }
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ supabaseId: data.user.id }, { email: data.user.email }] },
+        select: { id: true, email: true, role: true },
+      });
+      if (!user) return next(new Error('User not found'));
+      socket.data.userId = user.id;
+      socket.data.email = user.email;
+      socket.data.role = user.role;
 
       next();
     } catch (error) {
@@ -69,7 +78,7 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
     socket.emit('connected', {
       userId,
       socketId: socket.id,
-      message: 'Connected to Golden Tap Connect',
+      message: 'Connected to TapByWisein',
     });
 
     // Register handlers

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
-import { ArrowLeft, MessageSquare, Send } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Send, Check, CheckCheck } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
@@ -37,9 +37,11 @@ const MessagesPage = () => {
   const send = useSendMessage(id);
   const markRead = useMarkRead();
   const [draft, setDraft] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Scroll to bottom when a new message lands.
+  // Scroll to bottom on new messages — immediate on own send, smooth on receive
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
@@ -50,13 +52,29 @@ const MessagesPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Simulate typing indicator: show for 2s after each incoming message from other user
+  const lastMsg = messages[messages.length - 1];
+  useEffect(() => {
+    if (!lastMsg || lastMsg.senderId === me?.id) return;
+    setIsTyping(false);
+  }, [lastMsg, me?.id]);
+
+  const handleDraftChange = useCallback((v: string) => {
+    setDraft(v);
+    // show "typing" feedback to self (local only — no backend event needed for MVP)
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    if (v.trim()) {
+      typingTimerRef.current = setTimeout(() => setIsTyping(false), 2000);
+    }
+  }, []);
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const v = draft.trim();
     if (!v || !id) return;
     if (!requireVerifiedEmail(me)) return;
     send.mutate(v, {
-      onSuccess: () => setDraft(''),
+      onSuccess: () => { setDraft(''); bottomRef.current?.scrollIntoView({ behavior: 'instant' }); },
     });
   };
 
@@ -198,8 +216,9 @@ const MessagesPage = () => {
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
-                {messages.map((m) => {
+                {messages.map((m, idx) => {
                   const mine = m.senderId === me?.id;
+                  const isLast = idx === messages.length - 1;
                   return (
                     <div
                       key={m.id}
@@ -213,13 +232,31 @@ const MessagesPage = () => {
                         }`}
                       >
                         <p className="whitespace-pre-wrap">{m.body}</p>
-                        <p className={`mt-1 text-[10px] ${mine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                          {format(new Date(m.createdAt), 'p')}
-                        </p>
+                        <div className={`mt-1 flex items-center gap-1 justify-end text-[10px] ${mine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                          <span>{format(new Date(m.createdAt), 'p')}</span>
+                          {mine && isLast && (
+                            m.readAt
+                              ? <CheckCheck className="w-3 h-3" />
+                              : <Check className="w-3 h-3 opacity-60" />
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
                 })}
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <span
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
+                          style={{ animationDelay: `${i * 150}ms` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div ref={bottomRef} />
               </div>
 
@@ -227,7 +264,7 @@ const MessagesPage = () => {
                 <div className="flex items-end gap-2">
                   <Textarea
                     value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={(e) => handleDraftChange(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();

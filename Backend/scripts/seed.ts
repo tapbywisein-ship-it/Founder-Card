@@ -78,7 +78,7 @@ const BADGE_DEFINITIONS = [
 ];
 
 const PLATFORM_SETTINGS = [
-  { key: 'app_name', value: 'Golden Tap Connect', type: 'string', label: 'Application Name' },
+  { key: 'app_name', value: 'TapByWisein', type: 'string', label: 'Application Name' },
   { key: 'app_description', value: 'The premier networking platform for founders', type: 'string', label: 'App Description' },
   { key: 'max_connections_per_day', value: '50', type: 'number', label: 'Max Connections Per Day' },
   { key: 'founder_card_auto_approve', value: 'false', type: 'boolean', label: 'Auto-approve Founder Cards' },
@@ -130,8 +130,8 @@ async function seedPlatformSettings() {
 async function seedAdminUser() {
   console.log('Seeding admin user...');
 
-  const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@goldentap.com';
-  const adminPassword = process.env.ADMIN_PASSWORD ?? 'Admin@GoldenTap2024!';
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@tapbywisein.com';
+  const adminPassword = process.env.ADMIN_PASSWORD ?? 'Admin@TapByWisein2024!';
 
   const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (existing) {
@@ -153,7 +153,7 @@ async function seedAdminUser() {
         create: {
           firstName: 'Platform',
           lastName: 'Admin',
-          company: 'Golden Tap Connect',
+          company: 'TapByWisein',
           position: 'Platform Administrator',
         },
       },
@@ -173,7 +173,7 @@ async function seedAdminUser() {
 async function seedSampleOrganizer() {
   console.log('Seeding sample organizer...');
 
-  const email = 'organizer@goldentap.com';
+  const email = 'organizer@tapbywisein.com';
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     console.log(`  ✓ Sample organizer already exists: ${email}`);
@@ -368,8 +368,8 @@ async function main() {
     console.log('\nDatabase seed completed successfully!');
     console.log('\nDefault Credentials:');
     console.log('─────────────────────────────────────');
-    console.log(`Admin:     ${process.env.ADMIN_EMAIL ?? 'admin@goldentap.com'} / Admin@GoldenTap2024!`);
-    console.log(`Organizer: organizer@goldentap.com / Organizer@1234!`);
+    console.log(`Admin:     ${process.env.ADMIN_EMAIL ?? 'admin@tapbywisein.com'} / Admin@TapByWisein2024!`);
+    console.log(`Organizer: organizer@tapbywisein.com / Organizer@1234!`);
     console.log(`Attendee:  alice@startup.com / Attendee@1234!`);
     console.log('─────────────────────────────────────');
 
