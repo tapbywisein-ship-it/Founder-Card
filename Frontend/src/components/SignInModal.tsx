@@ -65,7 +65,12 @@ export const SignInModal = ({
       toast.success('Signed in');
       onOpenChange(false);
       reset();
-      if (intendedRoute) navigate(intendedRoute);
+      // Admins always go to their own dashboard — never into organizer flows.
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (intendedRoute) {
+        navigate(intendedRoute);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Sign-in failed');
     } finally {
