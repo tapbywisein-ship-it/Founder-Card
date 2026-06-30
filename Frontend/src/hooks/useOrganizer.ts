@@ -33,11 +33,11 @@ export function useOrgDashboard() {
   });
 }
 
-export function useMyOrgEvents(page = 1, limit = 20) {
+export function useMyOrgEvents(page = 1, limit = 20, enabled = true) {
   return useQuery({
     queryKey: orgKeys.events(),
     queryFn: () => organizerService.getMyEvents(page, limit),
-    // sendPaginated returns { data: [...events...], pagination: {...} }
+    enabled,
     select: (res) => ({
       events: res.data as (Event & { registeredCount: number })[],
       pagination: res.pagination as Pagination,

@@ -30,7 +30,7 @@ const ProfilePage = () => {
   const { data: regsData } = useMyRegistrations(1, 5);
   const isOrganizer = user?.role === 'organizer';
   // Only fetch hosted events for organizers; attendees won't have any.
-  const { data: hostedData } = useMyOrgEvents(1, 5);
+  const { data: hostedData } = useMyOrgEvents(1, 5, isOrganizer);
   const { data: membership } = useMembership();
 
   const [editing, setEditing] = useState(false);
