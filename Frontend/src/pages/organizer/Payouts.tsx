@@ -119,29 +119,22 @@ const Payouts = () => {
         )}
 
         {/* Earnings summary */}
-        {!isLoading && summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: 'Total earned',   value: formatINR(summary.totalEarnings), icon: Wallet,        accent: '' },
-              { label: 'Transferred',    value: formatINR(summary.transferred),   icon: CheckCircle2,  accent: 'text-emerald-600' },
-              { label: 'Pending',        value: formatINR(summary.pending),       icon: Clock,         accent: 'text-amber-600' },
-              { label: 'Platform fee',   value: formatINR(summary.platformFee),   icon: Percent,       accent: 'text-muted-foreground' },
-            ].map(({ label, value, icon: Icon, accent }, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
-                <Surface className="text-center py-5">
-                  <Icon className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className={`text-2xl font-bold ${accent || 'text-foreground'}`}>{value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{label}</p>
-                </Surface>
-              </motion.div>
-            ))}
-          </div>
-        )}
-        {isLoading && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-muted/50 rounded-2xl animate-pulse" />)}
-          </div>
-        )}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Total earned',   value: formatINR(summary?.totalEarnings ?? 0), icon: Wallet,        accent: '' },
+            { label: 'Transferred',    value: formatINR(summary?.transferred   ?? 0), icon: CheckCircle2,  accent: 'text-emerald-600' },
+            { label: 'Pending',        value: formatINR(summary?.pending       ?? 0), icon: Clock,         accent: 'text-amber-600' },
+            { label: 'Platform fee',   value: formatINR(summary?.platformFee   ?? 0), icon: Percent,       accent: 'text-muted-foreground' },
+          ].map(({ label, value, icon: Icon, accent }, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
+              <Surface className="text-center py-5">
+                <Icon className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+                <p className={`text-2xl font-bold transition-colors ${isLoading ? 'text-muted-foreground/30' : (accent || 'text-foreground')}`}>{value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{label}</p>
+              </Surface>
+            </motion.div>
+          ))}
+        </div>
 
         {/* Route account status */}
         <Surface>

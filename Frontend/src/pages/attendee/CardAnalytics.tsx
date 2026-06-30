@@ -45,11 +45,7 @@ const CardAnalyticsPage = () => {
           {stats.map(({ label, value, icon: Icon }) => (
             <Surface key={label} padding="md" className="text-center">
               <Icon className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
-              {isLoading ? (
-                <div className="h-7 w-12 bg-muted/50 rounded animate-pulse mx-auto mb-1" />
-              ) : (
-                <p className="text-2xl font-bold text-foreground tabular-nums">{value}</p>
-              )}
+              <p className={`text-2xl font-bold tabular-nums transition-colors ${isLoading ? 'text-muted-foreground/30' : 'text-foreground'}`}>{value}</p>
               <p className="text-xs text-muted-foreground">{label}</p>
             </Surface>
           ))}

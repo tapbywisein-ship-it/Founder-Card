@@ -137,11 +137,7 @@ const AttendeeDirectoryPage = () => {
                   <Icon className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <div>
-                  {isLoading ? (
-                    <div className="h-5 w-10 bg-muted/50 rounded animate-pulse mb-1" />
-                  ) : (
-                    <p className="text-xl font-bold text-foreground">{value}</p>
-                  )}
+                  <p className={`text-xl font-bold transition-colors ${isLoading ? 'text-muted-foreground/30' : 'text-foreground'}`}>{value}</p>
                   <p className="text-[11px] text-muted-foreground">{label}</p>
                 </div>
               </Surface>

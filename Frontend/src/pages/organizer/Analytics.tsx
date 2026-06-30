@@ -19,41 +19,20 @@ const AnalyticsPage = () => {
   const { data: analytics, isLoading, isError } = useEventAnalytics(id!);
   const { data: networking } = useNetworkingAnalytics(id!);
 
-  if (isLoading) {
-    return (
-      <>
-        <div className="space-y-4 animate-pulse">
-          <div className="h-8 w-1/3 bg-muted/50 rounded" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-muted/50 rounded-xl" />)}
-          </div>
-        </div>
-      </>
-    );
-  }
-
   if (isError) {
     return (
-      <>
-        <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          Failed to load analytics. Try refreshing the page.
-        </div>
-      </>
+      <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+        Failed to load analytics. Try refreshing the page.
+      </div>
     );
   }
 
-  if (!analytics) {
-    return (
-      <>
-        <div className="text-center py-20">
-          <p className="text-muted-foreground">Analytics not available.</p>
-        </div>
-      </>
-    );
-  }
-
-  const { event, registrations, leads, quality, funnel } = analytics;
+  const registrations = analytics?.registrations ?? { total: 0, attended: 0, cancelled: 0, waitlisted: 0, conversionRate: 0, capacityUtilization: 0 };
+  const leads = analytics?.leads ?? {};
+  const quality = analytics?.quality;
+  const funnel = analytics?.funnel;
+  const event = analytics?.event ?? { capacity: 0 };
   const leadStatusEntries = Object.entries(leads);
   const totalSeniority = (quality?.seniorityMix ?? []).reduce((s, x) => s + x.value, 0);
   const repeatTotal = (quality?.repeatAttendees ?? 0) + (quality?.firstTimeAttendees ?? 0);
@@ -70,7 +49,7 @@ const AnalyticsPage = () => {
           ].map(({ label, value, icon: Icon, color }) => (
             <Surface key={label} padding="md" className="text-center">
               <Icon className={`w-4 h-4 mx-auto mb-2 ${color || 'text-muted-foreground'}`} />
-              <p className={`text-2xl font-bold mb-0.5 ${color || 'text-foreground'}`}>{value}</p>
+              <p className={`text-2xl font-bold mb-0.5 transition-colors ${isLoading ? 'text-muted-foreground/30' : (color || 'text-foreground')}`}>{value}</p>
               <p className="text-xs text-muted-foreground">{label}</p>
             </Surface>
           ))}
