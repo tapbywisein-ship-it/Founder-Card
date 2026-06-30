@@ -9,6 +9,7 @@ import { CreditCard, CheckCircle2, XCircle, Zap, Package, MapPin, ChevronRight, 
 import { Link } from 'react-router-dom';
 import { useMyCard, useBuyCard } from '@/hooks/useFounderCard';
 import { useMyProfile } from '@/hooks/useProfile';
+import { useAppStore } from '@/store/appStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ShippingAddress } from '@/services/payments.service';
 
@@ -41,6 +42,9 @@ function validateAddress(a: ShippingAddress): Partial<Record<keyof ShippingAddre
 const ApplyCardPage = () => {
   const { data: card, isLoading } = useMyCard();
   const { data: profileData } = useMyProfile();
+  // Use store snapshot to skip skeleton — show page immediately, card detail loads in background.
+  const storeUser = useAppStore((s) => s.user);
+  const hasCardInStore = storeUser?.hasFounderCard ?? false;
   const profile = profileData?.profile;
   const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : '';
   const buyMutation = useBuyCard({ name: fullName, email: profileData?.email });
@@ -60,7 +64,8 @@ const ApplyCardPage = () => {
     buyMutation.mutate(address);
   };
 
-  if (isLoading) {
+  // Only block on skeleton if we have no store hint and card data hasn't arrived yet.
+  if (isLoading && !hasCardInStore) {
     return (
       <AppLayout>
         <div className="max-w-content mx-auto space-y-4 pb-24 md:pb-8">

@@ -83,8 +83,16 @@ const AdminAuditLogsPage = lazy(() => import("./pages/admin/AuditLogs"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
-      retry: 1,
+      staleTime: 5 * 60_000,        // 5 min — avoid refetching on every navigation
+      gcTime: 10 * 60_000,          // 10 min — keep data in cache longer
+      // Don't retry 4xx errors — they won't succeed on retry and double wait time.
+      retry: (failCount, err) => {
+        if (err instanceof Error && 'status' in err) {
+          const status = (err as { status: number }).status;
+          if (status >= 400 && status < 500) return false;
+        }
+        return failCount < 1;
+      },
       refetchOnWindowFocus: false,
     },
   },

@@ -15,15 +15,29 @@ export class ApiError extends Error {
   }
 }
 
+// Cache the token in memory so we don't call getSession() on every request.
+// Supabase fires onAuthStateChange when the session changes (sign-in, refresh,
+// sign-out) — we update the cache there instead of fetching per-request.
+let _cachedToken: string | null = null;
+supabase.auth.onAuthStateChange((_event, session) => {
+  _cachedToken = session?.access_token ?? null;
+});
+// Warm the cache immediately on module load (handles page refreshes).
+supabase.auth.getSession().then(({ data }) => {
+  _cachedToken = data.session?.access_token ?? null;
+}).catch(() => { /* ignore */ });
+
 async function getAuthHeader(): Promise<string | null> {
+  if (_cachedToken) return `Bearer ${_cachedToken}`;
+  // Fallback: token not cached yet — fetch once and cache.
   try {
     const { data, error } = await supabase.auth.getSession();
     if (error) {
       console.error('[auth] getSession error:', error.message);
       return null;
     }
-    const token = data.session?.access_token;
-    return token ? `Bearer ${token}` : null;
+    _cachedToken = data.session?.access_token ?? null;
+    return _cachedToken ? `Bearer ${_cachedToken}` : null;
   } catch (err) {
     console.error('[auth] Failed to retrieve session:', err);
     return null;
