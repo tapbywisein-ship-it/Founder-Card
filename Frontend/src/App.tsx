@@ -120,10 +120,14 @@ const RouterMounted = () => {
     });
   }, [logout, navigate]);
 
-  // Refresh user on mount so stale localStorage values (fkScore, role, etc.) stay current.
+  // Refresh user in background after a short delay so it doesn't compete with
+  // the page's own API calls on initial mount.
   useEffect(() => {
     if (!isAuthenticated) return;
-    apiGetMe().then(login).catch(() => {/* token may be expired — unauthorizedHandler handles logout */});
+    const t = setTimeout(() => {
+      apiGetMe().then(login).catch(() => {/* token may be expired — unauthorizedHandler handles logout */});
+    }, 2000);
+    return () => clearTimeout(t);
   }, [isAuthenticated, login]);
 
   return null;

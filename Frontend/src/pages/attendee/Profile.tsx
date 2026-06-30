@@ -144,7 +144,9 @@ const ProfilePage = () => {
 
   const saveEdit = saveEditWithPhone;
 
-  if (profileLoading) {
+  // Only show full-page skeleton if we have nothing at all to render.
+  // If user store has a name, render immediately and let profileData fill in details.
+  if (profileLoading && !user?.name) {
     return (
       <PortalLayout>
         <div className="space-y-4 animate-pulse max-w-content mx-auto">
