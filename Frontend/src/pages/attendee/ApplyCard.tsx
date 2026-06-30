@@ -218,15 +218,20 @@ const ApplyCardPage = () => {
               <Surface className="space-y-5">
                 <div className="space-y-3">
                   {[
-                    'Physical NFC card — tap any phone to share',
-                    'Verified founder profile badge',
-                    'Priority event access',
-                    'Exclusive founder community',
-                    'Ships to your doorstep across India',
-                  ].map((benefit) => (
-                    <div key={benefit} className="flex items-center gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
-                      <span className="text-sm text-foreground">{benefit}</span>
+                    { title: 'Tap to share — no app needed', desc: 'Works on any NFC-enabled iPhone or Android. One tap shares your full profile instantly.' },
+                    { title: 'QR code on every card', desc: 'Scan-friendly fallback for phones without NFC or in low-connectivity venues.' },
+                    { title: 'Verified founder badge', desc: 'Your profile gets a ✦ Founder badge — signals credibility at events and on your public card.' },
+                    { title: 'Your profile, always up to date', desc: 'Edit your details anytime. The card always points to your latest profile — no reprinting.' },
+                    { title: 'Built-in lead capture', desc: 'Visitors can leave their details on your card page even without signing up.' },
+                    { title: 'Priority event access & exclusive perks', desc: 'Early RSVP windows, founder-only events, and higher FK Score multipliers.' },
+                    { title: 'Free shipping across India', desc: 'Delivered to your doorstep. Usually within 5–7 business days.' },
+                  ].map(({ title, desc }) => (
+                    <div key={title} className="flex items-start gap-3">
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{title}</p>
+                        <p className="text-xs text-muted-foreground">{desc}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
