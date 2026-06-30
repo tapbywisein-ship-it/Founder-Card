@@ -78,13 +78,18 @@ const RegisterPage = () => {
         email,
         password,
         options: {
-          data: { full_name: name.trim(), given_name: firstName, family_name: lastName },
+          data: {
+            full_name: name.trim(),
+            given_name: firstName,
+            family_name: lastName,
+            signup_role: signupRole ?? 'ATTENDEE',
+          },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw new Error(error.message);
       toast.success('Account created! Check your email to verify, then sign in.');
-      navigate('/login');
+      navigate('/login', { state: { from: intendedRoute ? { pathname: intendedRoute } : undefined } });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       toast.error(msg);

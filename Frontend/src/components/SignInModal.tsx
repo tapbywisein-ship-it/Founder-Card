@@ -65,9 +65,12 @@ export const SignInModal = ({
       toast.success('Signed in');
       onOpenChange(false);
       reset();
-      // Admins always go to their own dashboard — never into organizer flows.
+      // Role-aware redirect: each role has a home, override intendedRoute if needed.
       if (user.role === 'admin') {
         navigate('/admin/dashboard');
+      } else if (user.role === 'attendee' && intendedRoute === '/organizer/events/create') {
+        // Attendees can't create events — send them home.
+        navigate('/dashboard');
       } else if (intendedRoute) {
         navigate(intendedRoute);
       }

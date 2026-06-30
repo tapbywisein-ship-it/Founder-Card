@@ -56,6 +56,9 @@ async function resolveUser(token: string) {
       const lastName = rawLast === firstName ? '' : rawLast;
       const avatar: string | undefined = meta.avatar_url ?? meta.picture;
 
+      const requestedRole = (supabaseUser.user_metadata?.signup_role as string | undefined)?.toUpperCase();
+      const initialRole = requestedRole === 'ORGANIZER' ? 'ORGANIZER' : 'ATTENDEE';
+
       user = await prisma.user.create({
         data: {
           email,
@@ -64,7 +67,7 @@ async function resolveUser(token: string) {
           authProvider: supabaseUser.app_metadata?.provider ?? 'email',
           password: null,
           isEmailVerified: true,
-          role: 'ATTENDEE',
+          role: initialRole,
           profile: {
             create: { firstName, lastName, avatar: avatar ?? null },
           },

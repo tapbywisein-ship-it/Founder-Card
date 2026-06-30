@@ -125,6 +125,11 @@ const CreateEventPage = () => {
   if (isAuthenticated && userRole === 'admin') {
     return <Navigate to="/admin/dashboard" replace />;
   }
+
+  // Attendees can't create events — send them home.
+  if (isAuthenticated && userRole === 'attendee') {
+    return <Navigate to="/dashboard" replace />;
+  }
   const [signInOpen, setSignInOpen] = useState(false);
 
   // Auto-open the sign-in popup on first render for anonymous visitors.
