@@ -37,56 +37,37 @@ const AuthCallback = () => {
       return;
     }
 
-    const finishAuth = async () => {
-      // PKCE flow: exchange the ?code= for a session
-      const code = new URLSearchParams(window.location.search).get('code');
-      let session = null;
+    // detectSessionInUrl:true in the Supabase client automatically exchanges
+    // the PKCE ?code= on page load. We just need to wait for the session.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event !== 'SIGNED_IN' && event !== 'TOKEN_REFRESHED') return;
+        subscription.unsubscribe();
 
-      if (code) {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          console.error('[AuthCallback] exchangeCodeForSession failed:', error.message);
+        if (!session) {
           navigate('/login');
           return;
         }
-        session = data.session;
-      } else {
-        // Implicit flow fallback (magic links, email OTP)
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('[AuthCallback] getSession failed:', error.message);
+
+        try {
+          const user = await apiGetMe();
+          login(user);
+
+          const createIntent = localStorage.getItem('fk-oauth-create-intent');
+          if (createIntent === '1') {
+            localStorage.removeItem('fk-oauth-create-intent');
+            navigate('/organizer/events/create');
+            return;
+          }
+
+          const returnTo = takePostAuthReturnPath();
+          navigate(returnTo ?? ROLE_PATHS[user.role] ?? '/dashboard');
+        } catch (err) {
+          console.error('[AuthCallback] apiGetMe failed:', err);
           navigate('/login');
-          return;
         }
-        session = data.session;
       }
-
-      if (!session) {
-        console.error('[AuthCallback] No session after exchange');
-        navigate('/login');
-        return;
-      }
-
-      try {
-        const user = await apiGetMe();
-        login(user);
-
-        const createIntent = localStorage.getItem('fk-oauth-create-intent');
-        if (createIntent === '1') {
-          localStorage.removeItem('fk-oauth-create-intent');
-          navigate('/organizer/events/create');
-          return;
-        }
-
-        const returnTo = takePostAuthReturnPath();
-        navigate(returnTo ?? ROLE_PATHS[user.role] ?? '/dashboard');
-      } catch (err) {
-        console.error('[AuthCallback] apiGetMe failed:', err);
-        navigate('/login');
-      }
-    };
-
-    finishAuth();
+    );
   }, [login, navigate]);
 
   if (errorMsg) {
