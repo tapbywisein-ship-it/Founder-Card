@@ -31,6 +31,7 @@ const ProfilePage = () => {
   const isOrganizer = user?.role === 'organizer';
   // Only fetch hosted events for organizers; attendees won't have any.
   const { data: hostedData } = useMyOrgEvents(1, 5);
+  const { data: membership } = useMembership();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -160,7 +161,6 @@ const ProfilePage = () => {
 
   const registrations = regsData?.registrations ?? [];
   const hosted = hostedData?.events ?? [];
-  const { data: membership } = useMembership();
 
   return (
     <PortalLayout>
