@@ -37,15 +37,37 @@ const AuthCallback = () => {
       return;
     }
 
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (error || !session) {
-        console.error('[AuthCallback] No session:', error?.message ?? 'missing');
+    const finishAuth = async () => {
+      // PKCE flow: exchange the ?code= for a session
+      const code = new URLSearchParams(window.location.search).get('code');
+      let session = null;
+
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error('[AuthCallback] exchangeCodeForSession failed:', error.message);
+          navigate('/login');
+          return;
+        }
+        session = data.session;
+      } else {
+        // Implicit flow fallback (magic links, email OTP)
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('[AuthCallback] getSession failed:', error.message);
+          navigate('/login');
+          return;
+        }
+        session = data.session;
+      }
+
+      if (!session) {
+        console.error('[AuthCallback] No session after exchange');
         navigate('/login');
         return;
       }
 
       try {
-        // Backend middleware auto-creates the user in DB on first call
         const user = await apiGetMe();
         login(user);
 
@@ -62,7 +84,9 @@ const AuthCallback = () => {
         console.error('[AuthCallback] apiGetMe failed:', err);
         navigate('/login');
       }
-    });
+    };
+
+    finishAuth();
   }, [login, navigate]);
 
   if (errorMsg) {
