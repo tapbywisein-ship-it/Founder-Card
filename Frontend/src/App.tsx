@@ -4,6 +4,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { setUnauthorizedHandler } from "@/services/api";
 import { useAppStore } from "@/store/appStore";
+import { apiGetMe } from "@/services/auth.service";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -101,12 +102,22 @@ const RouterMounted = () => {
   useSyncActiveEventFromUrl();
   const navigate = useNavigate();
   const logout = useAppStore((s) => s.logout);
+  const login = useAppStore((s) => s.login);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+
   useEffect(() => {
     setUnauthorizedHandler(() => {
       logout();
       navigate('/login', { replace: true });
     });
   }, [logout, navigate]);
+
+  // Refresh user on mount so stale localStorage values (fkScore, role, etc.) stay current.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiGetMe().then(login).catch(() => {/* token may be expired — unauthorizedHandler handles logout */});
+  }, [isAuthenticated, login]);
+
   return null;
 };
 

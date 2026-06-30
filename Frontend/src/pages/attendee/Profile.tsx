@@ -371,7 +371,7 @@ const ProfilePage = () => {
           {currentUsername ? (
             <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border">
               <code className="text-sm font-mono text-foreground truncate">
-                tapbywisein.com/card/{currentUsername}
+                {window.location.host}/card/{currentUsername}
               </code>
               <Button
                 size="sm"
@@ -387,7 +387,7 @@ const ProfilePage = () => {
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">tapbywisein.com/card/</span>
+                <span className="text-sm text-muted-foreground">{window.location.host}/card/</span>
                 <Input
                   value={usernameDraft}
                   onChange={(e) => setUsernameDraft(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 30))}
