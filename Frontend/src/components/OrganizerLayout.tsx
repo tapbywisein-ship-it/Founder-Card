@@ -65,7 +65,7 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
         </div>
       </aside>
       <div className="flex-1 md:ml-60 min-h-screen">
-        <main className="p-4 md:p-8 max-w-xwide mx-auto pb-24 md:pb-8">{children}</main>
+        <main className="p-4 md:p-8 max-w-4xl mx-auto pb-24 md:pb-8">{children}</main>
       </div>
 
       {/* Mobile bottom nav */}
