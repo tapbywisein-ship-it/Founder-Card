@@ -50,12 +50,12 @@ const AdminAnalyticsPage = () => {
   const tierTotal = tierData.reduce((s, t) => s + t.value, 0);
 
   const kpis = [
-    { label: 'Total Users', value: stats?.totalUsers?.toLocaleString() ?? '—', icon: Users },
-    { label: 'Active Users (30d)', value: stats?.activeUsers?.toLocaleString() ?? '—', icon: TrendingUp },
-    { label: 'Total Connections', value: stats?.totalConnections?.toLocaleString() ?? '—', icon: Zap },
-    { label: 'Active Events', value: stats?.totalEvents?.toLocaleString() ?? '—', icon: Calendar },
-    { label: 'Tap Cards', value: stats?.totalFounderCards?.toLocaleString() ?? '—', icon: CreditCard },
-    { label: 'Events Created', value: stats?.totalEvents?.toLocaleString() ?? '—', icon: Calendar },
+    { label: 'Total Users', value: stats?.totalUsers?.toLocaleString() ?? '0', icon: Users },
+    { label: 'Active Users (30d)', value: stats?.activeUsers?.toLocaleString() ?? '0', icon: TrendingUp },
+    { label: 'Total Connections', value: stats?.totalConnections?.toLocaleString() ?? '0', icon: Zap },
+    { label: 'Active Events', value: stats?.totalEvents?.toLocaleString() ?? '0', icon: Calendar },
+    { label: 'Tap Cards', value: stats?.totalFounderCards?.toLocaleString() ?? '0', icon: CreditCard },
+    { label: 'Events Created', value: stats?.totalEvents?.toLocaleString() ?? '0', icon: Calendar },
   ];
 
   return (

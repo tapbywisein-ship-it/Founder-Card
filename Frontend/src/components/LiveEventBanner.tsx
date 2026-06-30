@@ -137,7 +137,7 @@ export const LiveEventBanner = () => {
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {suggestions.slice(0, 6).map((s) => {
                     const p = s.user.profile;
-                    const name = p ? `${p.firstName} ${p.lastName}`.trim() : '—';
+                    const name = p ? `${p.firstName} ${p.lastName}`.trim() : '';
                     return (
                       <Link
                         key={s.userId}

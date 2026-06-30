@@ -54,7 +54,7 @@ const severityClasses: Record<'low' | 'medium' | 'high', string> = {
 
 const reporterName = (r: Report): string => {
   const p = r.reporter?.profile;
-  return p ? `${p.firstName} ${p.lastName}`.trim() : r.reporter?.email ?? '—';
+  return p ? `${p.firstName} ${p.lastName}`.trim() : r.reporter?.email ?? '';
 };
 
 const AdminPermissionsPage = () => {

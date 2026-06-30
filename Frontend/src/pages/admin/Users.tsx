@@ -146,7 +146,7 @@ const AdminUsersPage = () => {
                     </td>
                     <td className="py-3 px-4 text-muted-foreground text-xs">{u._count?.registrations ?? 0}</td>
                     <td className="py-3 px-4 text-muted-foreground text-xs whitespace-nowrap">
-                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                     </td>
                     <td className="py-3 px-4">
                       <span className={`text-xs font-medium ${u.isActive ? 'text-emerald-500' : 'text-red-400'}`}>

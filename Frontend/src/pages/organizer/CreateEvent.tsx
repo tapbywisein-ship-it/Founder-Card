@@ -12,6 +12,7 @@ import { apiUpload } from '@/services/api';
 import { toast } from 'sonner';
 import {
   Calendar, Check, MapPin, Upload, X, Plus, Trash2, Shuffle, Globe,
+  Tag, Ticket, Users2, CheckSquare,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -498,7 +499,7 @@ const CreateEventPage = () => {
                         : 'border-border text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {v === 'PUBLIC' ? '🌍 Public' : '🔒 Private'}
+                    {v === 'PUBLIC' ? 'Public' : 'Private'}
                   </button>
                 ))}
               </div>
@@ -520,7 +521,7 @@ const CreateEventPage = () => {
               <div className="space-y-3">
                 {/* Start */}
                 <div className="flex items-center gap-3">
-                  <span className="text-base shrink-0">📅</span>
+                  <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
                   <div className="flex flex-col sm:flex-row gap-2 flex-1">
                     <div className="flex-1">
                       <label className="text-[11px] text-muted-foreground block mb-0.5">Start date</label>
@@ -535,7 +536,7 @@ const CreateEventPage = () => {
 
                 {/* End */}
                 <div className="flex items-center gap-3">
-                  <span className="text-base shrink-0">📅</span>
+                  <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
                   <div className="flex flex-col sm:flex-row gap-2 flex-1">
                     <div className="flex-1">
                       <label className="text-[11px] text-muted-foreground block mb-0.5">End date</label>
@@ -605,7 +606,6 @@ const CreateEventPage = () => {
                 onClick={() => setDescExpanded((v) => !v)}
                 className="w-full flex items-center gap-2 text-sm text-left"
               >
-                <span className="text-base shrink-0">📝</span>
                 <span className={descExpanded ? 'text-foreground font-medium' : 'text-muted-foreground'}>
                   {form.description ? form.description.slice(0, 60) + (form.description.length > 60 ? '…' : '') : 'Add Description'}
                 </span>
@@ -625,7 +625,7 @@ const CreateEventPage = () => {
             {/* Category — required */}
             <Surface>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-base">🏷️</span>
+                <Tag className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">Category</span>
                 <span className="text-xs text-red-500">*</span>
               </div>
@@ -654,7 +654,7 @@ const CreateEventPage = () => {
                   {/* Ticket Price */}
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-base">🎫</span>
+                      <Ticket className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm font-medium text-foreground">Ticket Price</span>
                     </div>
                     <div className="flex gap-2 mb-2">
@@ -690,7 +690,7 @@ const CreateEventPage = () => {
                   {/* Require Approval */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-base">✅</span>
+                      <CheckSquare className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm font-medium text-foreground">Require Approval</span>
                     </div>
                     <button
@@ -707,7 +707,7 @@ const CreateEventPage = () => {
                   {/* Capacity */}
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-base">👥</span>
+                      <Users2 className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm font-medium text-foreground">Capacity</span>
                     </div>
                     <Input
@@ -737,7 +737,7 @@ const CreateEventPage = () => {
                   {/* Multiple ticket tiers toggle */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-base">🎟️</span>
+                      <Ticket className="w-4 h-4 text-muted-foreground" />
                       <label
                         className="text-sm font-medium text-foreground cursor-pointer select-none"
                         onClick={() => {
@@ -782,9 +782,9 @@ const CreateEventPage = () => {
                     </span>
                     <span className={remainingCapacity < 0 ? 'text-red-400 font-semibold' : remainingCapacity === 0 ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'}>
                       {remainingCapacity < 0
-                        ? `⚠ ${Math.abs(remainingCapacity)} over limit`
+                        ? `${Math.abs(remainingCapacity)} over limit`
                         : remainingCapacity === 0
-                        ? '✓ Fully allocated'
+                        ? 'Fully allocated'
                         : `${remainingCapacity.toLocaleString()} unallocated`}
                     </span>
                   </div>
@@ -895,7 +895,7 @@ const CreateEventPage = () => {
                         <div className="space-y-1.5">
                           {ticket.benefits.map((benefit, idx) => (
                             <div key={idx} className="flex items-center gap-1.5">
-                              <span className="text-primary text-xs">✓</span>
+                              <Check className="w-3 h-3 text-primary flex-shrink-0" />
                               <Input
                                 value={benefit}
                                 onChange={(e) => updateBenefit(ticket.id, idx, e.target.value)}

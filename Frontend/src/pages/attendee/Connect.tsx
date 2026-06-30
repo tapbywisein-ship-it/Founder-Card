@@ -196,9 +196,9 @@ const ConnectPage = () => {
           <h3 className="text-sm font-medium text-foreground mb-3">Your Profile Stats</h3>
           <div className="grid grid-cols-3 gap-3 text-center">
             {[
-              { label: 'Profile views', value: '—' },
-              { label: 'QR scans', value: '—' },
-              { label: 'Connections', value: '—' },
+              { label: 'Profile views', value: '' },
+              { label: 'QR scans', value: '' },
+              { label: 'Connections', value: '' },
             ].map((s) => (
               <div key={s.label}>
                 <p className="text-xl font-bold text-foreground">{s.value}</p>

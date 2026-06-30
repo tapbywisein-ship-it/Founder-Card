@@ -9,7 +9,7 @@ import type { PlanKey } from '@/services/membership.service';
 const PERK_ICONS = [Bell, Search, BarChart3];
 
 const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+  iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
 const MembershipPage = () => {
   const { data: membership, isLoading, isError } = useMembership();

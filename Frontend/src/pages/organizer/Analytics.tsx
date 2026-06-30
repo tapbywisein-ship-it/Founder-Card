@@ -202,7 +202,7 @@ const AnalyticsPage = () => {
                 label="Scan → connect"
                 value={
                   networking.scanToConnectionRate === null
-                    ? '—'
+                    ? ''
                     : `${Math.round(networking.scanToConnectionRate * 100)}%`
                 }
               />

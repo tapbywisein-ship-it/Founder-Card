@@ -151,7 +151,7 @@ const AdminRevenuePage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <Surface padding="md" className="text-center">
             <IndianRupee className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">{stats?.totalRevenue !== undefined ? formatINR(stats.totalRevenue) : '—'}</p>
+            <p className="text-2xl font-bold text-foreground">{formatINR(stats?.totalRevenue ?? 0)}</p>
             <p className="text-[11px] text-muted-foreground">Total Collected</p>
           </Surface>
           <Surface padding="md" className="text-center">
@@ -163,7 +163,7 @@ const AdminRevenuePage = () => {
           </Surface>
           <Surface padding="md" className="text-center">
             <IndianRupee className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">{pagination?.total ?? '—'}</p>
+            <p className="text-2xl font-bold text-foreground">{pagination?.total ?? 0}</p>
             <p className="text-[11px] text-muted-foreground">Total Orders</p>
           </Surface>
         </div>
@@ -246,7 +246,7 @@ const AdminRevenuePage = () => {
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground/40">—</span>
+                        <span className="text-xs text-muted-foreground/40">N/A</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -285,11 +285,11 @@ const AdminRevenuePage = () => {
                           <p className="text-muted-foreground">{r.shippingAddress.phone}</p>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground/50">—</span>
+                        <span className="text-xs text-muted-foreground/50">N/A</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-xs text-muted-foreground font-mono">
-                      {r.razorpayOrderId ? r.razorpayOrderId.slice(-12) : '—'}
+                      {r.razorpayOrderId ? r.razorpayOrderId.slice(-12) : ''}
                     </td>
                     <td className="py-3 px-4 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

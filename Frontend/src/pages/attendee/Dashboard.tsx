@@ -321,7 +321,7 @@ const AttendeeDashboard = () => {
                       { label: '+20 Connect', done: false },
                     ].map((hint) => (
                       <span key={hint.label} className={`text-[10px] px-1.5 py-0.5 rounded-full border ${hint.done ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-muted/40 border-border text-muted-foreground'}`}>
-                        {hint.done ? '✓' : ''} {hint.label}
+                        {hint.label}
                       </span>
                     ))}
                   </div>
@@ -494,7 +494,7 @@ const AttendeeDashboard = () => {
                           disabled={sent || sendRequest.isPending}
                           onClick={() => handleConnect(s.id)}
                         >
-                          {sent ? 'Sent ✓' : 'Connect'}
+                          {sent ? 'Sent' : 'Connect'}
                         </Button>
                       </div>
                     );
@@ -519,17 +519,16 @@ const AttendeeDashboard = () => {
               <p className="text-xs text-muted-foreground mb-3">Events tailored to your interests.</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'Tech', icon: '💻' },
-                  { label: 'Business', icon: '📈' },
-                  { label: 'Design', icon: '🎨' },
-                  { label: 'Startup', icon: '🚀' },
-                ].map(({ label, icon }) => (
+                  { label: 'Tech' },
+                  { label: 'Business' },
+                  { label: 'Design' },
+                  { label: 'Startup' },
+                ].map(({ label }) => (
                   <Link
                     key={label}
                     to={`/discover?category=${label.toLowerCase()}`}
                     className="p-2.5 rounded-xl bg-muted/40 hover:bg-secondary transition-colors text-center"
                   >
-                    <span className="text-base">{icon}</span>
                     <p className="text-[11px] font-medium text-muted-foreground mt-1">{label}</p>
                   </Link>
                 ))}

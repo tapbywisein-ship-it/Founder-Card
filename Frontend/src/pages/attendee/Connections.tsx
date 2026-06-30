@@ -304,7 +304,7 @@ const ConnectionsPage = () => {
                   const fname = p ? `${p.firstName} ${p.lastName}`.trim() : f.user.email;
                   const due = f.followUpAt
                     ? new Date(f.followUpAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
-                    : '—';
+                    : '';
                   return (
                     <motion.div key={f.connectionId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                       <Surface

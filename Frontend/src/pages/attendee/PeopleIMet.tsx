@@ -138,7 +138,7 @@ const PeopleIMetPage = () => {
 const PersonRow = ({ c, onNotes }: { c: ConnectionRow; onNotes: (t: { id: string; name: string }) => void }) => {
   const navigate = useNavigate();
   const p = c.user?.profile;
-  const name = p ? `${p.firstName} ${p.lastName}`.trim() : c.user?.email ?? '—';
+  const name = p ? `${p.firstName} ${p.lastName}`.trim() : c.user?.email ?? '';
   return (
     <div className="flex w-full items-center gap-3 rounded-card border border-border bg-card p-3 transition-colors hover:bg-secondary">
       <button

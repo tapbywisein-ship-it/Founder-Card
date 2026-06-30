@@ -225,7 +225,7 @@ const ApplyCardPage = () => {
                   {[
                     { title: 'Tap to share — no app needed', desc: 'Works on any NFC-enabled iPhone or Android. One tap shares your full profile instantly.' },
                     { title: 'QR code on every card', desc: 'Scan-friendly fallback for phones without NFC or in low-connectivity venues.' },
-                    { title: 'Verified founder badge', desc: 'Your profile gets a ✦ Founder badge — signals credibility at events and on your public card.' },
+                    { title: 'Verified founder badge', desc: 'Your profile gets a Founder badge — signals credibility at events and on your public card.' },
                     { title: 'Your profile, always up to date', desc: 'Edit your details anytime. The card always points to your latest profile — no reprinting.' },
                     { title: 'Built-in lead capture', desc: 'Visitors can leave their details on your card page even without signing up.' },
                     { title: 'Priority event access & exclusive perks', desc: 'Early RSVP windows, founder-only events, and higher FK Score multipliers.' },

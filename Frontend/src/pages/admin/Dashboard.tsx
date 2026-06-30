@@ -47,7 +47,7 @@ const AdminDashboard = () => {
             <Surface key={label} padding="md" className="text-center">
               <Icon className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
               <p className={`text-2xl font-bold mb-0.5 transition-colors ${isLoading ? 'text-muted-foreground/30' : 'text-foreground'}`}>
-                {value !== undefined ? fmt(value) : (isLoading ? '0' : '—')}
+                {value !== undefined ? fmt(value) : '0'}
               </p>
               <p className="text-[11px] text-muted-foreground">{label}</p>
             </Surface>
