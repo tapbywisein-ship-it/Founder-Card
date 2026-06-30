@@ -85,9 +85,13 @@ export class RazorpayRouteService {
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         logger.error('Razorpay Route account creation failed', { status: res.status, text });
-        throw new BadRequestError(
-          'Could not create Route account. Check your details and try again.'
-        );
+        let parsed: { error?: { description?: string } } = {};
+        try { parsed = JSON.parse(text); } catch { /* ignore */ }
+        const desc = parsed?.error?.description ?? '';
+        const userMsg = desc.toLowerCase().includes('access denied')
+          ? 'Razorpay Route is not enabled on this account. Please contact Razorpay support to activate Route.'
+          : 'Could not create Route account. Check your details and try again.';
+        throw new BadRequestError(userMsg);
       }
 
       const body = (await res.json()) as { id: string };
