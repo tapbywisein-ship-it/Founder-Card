@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   MapPin, Linkedin, Twitter, Globe, Mail, Edit3, Check, X, Camera,
-  Calendar, BadgeCheck, Loader2, Phone, AtSign, Crown,
+  Calendar, BadgeCheck, Loader2, Phone, AtSign,
 } from 'lucide-react';
-import { useMembership } from '@/hooks/useMembership';
 import { PortalLayout } from '@/components/PortalLayout';
 import { CardBlocksEditor } from '@/components/CardBlocksEditor';
 import { Surface } from '@/components/Surface';
@@ -31,7 +30,6 @@ const ProfilePage = () => {
   const isOrganizer = user?.role === 'organizer';
   // Only fetch hosted events for organizers; attendees won't have any.
   const { data: hostedData } = useMyOrgEvents(1, 5, isOrganizer);
-  const { data: membership } = useMembership();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -579,30 +577,6 @@ const ProfilePage = () => {
             )}
           </Surface>
         )}
-
-        {/* Founder membership — quick link / status */}
-        <Link to="/membership" className="block">
-          <Surface hover className="border-amber-500/25 bg-amber-500/5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0">
-                  <Crown className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Founder Membership</h2>
-                  <p className="text-xs text-muted-foreground">
-                    {membership?.isActive
-                      ? `Active · ${membership.plan === 'annual' ? 'Annual' : 'Monthly'} plan`
-                      : 'Unlimited follow-ups, network search & more'}
-                  </p>
-                </div>
-              </div>
-              <span className="text-xs text-primary whitespace-nowrap">
-                {membership?.isActive ? 'Manage →' : 'Upgrade →'}
-              </span>
-            </div>
-          </Surface>
-        </Link>
 
         {/* People I met — quick link */}
         <Surface>

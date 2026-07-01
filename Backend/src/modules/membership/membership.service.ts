@@ -12,23 +12,9 @@ const authHeader = (): string =>
 
 const configured = (): boolean => Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
 
-/** Plan catalogue. Amounts are in INR; Razorpay wants paise. Period/interval
- *  map straight onto the Razorpay Plans API. Free-tier limits live here too so
- *  the whole membership "contract" is one object. */
+/** Legacy plan identifiers — kept so old Membership rows and the verify/cancel
+ *  flows for any pre-existing subscriber still type-check. No longer sold. */
 export type PlanKey = 'monthly' | 'annual';
-
-export const PLANS: Record<
-  PlanKey,
-  { label: string; amountInr: number; period: 'monthly' | 'yearly'; interval: number }
-> = {
-  monthly: { label: 'Founder Monthly', amountInr: 299, period: 'monthly', interval: 1 },
-  annual: { label: 'Founder Annual', amountInr: 2990, period: 'yearly', interval: 1 },
-};
-
-/** Free-tier ceiling on active follow-up reminders. Members are uncapped. */
-export const FREE_FOLLOWUP_LIMIT = 3;
-
-const PLAN_SETTING_KEY = (plan: PlanKey) => `razorpay.plan.${plan}`;
 
 const timingSafe = (a: string, b: string): boolean => {
   const ba = Buffer.from(a);
@@ -74,12 +60,7 @@ export class MembershipService {
       isActive,
       currentPeriodEnd: m?.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: m?.cancelAtPeriodEnd ?? false,
-      plans: Object.entries(PLANS).map(([key, p]) => ({
-        key,
-        label: p.label,
-        amountInr: p.amountInr,
-        period: p.period,
-      })),
+      // No paid plans on offer anymore — these perks are free for everyone.
       perks: [
         'Unlimited follow-up reminders',
         'Network search across your connections',
@@ -88,102 +69,12 @@ export class MembershipService {
     };
   }
 
-  /** Lazily create (and cache) a Razorpay Plan for the given tier so the app
-   *  works without manual dashboard setup. The plan id is cached in
-   *  PlatformSetting and reused thereafter. */
-  private async ensurePlanId(plan: PlanKey): Promise<string> {
-    const key = PLAN_SETTING_KEY(plan);
-    const cached = await prisma.platformSetting.findUnique({ where: { key } }).catch(() => null);
-    if (cached?.value) return cached.value;
-
-    const spec = PLANS[plan];
-    const res = await fetch(`${RAZORPAY_API}/plans`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: authHeader() },
-      body: JSON.stringify({
-        period: spec.period,
-        interval: spec.interval,
-        item: {
-          name: spec.label,
-          amount: Math.round(spec.amountInr * 100),
-          currency: 'INR',
-          description: 'TapByWisein Founder membership',
-        },
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      logger.error('Razorpay plan create failed', { plan, body });
-      throw new ServiceUnavailableError('Could not set up the membership plan');
-    }
-    const created = (await res.json()) as { id: string };
-    await prisma.platformSetting.upsert({
-      where: { key },
-      update: { value: created.id },
-      create: { key, value: created.id, type: 'string', label: `Razorpay plan id (${plan})` },
-    });
-    return created.id;
-  }
-
   /**
-   * Create a Razorpay subscription for the user and persist a NONE-status
-   * Membership row holding the subscription id. Returns the data Checkout needs.
-   * Activation happens on verify (or webhook).
+   * Founder membership perks (unlimited follow-ups, network search) are free
+   * for everyone now — new paid subscriptions are no longer offered.
    */
-  async createSubscription(userId: string, plan: PlanKey) {
-    if (!configured()) throw new ServiceUnavailableError('Payments are not configured');
-    if (!PLANS[plan]) throw new BadRequestError('Invalid plan');
-
-    if (await this.isActiveMember(userId)) {
-      throw new BadRequestError('You already have an active membership');
-    }
-
-    const planId = await this.ensurePlanId(plan);
-
-    // total_count caps billing cycles; 120 monthly ≈ 10y, 10 yearly = 10y.
-    const totalCount = plan === 'monthly' ? 120 : 10;
-
-    const res = await fetch(`${RAZORPAY_API}/subscriptions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: authHeader() },
-      body: JSON.stringify({
-        plan_id: planId,
-        total_count: totalCount,
-        customer_notify: 1,
-        notes: { userId },
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      logger.error('Razorpay subscription create failed', { userId, body });
-      throw new ServiceUnavailableError('Could not start the subscription');
-    }
-    const sub = (await res.json()) as RazorpaySubscription;
-
-    await prisma.membership.upsert({
-      where: { userId },
-      update: {
-        plan,
-        razorpaySubscriptionId: sub.id,
-        razorpayPlanId: planId,
-        status: 'NONE',
-        cancelAtPeriodEnd: false,
-      },
-      create: {
-        userId,
-        plan,
-        razorpaySubscriptionId: sub.id,
-        razorpayPlanId: planId,
-        status: 'NONE',
-      },
-    });
-
-    return {
-      subscriptionId: sub.id,
-      keyId: env.RAZORPAY_KEY_ID,
-      plan,
-      amountInr: PLANS[plan].amountInr,
-    };
+  async createSubscription(_userId: string, _plan: PlanKey): Promise<never> {
+    throw new BadRequestError('Founder membership is no longer a paid subscription — all perks are free.');
   }
 
   /**

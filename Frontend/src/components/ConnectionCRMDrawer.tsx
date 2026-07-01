@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Tag, Bell, BellOff, StickyNote, Plus, Trash2, Check, Crown } from 'lucide-react';
+import { X, Tag, Bell, BellOff, StickyNote, Plus, Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -41,13 +40,11 @@ export const ConnectionCRMDrawer = ({ connectionId, name, onClose }: Props) => {
 
   const [noteBody, setNoteBody] = useState('');
   const [tagInput, setTagInput] = useState('');
-  const [hitFollowUpCap, setHitFollowUpCap] = useState(false);
 
   // Reset transient input when switching contacts
   useEffect(() => {
     setNoteBody('');
     setTagInput('');
-    setHitFollowUpCap(false);
   }, [connectionId]);
 
   const tags = meta?.tags ?? [];
@@ -71,15 +68,7 @@ export const ConnectionCRMDrawer = ({ connectionId, name, onClose }: Props) => {
   };
 
   const setFollowUp = (iso: string | null) => {
-    setHitFollowUpCap(false);
-    setMeta.mutate(
-      { followUpAt: iso, followUpDone: false },
-      {
-        onError: (err) => {
-          if ((err as { status?: number }).status === 402) setHitFollowUpCap(true);
-        },
-      }
-    );
+    setMeta.mutate({ followUpAt: iso, followUpDone: false });
   };
 
   const markFollowUpDone = () => {
@@ -161,23 +150,6 @@ export const ConnectionCRMDrawer = ({ connectionId, name, onClose }: Props) => {
                         </button>
                       ))}
                     </div>
-
-                    {hitFollowUpCap && (
-                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Crown className="w-4 h-4 text-amber-500" />
-                          <p className="text-sm font-semibold text-foreground">Follow-up limit reached</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-2.5">
-                          Free accounts keep 3 active reminders. Go Founder for unlimited follow-ups, network search, and full analytics.
-                        </p>
-                        <Link to="/membership">
-                          <Button size="sm" className="w-full bg-amber-500 hover:bg-amber-600 text-white">
-                            Upgrade to Founder
-                          </Button>
-                        </Link>
-                      </div>
-                    )}
                   </>
                 )}
               </section>

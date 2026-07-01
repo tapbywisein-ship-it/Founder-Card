@@ -1,17 +1,10 @@
 import prisma from '@config/database';
-import {
-  NotFoundError,
-  BadRequestError,
-  ConflictError,
-  ForbiddenError,
-  MembershipRequiredError,
-} from '@utils/errors';
+import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { SCORE_VALUES } from '@config/constants';
 import gamificationService from '@modules/gamification/gamification.service';
 import notificationsService from '@modules/notifications/notifications.service';
 import blocksService from '@modules/blocks/blocks.service';
-import membershipService, { FREE_FOLLOWUP_LIMIT } from '@modules/membership/membership.service';
 import { addEmailJob } from '@jobs/email.queue';
 import logger from '@utils/logger';
 
@@ -723,28 +716,6 @@ export class ConnectionsService {
       // Reset the reminder bookkeeping when the date changes.
       data.followUpDone = false;
       data.remindedAt = null;
-
-      // Free-tier cap: non-members may keep at most FREE_FOLLOWUP_LIMIT active
-      // reminders. Only enforced when *setting* a reminder (not clearing one),
-      // and only when this connection isn't already counted.
-      if (data.followUpAt) {
-        const isMember = await membershipService.isActiveMember(userId);
-        if (!isMember) {
-          const activeCount = await prisma.connectionMeta.count({
-            where: {
-              userId,
-              followUpDone: false,
-              followUpAt: { not: null },
-              connectionId: { not: connectionId },
-            },
-          });
-          if (activeCount >= FREE_FOLLOWUP_LIMIT) {
-            throw new MembershipRequiredError(
-              `Free accounts can keep ${FREE_FOLLOWUP_LIMIT} active follow-ups. Upgrade to Founder membership for unlimited reminders.`
-            );
-          }
-        }
-      }
     }
     if (input.followUpDone !== undefined) {
       data.followUpDone = input.followUpDone;
@@ -843,19 +814,11 @@ export class ConnectionsService {
   }
 
   /**
-   * Member-only network search: search the viewer's accepted connections by
-   * name, company, role, skills, and the event they met at. Returns matches with
-   * the field(s) that matched so the UI can explain *why* a result surfaced.
-   * Non-members get a 402 — this is a Founder membership perk.
+   * Search the viewer's accepted connections by name, company, role, skills,
+   * and the event they met at. Returns matches with the field(s) that matched
+   * so the UI can explain *why* a result surfaced.
    */
   async searchNetwork(userId: string, query: string) {
-    const isMember = await membershipService.isActiveMember(userId);
-    if (!isMember) {
-      throw new MembershipRequiredError(
-        'Network search is a Founder membership feature. Upgrade to search across your connections.'
-      );
-    }
-
     const q = query.trim().toLowerCase();
     if (q.length < 2) return { query, results: [] };
 

@@ -51,7 +51,6 @@ const MessagesPage = lazy(() => import("./pages/attendee/Messages"));
 const MyTicketsPage = lazy(() => import("./pages/attendee/MyTickets"));
 const CheckInLanding = lazy(() => import("./pages/CheckInLanding"));
 const ClaimAccountPage = lazy(() => import("./pages/ClaimAccount"));
-const MembershipPage = lazy(() => import("./pages/attendee/Membership"));
 const NetworkSearchPage = lazy(() => import("./pages/attendee/NetworkSearch"));
 
 const OrganizerDashboard = lazy(() => import("./pages/organizer/Dashboard"));
@@ -152,7 +151,6 @@ const TITLE_BY_PREFIX: [string, string][] = [
   ["/my-tickets", "My Tickets"],
   ["/apply-card", "Tap Card"],
   ["/card-analytics", "Card Analytics"],
-  ["/membership", "Membership"],
   ["/organizer/payouts", "Payouts"],
   ["/organizer", "Organizer"],
   ["/admin", "Admin"],
@@ -226,7 +224,6 @@ const App = () => (
           <Route path="/claim/:token" element={<ClaimAccountPage />} />
           <Route path="/apply-card" element={<ProtectedRoute><ApplyCardPage /></ProtectedRoute>} />
           <Route path="/card-analytics" element={<ProtectedRoute><CardAnalyticsPage /></ProtectedRoute>} />
-          <Route path="/membership" element={<ProtectedRoute><MembershipPage /></ProtectedRoute>} />
           <Route path="/network-search" element={<ProtectedRoute><NetworkSearchPage /></ProtectedRoute>} />
 
           {/* Organizer surfaces — gated to organizers/admins so attendees can't
