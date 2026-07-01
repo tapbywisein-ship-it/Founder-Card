@@ -39,6 +39,7 @@ export interface Event {
     price: number;
     count: number;
     isEnabled?: boolean;
+    benefits?: string[];
   }>;
   coverImage?: string | null;
   tags: string[];

@@ -38,6 +38,32 @@ export interface CreateEventPayload {
   visibility?: 'PUBLIC' | 'PRIVATE' | 'UNLISTED';
   timezone?: string;
   ticketTypes?: TicketTypePayload[];
+  registrationDeadline?: string | null;
+}
+
+export interface Coupon {
+  id: string;
+  eventId: string;
+  code: string;
+  discountPct: number;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface EventBlastRecord {
+  id: string;
+  eventId: string;
+  subject: string;
+  body: string;
+  audience: string;
+  sent: number;
+  sentAt: string | null;
+  scheduledAt: string | null;
+  status: string;
+  createdAt: string;
 }
 
 export interface AttendeeItem {
@@ -78,6 +104,7 @@ export interface Guest {
   amountPaid?: string | null;
   paymentStatus?: 'CREATED' | 'PAID' | 'FAILED' | 'REFUNDED' | null;
   ticketTierName?: string | null;
+  guestNote?: string | null;
   email: string;
   profile?: {
     firstName: string;
@@ -198,10 +225,6 @@ export const organizerService = {
     );
   },
 
-  async cancelEvent(eventId: string) {
-    return apiFetch<{ data: null }>(`/events/${eventId}/cancel`, { method: 'POST' });
-  },
-
   async exportAttendeesCsv(eventId: string): Promise<void> {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
@@ -307,6 +330,78 @@ export const organizerService = {
     return apiFetch<{ data: NetworkingAnalytics }>(
       `/organizer/events/${eventId}/networking-analytics`
     );
+  },
+
+  // Waitlist promotion + bulk check-in
+  async promoteFromWaitlist(eventId: string, userId: string) {
+    return apiFetch<{ data: Guest }>(
+      `/organizer/events/${eventId}/attendees/${userId}/promote-waitlist`,
+      { method: 'POST' }
+    );
+  },
+
+  async bulkCheckIn(eventId: string) {
+    return apiFetch<{ data: { checkedIn: number } }>(
+      `/organizer/events/${eventId}/checkin-all`,
+      { method: 'POST' }
+    );
+  },
+
+  // Guest notes
+  async updateGuestNote(eventId: string, userId: string, note: string) {
+    return apiFetch<{ data: unknown }>(
+      `/organizer/events/${eventId}/attendees/${userId}/note`,
+      { method: 'PATCH', body: JSON.stringify({ note }) }
+    );
+  },
+
+  // Coupon CRUD
+  async listCoupons(eventId: string) {
+    return apiFetch<{ data: Coupon[] }>(`/organizer/events/${eventId}/coupons`);
+  },
+
+  async createCoupon(eventId: string, payload: { code: string; discountPct: number; maxUses?: number; expiresAt?: string }) {
+    return apiFetch<{ data: Coupon }>(`/organizer/events/${eventId}/coupons`, {
+      method: 'POST', body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteCoupon(eventId: string, couponId: string) {
+    return apiFetch<{ data: null }>(`/organizer/events/${eventId}/coupons/${couponId}`, { method: 'DELETE' });
+  },
+
+  async validateCoupon(eventId: string, code: string) {
+    return apiFetch<{ data: { discountPct: number; code: string } }>(
+      `/events/${eventId}/coupons/${encodeURIComponent(code)}/validate`
+    );
+  },
+
+  // Blast history + scheduling
+  async listEventBlasts(eventId: string) {
+    return apiFetch<{ data: EventBlastRecord[] }>(`/organizer/events/${eventId}/blasts`);
+  },
+
+  async scheduleBlast(eventId: string, payload: { subject: string; body: string; audience: string; scheduledAt: string }) {
+    return apiFetch<{ data: EventBlastRecord }>(`/organizer/events/${eventId}/blasts/schedule`, {
+      method: 'POST', body: JSON.stringify(payload),
+    });
+  },
+
+  // Cover image upload via existing media endpoint
+  async uploadCoverImage(file: File): Promise<string> {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const API_URL_LOCAL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/api/v1';
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_URL_LOCAL}/media/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) throw new Error('Image upload failed');
+    const json = (await res.json()) as { data: { url: string } };
+    return json.data.url;
   },
 };
 

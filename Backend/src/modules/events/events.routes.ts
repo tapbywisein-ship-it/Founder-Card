@@ -123,6 +123,13 @@ router.post(
   eventsController.rsvpGuest.bind(eventsController)
 );
 
+// Coupon validation — any authenticated user (attendees apply at checkout)
+router.get(
+  '/:id/coupons/:code/validate',
+  authenticate,
+  eventsController.validateCoupon.bind(eventsController)
+);
+
 // Public — track a page view (anonymous or authed). Idempotent per session.
 router.post(
   '/:id/view',

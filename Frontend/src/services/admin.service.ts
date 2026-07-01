@@ -41,14 +41,21 @@ export const adminService = {
 
   async dispatchOrder(payload: { id: string; trackingId: string; trackingProvider: string; nfcTagId?: string }) {
     const { id, ...body } = payload;
-    return apiFetch<{ data: unknown }>(`/admin/orders/${id}/dispatch`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    });
+    return apiFetch<{ data: { emailSent: boolean; emailError?: string; recipient: string } }>(
+      `/admin/orders/${id}/dispatch`,
+      { method: 'PATCH', body: JSON.stringify(body) }
+    );
   },
 
   async markOrderDelivered(id: string) {
     return apiFetch<{ data: unknown }>(`/admin/orders/${id}/delivered`, { method: 'PATCH' });
+  },
+
+  async resendDispatchEmail(id: string) {
+    return apiFetch<{ data: { ok: boolean; recipient: string } }>(
+      `/admin/orders/${id}/resend-email`,
+      { method: 'POST' }
+    );
   },
 
   async getUsers(params: { page?: number; limit?: number; search?: string; role?: string; tier?: string } = {}) {

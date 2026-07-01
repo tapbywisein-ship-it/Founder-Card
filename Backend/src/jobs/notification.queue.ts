@@ -10,7 +10,7 @@ export interface NotificationJobData {
 }
 
 const REDIS_URL = process.env.BULL_REDIS_URL ?? process.env.REDIS_URL;
-const hasRedis = !!REDIS_URL && REDIS_URL !== 'redis://localhost:6379';
+const hasRedis = !!REDIS_URL;
 
 // ─── No-op queue stub ─────────────────────────────────────────────────────────
 const noopQueue = {

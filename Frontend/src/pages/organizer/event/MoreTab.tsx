@@ -12,16 +12,110 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useDeleteEvent } from '@/hooks/useOrganizer';
+import { useDeleteEvent, useListCoupons, useCreateCoupon, useDeleteCoupon } from '@/hooks/useOrganizer';
 import { useEventContext } from '@/components/OrganizerEventLayout';
 import { toast } from 'sonner';
-import { Pencil, Copy, Trash2, Download, Zap, Loader2, Ban } from 'lucide-react';
+import { Pencil, Copy, Trash2, Download, Zap, Loader2, Ban, Tag, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { organizerService } from '@/services/organizer.service';
 import { useQueryClient } from '@tanstack/react-query';
 import { EventQuestionsEditor } from '@/components/EventQuestionsEditor';
 import { EventSpeakersAgendaEditor } from '@/components/EventSpeakersAgendaEditor';
 import { CohostsEditor } from '@/components/CohostsEditor';
+import { Input } from '@/components/ui/input';
+
+const CouponManager = ({ eventId }: { eventId: string }) => {
+  const [code, setCode] = useState('');
+  const [pct, setPct]   = useState('');
+  const { data: coupons, isLoading } = useListCoupons(eventId);
+  const createMutation  = useCreateCoupon(eventId);
+  const deleteMutation  = useDeleteCoupon(eventId);
+
+  const handleCreate = async () => {
+    const pctNum = parseInt(pct, 10);
+    if (!code.trim() || isNaN(pctNum) || pctNum < 1 || pctNum > 100) {
+      toast.error('Enter a valid code and discount (1–100%)');
+      return;
+    }
+    await createMutation.mutateAsync({ code: code.toUpperCase(), discountPct: pctNum });
+    setCode('');
+    setPct('');
+  };
+
+  return (
+    <Surface>
+      <div className="flex items-center gap-2 mb-4">
+        <Tag className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Promo / Coupon Codes</h2>
+      </div>
+
+      {/* Create row */}
+      <div className="flex gap-2 mb-4">
+        <Input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="CODE"
+          className="h-9 text-sm uppercase flex-1"
+          maxLength={20}
+        />
+        <Input
+          type="number"
+          min={1}
+          max={100}
+          value={pct}
+          onChange={(e) => setPct(e.target.value)}
+          placeholder="% off"
+          className="h-9 text-sm w-24"
+        />
+        <Button
+          size="sm"
+          onClick={handleCreate}
+          disabled={createMutation.isPending || !code.trim() || !pct}
+        >
+          <Plus className="w-3.5 h-3.5 mr-1" /> Add
+        </Button>
+      </div>
+
+      {/* List */}
+      {isLoading ? (
+        <div className="space-y-1">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="h-10 bg-muted/30 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : !coupons || (coupons as unknown[]).length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">No coupon codes yet.</p>
+      ) : (
+        <div className="space-y-1">
+          {(coupons as {
+            id: string;
+            code: string;
+            discountPct: number;
+            usedCount: number;
+            maxUses?: number;
+            isActive: boolean;
+          }[]).map((c) => (
+            <div key={c.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted/20 transition-colors">
+              <span className="font-mono text-sm font-semibold text-primary flex-1">{c.code}</span>
+              <span className="text-sm text-muted-foreground">{c.discountPct}% off</span>
+              <span className="text-xs text-muted-foreground">
+                {c.usedCount}{c.maxUses ? `/${c.maxUses}` : ''} used
+              </span>
+              <button
+                onClick={() => deleteMutation.mutate(c.id)}
+                disabled={deleteMutation.isPending}
+                className="text-muted-foreground/50 hover:text-rose-500 transition-colors"
+                title="Delete coupon"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Surface>
+  );
+};
 
 const MoreTab = () => {
   const { id } = useParams<{ id: string }>();
@@ -159,6 +253,9 @@ const MoreTab = () => {
 
       {/* Phase 5 — co-hosts */}
       {id && <CohostsEditor eventId={id} />}
+
+      {/* Coupon codes */}
+      {id && <CouponManager eventId={id} />}
 
       {/* Danger zone */}
       <Surface className="border-red-500/20">

@@ -354,6 +354,82 @@ export class OrganizerController {
     sendSuccess(res, { status }, 'Account status refreshed');
   }
 
+  async promoteFromWaitlist(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id, userId } = req.params as Record<string, string>;
+    const data = await organizerService.promoteFromWaitlist(id, organizerId, userId);
+    sendSuccess(res, data, 'Attendee promoted from waitlist');
+  }
+
+  async bulkCheckIn(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const result = await organizerService.bulkCheckIn(id, organizerId);
+    sendSuccess(res, result, `Checked in ${result.checkedIn} attendees`);
+  }
+
+  async updateGuestNote(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id, userId } = req.params as Record<string, string>;
+    const { note = '' } = req.body as { note?: string };
+    const data = await organizerService.updateGuestNote(id, organizerId, userId, note);
+    sendSuccess(res, data, 'Guest note updated');
+  }
+
+  async createCoupon(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const { code, discountPct, maxUses, expiresAt } = req.body as {
+      code: string; discountPct: number; maxUses?: number; expiresAt?: string;
+    };
+    const coupon = await organizerService.createCoupon(id, organizerId, {
+      code, discountPct, maxUses,
+      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+    });
+    sendSuccess(res, coupon, 'Coupon created', 201);
+  }
+
+  async listCoupons(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const coupons = await organizerService.listCoupons(id, organizerId);
+    sendSuccess(res, coupons, 'Coupons retrieved');
+  }
+
+  async deleteCoupon(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id, couponId } = req.params as Record<string, string>;
+    await organizerService.deleteCoupon(id, organizerId, couponId);
+    sendSuccess(res, null, 'Coupon deleted');
+  }
+
+  async validateCoupon(req: Request, res: Response): Promise<void> {
+    const { id, code } = req.params as Record<string, string>;
+    const data = await organizerService.validateCoupon(id, code);
+    sendSuccess(res, data, 'Coupon valid');
+  }
+
+  async listEventBlasts(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const blasts = await organizerService.listEventBlasts(id, organizerId);
+    sendSuccess(res, blasts, 'Blast history retrieved');
+  }
+
+  async scheduleBlast(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const { subject, body, audience = 'all', scheduledAt } = req.body as {
+      subject: string; body: string; audience?: string; scheduledAt: string;
+    };
+    const blast = await organizerService.scheduleBlast(id, organizerId, {
+      subject, body,
+      audience: audience as 'all' | 'registered' | 'waitlist',
+      scheduledAt: new Date(scheduledAt),
+    });
+    sendSuccess(res, blast, 'Blast scheduled', 201);
+  }
+
   async duplicateEvent(req: Request, res: Response): Promise<void> {
     const callerId = req.user!.userId;
     const { id } = req.params as Record<string, string>;

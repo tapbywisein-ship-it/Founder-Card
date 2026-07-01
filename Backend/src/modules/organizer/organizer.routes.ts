@@ -113,4 +113,28 @@ router.get(
   organizerController.exportAttendeesCsv.bind(organizerController)
 );
 
+// Waitlist promotion + bulk check-in
+router.post(
+  '/events/:id/attendees/:userId/promote-waitlist',
+  organizerController.promoteFromWaitlist.bind(organizerController)
+);
+router.post('/events/:id/checkin-all', organizerController.bulkCheckIn.bind(organizerController));
+
+// Guest notes
+router.patch(
+  '/events/:id/attendees/:userId/note',
+  organizerController.updateGuestNote.bind(organizerController)
+);
+
+// Coupon CRUD
+router.get('/events/:id/coupons', organizerController.listCoupons.bind(organizerController));
+router.post('/events/:id/coupons', organizerController.createCoupon.bind(organizerController));
+router.delete('/events/:id/coupons/:couponId', organizerController.deleteCoupon.bind(organizerController));
+// Public coupon validation (no auth needed for attendee to apply at checkout)
+router.get('/events/:id/coupons/:code/validate', organizerController.validateCoupon.bind(organizerController));
+
+// Blast history + scheduling
+router.get('/events/:id/blasts', organizerController.listEventBlasts.bind(organizerController));
+router.post('/events/:id/blasts/schedule', organizerController.scheduleBlast.bind(organizerController));
+
 export default router;

@@ -55,10 +55,10 @@ export const paymentsService = {
     return apiFetch<{ data: { configured: boolean; cardPrice: number } }>('/payments/config');
   },
 
-  async createOrder(eventId: string, ticketTierId: string) {
+  async createOrder(eventId: string, ticketTierId: string, couponCode?: string) {
     return apiFetch<{ data: PaymentOrder }>('/payments/orders', {
       method: 'POST',
-      body: JSON.stringify({ eventId, ticketTierId }),
+      body: JSON.stringify({ eventId, ticketTierId, ...(couponCode ? { couponCode } : {}) }),
     });
   },
 

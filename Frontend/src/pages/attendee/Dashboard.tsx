@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
@@ -195,7 +195,7 @@ const AttendeeDashboard = () => {
   ];
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <OnboardingWizard open={wizardOpen} onOpenChange={setWizardOpen} />
 
       <AnimatePresence>
@@ -538,7 +538,7 @@ const AttendeeDashboard = () => {
 
         </div>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

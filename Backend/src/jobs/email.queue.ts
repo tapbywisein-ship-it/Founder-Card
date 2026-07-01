@@ -48,7 +48,7 @@ export interface EmailJobData {
 }
 
 const REDIS_URL = process.env.BULL_REDIS_URL ?? process.env.REDIS_URL;
-const hasRedis = !!REDIS_URL && REDIS_URL !== 'redis://localhost:6379';
+const hasRedis = !!REDIS_URL;
 
 // ─── No-op queue stub (used when Redis is not available) ──────────────────────
 const noopQueue = {

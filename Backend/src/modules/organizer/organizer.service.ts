@@ -420,7 +420,8 @@ export class OrganizerService {
     organizerId: string,
     subject: string,
     body: string,
-    audience: 'all' | 'registered' | 'waitlist'
+    audience: 'all' | 'registered' | 'waitlist',
+    skipPersist = false
   ) {
     const event = await prisma.event.findFirst({
       where: { id: eventId, organizerId, deletedAt: null },
@@ -463,6 +464,13 @@ export class OrganizerService {
         logger.warn('Failed to enqueue blast email', { eventId, to: r.user.email, err });
       }
     }
+    // Persist blast record (skip when called from scheduler — it updates the existing record)
+    if (!skipPersist) {
+      await prisma.eventBlast.create({
+        data: { eventId, organizerId, subject, body, audience, sent: queued, sentAt: new Date(), status: 'sent' },
+      }).catch(() => {});
+    }
+
     return { sent: queued, recipients: registrations.map((r) => r.user.email) };
   }
 
@@ -1219,6 +1227,7 @@ export class OrganizerService {
         amountPaid: r.amountPaid,
         paymentStatus: r.paymentStatus,
         ticketTierName: r.ticketTierName,
+        guestNote: r.guestNote,
         email: r.user.email,
         profile: r.user.profile,
       })),
@@ -1327,6 +1336,159 @@ export class OrganizerService {
     });
 
     return cloned;
+  }
+
+  // ── Waitlist promotion ────────────────────────────────────────────────────
+
+  async promoteFromWaitlist(eventId: string, organizerId: string, userId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: { _count: { select: { registrations: { where: { status: { notIn: ['CANCELLED', 'PENDING_APPROVAL', 'WAITLISTED'] } } } } } },
+    });
+    if (!event) throw new NotFoundError('Event');
+
+    const reg = await prisma.eventRegistration.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+    });
+    if (!reg) throw new NotFoundError('Registration');
+    if (reg.status !== 'WAITLISTED') throw new BadRequestError('Attendee is not on the waitlist');
+    if (event._count.registrations >= event.capacity) {
+      throw new BadRequestError('Event is at capacity — cannot promote from waitlist');
+    }
+
+    const updated = await prisma.eventRegistration.update({
+      where: { id: reg.id },
+      data: { status: 'REGISTERED' },
+      include: { user: { select: { email: true, profile: { select: { firstName: true, lastName: true } } } } },
+    });
+
+    // Notify + email the promoted attendee
+    const name = updated.user.profile
+      ? `${updated.user.profile.firstName} ${updated.user.profile.lastName}`.trim()
+      : updated.user.email;
+    const { default: notificationsService } = await import('@modules/notifications/notifications.service');
+    notificationsService.createNotification(
+      userId, 'SYSTEM', `You're in! ${event.title}`,
+      'You have been promoted from the waitlist — you are now registered.', { eventId }
+    ).catch(() => {});
+    addEmailJob('waitlistPromoted', {
+      to: updated.user.email, name,
+      eventTitle: event.title,
+      eventDate: event.startDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      eventUrl: `${process.env.FRONTEND_URL}/e/${eventId}`,
+    }).catch(() => {});
+
+    return updated;
+  }
+
+  // ── Bulk check-in ─────────────────────────────────────────────────────────
+
+  async bulkCheckIn(eventId: string, organizerId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+
+    const result = await prisma.eventRegistration.updateMany({
+      where: { eventId, status: 'REGISTERED', checkedIn: false },
+      data: { checkedIn: true, checkedInAt: new Date(), status: 'ATTENDED' },
+    });
+
+    return { checkedIn: result.count };
+  }
+
+  // ── Guest notes ───────────────────────────────────────────────────────────
+
+  async updateGuestNote(eventId: string, organizerId: string, userId: string, note: string) {
+    await this.assertEventOwner(eventId, organizerId);
+
+    const reg = await prisma.eventRegistration.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+    });
+    if (!reg) throw new NotFoundError('Registration');
+
+    return prisma.eventRegistration.update({
+      where: { id: reg.id },
+      data: { guestNote: note.trim() || null },
+    });
+  }
+
+  // ── Coupon CRUD ───────────────────────────────────────────────────────────
+
+  async createCoupon(
+    eventId: string,
+    organizerId: string,
+    dto: { code: string; discountPct: number; maxUses?: number; expiresAt?: Date }
+  ) {
+    await this.assertEventOwner(eventId, organizerId);
+    if (!dto.code?.trim()) throw new BadRequestError('Coupon code is required');
+    if (dto.discountPct < 1 || dto.discountPct > 100) throw new BadRequestError('Discount must be 1–100%');
+
+    return prisma.coupon.create({
+      data: {
+        eventId,
+        code: dto.code.trim().toUpperCase(),
+        discountPct: dto.discountPct,
+        maxUses: dto.maxUses ?? null,
+        expiresAt: dto.expiresAt ?? null,
+      },
+    });
+  }
+
+  async listCoupons(eventId: string, organizerId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+    return prisma.coupon.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async deleteCoupon(eventId: string, organizerId: string, couponId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+    await prisma.coupon.delete({ where: { id: couponId } }).catch(() => {});
+  }
+
+  async validateCoupon(eventId: string, code: string) {
+    const coupon = await prisma.coupon.findUnique({
+      where: { eventId_code: { eventId, code: code.trim().toUpperCase() } },
+    });
+    if (!coupon || !coupon.isActive) throw new NotFoundError('Coupon');
+    if (coupon.expiresAt && new Date() > coupon.expiresAt) throw new BadRequestError('Coupon has expired');
+    if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) throw new BadRequestError('Coupon usage limit reached');
+    return { discountPct: coupon.discountPct, code: coupon.code };
+  }
+
+  // ── Blast history ─────────────────────────────────────────────────────────
+
+  async listEventBlasts(eventId: string, organizerId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+    return prisma.eventBlast.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  async scheduleBlast(
+    eventId: string,
+    organizerId: string,
+    dto: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist'; scheduledAt: Date }
+  ) {
+    await this.assertEventOwner(eventId, organizerId);
+    if (!dto.subject?.trim()) throw new BadRequestError('Subject is required');
+    if (!dto.body?.trim()) throw new BadRequestError('Body is required');
+    if (dto.scheduledAt <= new Date()) throw new BadRequestError('Scheduled time must be in the future');
+
+    return prisma.eventBlast.create({
+      data: {
+        eventId,
+        organizerId,
+        subject: dto.subject.trim(),
+        body: dto.body.trim(),
+        audience: dto.audience,
+        scheduledAt: dto.scheduledAt,
+        status: 'scheduled',
+      },
+    });
   }
 
   async exportAttendeesCsv(eventId: string, callerId: string): Promise<string> {

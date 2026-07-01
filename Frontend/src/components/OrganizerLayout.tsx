@@ -3,17 +3,20 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
+import { useUnreadCount } from '@/hooks/useNotifications';
 import {
-  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus,
+  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, List, CreditCard, Bell,
 } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard',    icon: LayoutDashboard, path: '/organizer/dashboard' },
+  { label: 'My Events',    icon: List,             path: '/organizer/events' },
   { label: 'Create Event', icon: Calendar,         path: '/organizer/events/create' },
   { label: 'Attendees',    icon: Users,            path: '/organizer/attendees' },
   { label: 'Leads',        icon: Download,         path: '/organizer/leads' },
   { label: 'Payouts',      icon: Wallet,           path: '/organizer/payouts' },
   { label: 'My Tickets',   icon: Ticket,           path: '/my-tickets' },
+  { label: 'Tap Card',     icon: CreditCard,       path: '/apply-card' },
   { label: 'Profile',      icon: UserCircle,       path: '/profile' },
 ];
 
@@ -22,7 +25,7 @@ const mobileNav = [
   { label: 'Attendees', icon: Users,            path: '/organizer/attendees' },
   { label: 'New',       icon: Plus,             path: '/organizer/events/create' },
   { label: 'Leads',     icon: Download,         path: '/organizer/leads' },
-  { label: 'Profile',   icon: UserCircle,       path: '/profile' },
+  { label: 'Alerts',    icon: Bell,             path: '/notifications' },
 ];
 
 export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
@@ -30,6 +33,7 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const logout = useAppStore((s) => s.logout);
   const handleLogout = () => { logout(); navigate('/login'); };
+  const { data: unreadCount = 0 } = useUnreadCount();
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -65,7 +69,18 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
         </div>
       </aside>
       <div className="flex-1 md:ml-60 min-h-screen">
-        <main className="p-4 md:p-8 max-w-4xl mx-auto pb-24 md:pb-8">{children}</main>
+        {/* Top bar with bell */}
+        <div className="sticky top-0 z-30 flex justify-end items-center gap-2 px-4 md:px-8 py-3 bg-background/80 backdrop-blur border-b border-border md:border-none">
+          <Link to="/notifications" className="relative p-2 rounded-lg hover:bg-muted transition-colors">
+            <Bell className="w-5 h-5 text-muted-foreground" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-0.5">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Link>
+        </div>
+        <main className="p-4 md:p-8 max-w-xwide mx-auto pb-24 md:pb-8">{children}</main>
       </div>
 
       {/* Mobile bottom nav */}

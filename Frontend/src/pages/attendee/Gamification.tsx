@@ -1,15 +1,19 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { useMyScore, useMyBadges, useAllBadges, useLeaderboard, useScoreHistory } from '@/hooks/useGamification';
 import { useAppStore } from '@/store/appStore';
-import { Trophy, Zap, Lock, Crown, Star, Users, Medal, ArrowUpRight, Info, AlertCircle, Sparkles } from 'lucide-react';
+import {
+  Trophy, Zap, Lock, Crown, Star, Users, Medal, Info, AlertCircle, Sparkles,
+  UserCircle, Ticket, CalendarCheck, UserPlus, CreditCard, QrCode, LogIn, Camera,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SCORE_RULES } from '@/lib/scoreRules';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Users, Trophy, Star, Zap, Medal, Crown,
+  UserCircle, Ticket, CalendarCheck, UserPlus, CreditCard, QrCode, LogIn, Camera,
 };
 
 const GamificationPage = () => {
@@ -51,7 +55,7 @@ const GamificationPage = () => {
   const progressPct = Math.min(100, (score / nextLevelScore) * 100);
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <h1 className="text-3xl font-semibold text-foreground">FK Score & Badges</h1>
         {scoreError && (
@@ -112,18 +116,21 @@ const GamificationPage = () => {
             <h2 className="text-lg font-semibold text-foreground">How to earn points</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {SCORE_RULES.map((rule) => (
-              <div
-                key={rule.action}
-                className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/30 border border-border"
-              >
-                <span className="flex items-center gap-2 text-sm text-foreground">
-                  <span className="text-base">{rule.icon}</span>
-                  {rule.action}
-                </span>
-                <span className="text-sm font-semibold text-primary">+{rule.points}</span>
-              </div>
-            ))}
+            {SCORE_RULES.map((rule) => {
+              const RuleIcon = ICON_MAP[rule.icon] ?? Trophy;
+              return (
+                <div
+                  key={rule.action}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/30 border border-border"
+                >
+                  <span className="flex items-center gap-2 text-sm text-foreground">
+                    <RuleIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    {rule.action}
+                  </span>
+                  <span className="text-sm font-semibold text-primary">+{rule.points}</span>
+                </div>
+              );
+            })}
           </div>
         </Surface>
 
@@ -290,7 +297,7 @@ const GamificationPage = () => {
           </Surface>
         )}
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

@@ -4,6 +4,13 @@ import type { Event, Pagination } from '@/services/events.service';
 import type { Guest, AttendeeItem } from '@/services/organizer.service';
 import { toast } from 'sonner';
 
+export const blastKeys = {
+  list: (eventId: string) => ['organizer', 'blasts', eventId] as const,
+};
+export const couponKeys = {
+  list: (eventId: string) => ['organizer', 'coupons', eventId] as const,
+};
+
 export const orgKeys = {
   dashboard: () => ['organizer', 'dashboard'] as const,
   events: () => ['organizer', 'events'] as const,
@@ -156,10 +163,14 @@ export function useSendAttendeeBlast() {
 }
 
 export function useSendBlast(eventId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) =>
       organizerService.sendEventBlast(eventId, payload),
-    onSuccess: (res) => toast.success(`Blast sent to ${(res as { data: { sent: number } }).data?.sent ?? 0} recipients`),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: blastKeys.list(eventId) });
+      toast.success(`Blast sent to ${(res as { data: { sent: number } }).data?.sent ?? 0} recipients`);
+    },
     onError: (err: Error) => toast.error(err.message),
   });
 }
@@ -169,5 +180,98 @@ export function useOrgLeads(params = {}) {
     queryKey: orgKeys.leads(params),
     queryFn: () => organizerService.getLeads(params),
     select: (res) => res,
+  });
+}
+
+export function usePromoteFromWaitlist(eventId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => organizerService.promoteFromWaitlist(eventId, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgKeys.guests(eventId) });
+      toast.success('Attendee promoted from waitlist');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useBulkCheckIn(eventId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => organizerService.bulkCheckIn(eventId),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: orgKeys.guests(eventId) });
+      toast.success(`Checked in ${(res as { data: { checkedIn: number } }).data?.checkedIn ?? 0} attendees`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateGuestNote(eventId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, note }: { userId: string; note: string }) =>
+      organizerService.updateGuestNote(eventId, userId, note),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgKeys.guests(eventId) });
+      toast.success('Note saved');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useListCoupons(eventId: string) {
+  return useQuery({
+    queryKey: couponKeys.list(eventId),
+    queryFn: () => organizerService.listCoupons(eventId),
+    select: (res) => res.data,
+    enabled: !!eventId,
+  });
+}
+
+export function useCreateCoupon(eventId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { code: string; discountPct: number; maxUses?: number; expiresAt?: string }) =>
+      organizerService.createCoupon(eventId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: couponKeys.list(eventId) });
+      toast.success('Coupon created');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteCoupon(eventId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (couponId: string) => organizerService.deleteCoupon(eventId, couponId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: couponKeys.list(eventId) });
+      toast.success('Coupon deleted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useListEventBlasts(eventId: string) {
+  return useQuery({
+    queryKey: blastKeys.list(eventId),
+    queryFn: () => organizerService.listEventBlasts(eventId),
+    select: (res) => res.data,
+    enabled: !!eventId,
+  });
+}
+
+export function useScheduleBlast(eventId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { subject: string; body: string; audience: string; scheduledAt: string }) =>
+      organizerService.scheduleBlast(eventId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: blastKeys.list(eventId) });
+      toast.success('Blast scheduled');
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }

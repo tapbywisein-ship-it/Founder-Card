@@ -123,27 +123,31 @@ export const connectionsService = {
   },
 
   async getPendingRequests() {
-    return apiFetch<{ data: { received: Connection[]; sent: Connection[] } }>(
-      '/connections/pending'
-    );
+    const [receivedRes, sentRes] = await Promise.all([
+      apiFetch<{ data: Connection[] }>('/connections/pending'),
+      apiFetch<{ data: Connection[] }>('/connections/sent'),
+    ]);
+    return { data: { received: receivedRes.data, sent: sentRes.data } };
   },
 
   async sendRequest(receiverId: string) {
-    return apiFetch<{ data: Connection }>('/connections', {
+    return apiFetch<{ data: Connection }>('/connections/request', {
       method: 'POST',
       body: JSON.stringify({ receiverId }),
     });
   },
 
   async acceptRequest(connectionId: string) {
-    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/accept`, {
+    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/respond`, {
       method: 'PUT',
+      body: JSON.stringify({ action: 'accept' }),
     });
   },
 
   async rejectRequest(connectionId: string) {
-    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/reject`, {
+    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/respond`, {
       method: 'PUT',
+      body: JSON.stringify({ action: 'reject' }),
     });
   },
 

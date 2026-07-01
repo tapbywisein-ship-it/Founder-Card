@@ -3,7 +3,7 @@ import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Logo } from '@/components/Logo';
 import { CreditCard, CheckCircle2, XCircle, Zap, Package, MapPin, ChevronRight, ChevronLeft, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -67,19 +67,19 @@ const ApplyCardPage = () => {
   // Only block on skeleton if we have no store hint and card data hasn't arrived yet.
   if (isLoading && !hasCardInStore) {
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-content mx-auto space-y-4 pb-24 md:pb-8">
           <div className="h-8 w-48 bg-muted/50 rounded animate-pulse" />
           <div className="h-64 bg-muted/50 rounded-2xl animate-pulse" />
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
   if (card && (card.status === 'DEACTIVATED' || card.status === 'REJECTED')) {
     const isRejected = card.status === 'REJECTED';
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
           <h1 className="text-3xl font-semibold text-foreground">Tap Card</h1>
           <Surface className="text-center space-y-3">
@@ -95,14 +95,16 @@ const ApplyCardPage = () => {
             </Button>
           </Surface>
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
-  if (card?.physicalCardOrdered && !card.nfcTagId) {
-    const isDispatched = card.fulfillmentStatus === 'DISPATCHED' || card.fulfillmentStatus === 'DELIVERED';
+  // Physical card ordered but not yet delivered — show fulfillment status even
+  // if an NFC tag was already assigned at dispatch (it's still in transit).
+  if (card?.physicalCardOrdered && card.fulfillmentStatus !== 'DELIVERED') {
+    const isDispatched = card.fulfillmentStatus === 'DISPATCHED';
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
           <h1 className="text-3xl font-semibold text-foreground">Tap Card</h1>
           <Surface className="text-center space-y-4">
@@ -144,18 +146,25 @@ const ApplyCardPage = () => {
             )}
 
             <p className="text-xs text-muted-foreground">Estimated delivery: 5–7 working days from dispatch.</p>
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-left">
+              <p className="text-xs text-emerald-600 font-medium">Your digital card is already live</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Share your profile link now — the physical NFC card just adds tap-to-share once it arrives.
+              </p>
+            </div>
             <Button variant="outline" className="w-full" asChild>
               <Link to="/dashboard">Back to Dashboard</Link>
             </Button>
           </Surface>
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
-  if (card?.nfcTagId) {
+  if (card?.nfcTagId || card?.fulfillmentStatus === 'DELIVERED') {
+    const delivered = card.fulfillmentStatus === 'DELIVERED';
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
           <h1 className="text-3xl font-semibold text-foreground">Tap Card</h1>
           <Surface className="space-y-4">
@@ -165,7 +174,11 @@ const ApplyCardPage = () => {
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Active</p>
-                <p className="text-xs text-muted-foreground">Your physical NFC card is live</p>
+                <p className="text-xs text-muted-foreground">
+                  {delivered
+                    ? 'Delivered — your physical NFC card is ready to tap'
+                    : 'Your digital card is live and ready to share'}
+                </p>
               </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5">
@@ -189,12 +202,12 @@ const ApplyCardPage = () => {
             </Button>
           </Surface>
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
         <div>
           <h1 className="text-3xl font-semibold text-foreground">Get your Tap Card</h1>
@@ -332,7 +345,7 @@ const ApplyCardPage = () => {
           )}
         </AnimatePresence>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
 import { ArrowLeft, MessageSquare, Send, Check, CheckCheck } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -81,7 +81,7 @@ const MessagesPage = () => {
   const activeConvo = convos.find((c) => c.id === id);
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="flex h-[calc(100vh-12rem)] gap-4 pb-24 md:pb-8">
         {/* Sidebar */}
         <aside
@@ -284,7 +284,7 @@ const MessagesPage = () => {
           )}
         </section>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

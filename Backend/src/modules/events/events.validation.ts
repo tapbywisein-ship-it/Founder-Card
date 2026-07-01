@@ -33,6 +33,7 @@ export const createEventSchema = z
     waitlistEnabled: z.boolean().optional().default(true),
     visibility: z.enum(['PUBLIC', 'PRIVATE', 'UNLISTED']).optional().default('PUBLIC'),
     timezone: z.string().max(100).optional().default('UTC'),
+    registrationDeadline: z.coerce.date().optional(),
     ticketTypes: z
       .array(
         z.object({
@@ -71,6 +72,7 @@ export const updateEventSchema = z.object({
   waitlistEnabled: z.boolean().optional(),
   visibility: z.enum(['PUBLIC', 'PRIVATE', 'UNLISTED']).optional(),
   timezone: z.string().max(100).optional(),
+  registrationDeadline: z.coerce.date().optional().nullable(),
   ticketTypes: z
     .array(
       z.object({

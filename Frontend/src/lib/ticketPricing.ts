@@ -7,6 +7,7 @@ export type TicketTierDisplay = {
   seats: number;
   price: number;
   priceLabel: string;
+  benefits: string[];
 };
 
 export function getEnabledTicketTiers(event: Pick<Event, 'ticketTypes'>) {
@@ -27,11 +28,12 @@ export function getRegistrationPricing(event: Pick<Event, 'ticketPrice' | 'ticke
         seats: t.count,
         price: priceNum,
         priceLabel: formatINR(priceNum),
+        benefits: t.benefits ?? [],
       };
     });
 
     const positivePrices = tiers.map((t) => t.price).filter((p) => p > 0);
-    const topLabel = positivePrices.length > 0 ? formatINR(Math.min(...positivePrices)) : 'Free';
+    const topLabel = positivePrices.length > 0 ? `from ${formatINR(Math.min(...positivePrices))}` : 'Free';
 
     return { topLabel, tiers, isMultiTier: true };
   }

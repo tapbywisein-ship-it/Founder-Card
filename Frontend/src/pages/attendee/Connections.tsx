@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,12 +61,13 @@ const ConnectionsPage = () => {
   });
 
   const received = pendingData?.received ?? [];
+  const sent = pendingData?.sent ?? [];
   const pendingCount = received.length;
   const followUpList = followUps ?? [];
   const dueCount = followUpList.filter((f) => f.overdue).length;
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         {isError && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -237,55 +238,82 @@ const ConnectionsPage = () => {
         )}
 
         {tab === 'pending' && (
-          <>
-            {received.length === 0 ? (
-              <div className="text-center py-16">
-                <UserPlus className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-muted-foreground">No pending requests.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {received.map((conn, i) => {
-                  const name = getDisplayName(conn);
-                  const profile = conn.requester?.profile;
-                  return (
-                    <motion.div key={conn.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                      <Surface className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-foreground font-semibold flex-shrink-0">
-                          {name[0]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{name}</p>
-                          {profile?.position && profile?.company && (
-                            <p className="text-xs text-muted-foreground truncate">{profile.position} · {profile.company}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="w-8 h-8 p-0"
-                            onClick={() => acceptMutation.mutate(conn.id)}
-                            disabled={acceptMutation.isPending}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-8 h-8 p-0"
-                            onClick={() => rejectMutation.mutate(conn.id)}
-                            disabled={rejectMutation.isPending}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </Surface>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </>
+          <div className="space-y-6">
+            {/* Received */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Received {received.length > 0 && `(${received.length})`}
+              </p>
+              {received.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No incoming requests.</p>
+              ) : (
+                <div className="space-y-2">
+                  {received.map((conn, i) => {
+                    const name = getDisplayName(conn);
+                    const profile = conn.requester?.profile;
+                    return (
+                      <motion.div key={conn.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <Surface className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-foreground font-semibold flex-shrink-0">
+                            {name[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                            {profile?.position && profile?.company && (
+                              <p className="text-xs text-muted-foreground truncate">{profile.position} · {profile.company}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" className="w-8 h-8 p-0" onClick={() => acceptMutation.mutate(conn.id)} disabled={acceptMutation.isPending}>
+                              <Check className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="w-8 h-8 p-0" onClick={() => rejectMutation.mutate(conn.id)} disabled={rejectMutation.isPending}>
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </Surface>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sent */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Sent {sent.length > 0 && `(${sent.length})`}
+              </p>
+              {sent.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No sent requests.</p>
+              ) : (
+                <div className="space-y-2">
+                  {sent.map((conn, i) => {
+                    const profile = conn.receiver?.profile;
+                    const name = profile
+                      ? `${profile.firstName} ${profile.lastName}`.trim()
+                      : conn.receiver?.email ?? 'Unknown';
+                    return (
+                      <motion.div key={conn.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <Surface className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-foreground font-semibold flex-shrink-0">
+                            {name[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                            {profile?.position && profile?.company && (
+                              <p className="text-xs text-muted-foreground truncate">{profile.position} · {profile.company}</p>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">Pending</span>
+                        </Surface>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
         {tab === 'followups' && (
           <>
@@ -350,7 +378,7 @@ const ConnectionsPage = () => {
         name={crmTarget?.name ?? ''}
         onClose={() => setCrmTarget(null)}
       />
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

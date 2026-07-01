@@ -3,6 +3,15 @@ import { NotFoundError, ForbiddenError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { NotificationType } from '@appTypes/index';
 import { Prisma } from '@prisma/client';
+import pushService from './push.service';
+
+/** Build the web-push deep link from a notification's data payload. */
+const pushUrl = (data?: Record<string, unknown>): string | undefined => {
+  if (!data) return undefined;
+  if (typeof data.eventId === 'string') return `/e/${data.eventId}`;
+  if (typeof data.connectionId === 'string') return '/connections';
+  return undefined;
+};
 
 // Lazy import to avoid circular dependency
 let getSocketId: ((userId: string) => Promise<string | null>) | null = null;
@@ -48,6 +57,11 @@ export class NotificationsService {
         createdAt: notification.createdAt,
       });
     }
+
+    // Browser push fan-out (best-effort; no-op when VAPID unset).
+    void pushService
+      .sendToUser(userId, { title, body: message, url: pushUrl(data) })
+      .catch(() => {});
 
     return notification;
   }
@@ -155,6 +169,11 @@ export class NotificationsService {
         io.to(`user:${userId}`).emit('notification:new', { type, title, message });
       }
     }
+
+    // Browser push fan-out (best-effort; no-op when VAPID unset).
+    void pushService
+      .sendToUsers(unique, { title, body: message, url: pushUrl(data) })
+      .catch(() => {});
   }
 }
 

@@ -90,6 +90,7 @@ interface FormState {
   startTime: string;
   endDate: string;
   endTime: string;
+  registrationDeadline: string;
   timezone: string;
   locationType: 'IN_PERSON' | 'VIRTUAL' | 'HYBRID';
   address: string;
@@ -156,6 +157,7 @@ const CreateEventPage = () => {
     startTime: '19:00',
     endDate: '',
     endTime: '20:00',
+    registrationDeadline: '',
     timezone: 'Asia/Kolkata',
     locationType: 'IN_PERSON',
     address: '',
@@ -316,6 +318,7 @@ const CreateEventPage = () => {
       category: form.category,
       startDate: startISO,
       endDate: endISO,
+      registrationDeadline: form.registrationDeadline ? new Date(form.registrationDeadline).toISOString() : undefined,
       type: form.locationType,
       location: {
         address: form.address || undefined,
@@ -549,6 +552,20 @@ const CreateEventPage = () => {
                   </div>
                 </div>
 
+                {/* Registration deadline — optional */}
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1">
+                    <label className="text-[11px] text-muted-foreground block mb-0.5">Registration deadline (optional)</label>
+                    <Input
+                      type="datetime-local"
+                      value={form.registrationDeadline}
+                      onChange={(e) => set('registrationDeadline', e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+
                 {/* Timezone */}
                 <div className="flex items-center gap-3">
                   <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -651,41 +668,44 @@ const CreateEventPage = () => {
               <Surface>
                 <div className="space-y-4">
 
-                  {/* Ticket Price */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Ticket className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-foreground">Ticket Price</span>
-                    </div>
-                    <div className="flex gap-2 mb-2">
-                      {([false, true] as const).map((isPaid) => (
-                        <button
-                          key={String(isPaid)}
-                          type="button"
-                          onClick={() => {
-                            if (!isPaid) set('ticketPrice', '');
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                            (!isPaid && !form.ticketPrice) || (isPaid && !!form.ticketPrice)
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'border-border text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          {isPaid ? 'Paid' : 'Free'}
-                        </button>
-                      ))}
-                    </div>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={form.ticketPrice}
-                      onChange={(e) => set('ticketPrice', e.target.value)}
-                      placeholder="Price in ₹ (leave empty for free)"
-                      className="h-9 text-sm"
-                    />
-                  </div>
-
-                  <div className="h-px bg-border" />
+                  {/* Ticket Price — hidden when multiple tiers are enabled */}
+                  {!form.useTicketTypes && (
+                    <>
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Ticket className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-foreground">Ticket Price</span>
+                        </div>
+                        <div className="flex gap-2 mb-2">
+                          {([false, true] as const).map((isPaid) => (
+                            <button
+                              key={String(isPaid)}
+                              type="button"
+                              onClick={() => {
+                                if (!isPaid) set('ticketPrice', '');
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                (!isPaid && !form.ticketPrice) || (isPaid && !!form.ticketPrice)
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'border-border text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {isPaid ? 'Paid' : 'Free'}
+                            </button>
+                          ))}
+                        </div>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={form.ticketPrice}
+                          onChange={(e) => set('ticketPrice', e.target.value)}
+                          placeholder="Price in ₹ (leave empty for free)"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="h-px bg-border" />
+                    </>
+                  )}
 
                   {/* Require Approval */}
                   <div className="flex items-center justify-between">

@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Calendar, MapPin, QrCode, Ticket as TicketIcon, FileText, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, QrCode, Ticket as TicketIcon, FileText, AlertCircle, Clock, CalendarPlus } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +43,162 @@ const fmtDate = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })
     : 'TBD';
+
+const useCountdown = (targetIso?: string) => {
+  const [text, setText] = useState('');
+  useEffect(() => {
+    if (!targetIso) return;
+    const update = () => {
+      const diff = new Date(targetIso).getTime() - Date.now();
+      if (diff <= 0) { setText('Starting now'); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      if (d > 0) setText(`${d}d ${h}h`);
+      else if (h > 0) setText(`${h}h ${m}m`);
+      else setText(`${m}m`);
+    };
+    update();
+    const t = setInterval(update, 60_000);
+    return () => clearInterval(t);
+  }, [targetIso]);
+  return text;
+};
+
+const downloadIcs = (title: string, startIso: string, endIso?: string, location?: string) => {
+  const fmt = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//TapByWisein//EN',
+    'BEGIN:VEVENT',
+    `DTSTART:${fmt(startIso)}`,
+    `DTEND:${fmt(endIso ?? startIso)}`,
+    `SUMMARY:${title}`,
+    ...(location ? [`LOCATION:${location}`] : []),
+    `UID:tbw-${Date.now()}@tapbywisein.com`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+  const blob = new Blob([lines], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+interface TicketCardProps {
+  r: EventRegistration;
+  tab: Tab;
+  onQr: (r: EventRegistration) => void;
+  onCancel: (eventId: string) => void;
+  cancelPending: boolean;
+}
+
+const TicketCard = ({ r, tab, onQr, onCancel, cancelPending }: TicketCardProps) => {
+  const ev = r.event;
+  const status = STATUS_LABEL[r.status] ?? { label: r.status, className: 'bg-muted text-muted-foreground' };
+  const paid = r.amountPaid && Number(r.amountPaid) > 0;
+  const countdown = useCountdown(tab === 'upcoming' ? ev?.startDate : undefined);
+  const location = ev?.city || ev?.address || (ev?.locationType === 'VIRTUAL' ? 'Online' : undefined);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 flex items-start justify-between gap-4">
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            to={ev ? `/e/${ev.id}` : '#'}
+            className="font-semibold text-foreground hover:underline truncate"
+          >
+            {ev?.title ?? 'Event'}
+          </Link>
+          <Badge variant="secondary" className={status.className}>
+            {status.label}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5" /> {fmtDate(ev?.startDate)}
+        </p>
+        {ev && (ev.city || ev.address) && (
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5" /> {ev.city || ev.address}
+          </p>
+        )}
+        {countdown && (
+          <p className="text-xs text-primary font-medium flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Starts in {countdown}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {r.ticketTierName ? `${r.ticketTierName} · ` : ''}
+          {paid ? formatINR(Number(r.amountPaid)) : 'Free'}
+          {r.paymentStatus === 'REFUNDED' ? ' · Refunded' : ''}
+        </p>
+      </div>
+
+      <div className="flex flex-col items-end gap-2 shrink-0">
+        {tab !== 'cancelled' && (
+          <Button size="sm" variant="outline" onClick={() => onQr(r)}>
+            <QrCode className="w-4 h-4 mr-1.5" /> Ticket
+          </Button>
+        )}
+        {tab === 'upcoming' && ev?.startDate && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => downloadIcs(ev.title ?? 'Event', ev.startDate!, ev.endDate, location)}
+          >
+            <CalendarPlus className="w-4 h-4 mr-1.5" /> Add to calendar
+          </Button>
+        )}
+        {paid && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              openInvoice(r.id).catch((e) =>
+                toast.error(e instanceof Error ? e.message : 'Could not open invoice')
+              )
+            }
+          >
+            <FileText className="w-4 h-4 mr-1.5" /> Invoice
+          </Button>
+        )}
+        {tab === 'upcoming' && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                Cancel
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel this registration?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {paid
+                    ? 'Your paid ticket will be refunded to the original payment method. This frees your spot for the waitlist.'
+                    : 'This frees your spot for anyone on the waitlist. You can register again later if seats remain.'}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep it</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => ev && onCancel(ev.id)}
+                  disabled={cancelPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Cancel registration
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const MyTickets = () => {
   const { data, isLoading, isError, refetch } = useMyRegistrations(1, 100);
@@ -126,93 +282,16 @@ const MyTickets = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {list.map((r) => {
-              const ev = r.event;
-              const status = STATUS_LABEL[r.status] ?? { label: r.status, className: 'bg-muted text-muted-foreground' };
-              const paid = r.amountPaid && Number(r.amountPaid) > 0;
-              return (
-                <div
-                  key={r.id}
-                  className="rounded-xl border border-border bg-card p-4 flex items-start justify-between gap-4"
-                >
-                  <div className="min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Link
-                        to={ev ? `/e/${ev.id}` : '#'}
-                        className="font-semibold text-foreground hover:underline truncate"
-                      >
-                        {ev?.title ?? 'Event'}
-                      </Link>
-                      <Badge variant="secondary" className={status.className}>
-                        {status.label}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" /> {fmtDate(ev?.startDate)}
-                    </p>
-                    {ev && (ev.city || ev.address) && (
-                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5" /> {ev.city || ev.address}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {r.ticketTierName ? `${r.ticketTierName} · ` : ''}
-                      {paid ? formatINR(Number(r.amountPaid)) : 'Free'}
-                      {r.paymentStatus === 'REFUNDED' ? ' · Refunded' : ''}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    {tab !== 'cancelled' && (
-                      <Button size="sm" variant="outline" onClick={() => setQrFor(r)}>
-                        <QrCode className="w-4 h-4 mr-1.5" /> Ticket
-                      </Button>
-                    )}
-                    {paid && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          openInvoice(r.id).catch((e) =>
-                            toast.error(e instanceof Error ? e.message : 'Could not open invoice')
-                          )
-                        }
-                      >
-                        <FileText className="w-4 h-4 mr-1.5" /> Invoice
-                      </Button>
-                    )}
-                    {tab === 'upcoming' && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                            Cancel
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Cancel this registration?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {paid
-                                ? 'Your paid ticket will be refunded to the original payment method. This frees your spot for the waitlist.'
-                                : 'This frees your spot for anyone on the waitlist. You can register again later if seats remain.'}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Keep it</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => ev && cancel.mutate(ev.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Cancel registration
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {list.map((r) => (
+              <TicketCard
+                key={r.id}
+                r={r}
+                tab={tab}
+                onQr={setQrFor}
+                onCancel={(evId) => cancel.mutate(evId)}
+                cancelPending={cancel.isPending}
+              />
+            ))}
           </div>
         )}
       </div>

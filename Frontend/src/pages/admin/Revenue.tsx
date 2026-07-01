@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Search, IndianRupee, Download, ChevronLeft, ChevronRight, AlertCircle, Truck, X, Package, CheckCircle2 } from 'lucide-react';
-import { useAdminRevenue, useAdminDashboard, useDispatchOrder, useMarkOrderDelivered } from '@/hooks/useAdmin';
+import { useAdminRevenue, useAdminDashboard, useDispatchOrder, useMarkOrderDelivered, useResendDispatchEmail } from '@/hooks/useAdmin';
 import { formatINR } from '@/lib/currency';
 import { toast } from 'sonner';
 
@@ -74,6 +74,7 @@ const AdminRevenuePage = () => {
   const { data: stats } = useAdminDashboard();
   const dispatchMutation  = useDispatchOrder();
   const deliveredMutation = useMarkOrderDelivered();
+  const resendMutation    = useResendDispatchEmail();
 
   const items = (data?.items as RevenueItem[]) ?? [];
   const pagination = data?.pagination as Pagination | undefined;
@@ -157,7 +158,7 @@ const AdminRevenuePage = () => {
           <Surface padding="md" className="text-center">
             <IndianRupee className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">
-              {formatINR(items.filter((i) => i.status === 'PAID').reduce((s, i) => s + i.amount, 0))}
+              {formatINR(items.filter((i) => i.status === 'PAID').reduce((s, i) => s + Number(i.amount), 0))}
             </p>
             <p className="text-[11px] text-muted-foreground">This page (PAID)</p>
           </Surface>
@@ -301,13 +302,23 @@ const AdminRevenuePage = () => {
                         </Button>
                       )}
                       {r.status === 'PAID' && r.fulfillmentStatus === 'DISPATCHED' && (
-                        <Button
-                          size="sm" variant="ghost" className="h-7 text-xs text-emerald-600 hover:text-emerald-700"
-                          onClick={() => deliveredMutation.mutate(r.id)}
-                          disabled={deliveredMutation.isPending}
-                        >
-                          <CheckCircle2 className="w-3 h-3 mr-1" /> Delivered
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm" variant="ghost" className="h-7 text-xs"
+                            onClick={() => resendMutation.mutate(r.id)}
+                            disabled={resendMutation.isPending}
+                            title="Re-send the dispatch email"
+                          >
+                            <Truck className="w-3 h-3 mr-1" /> Resend email
+                          </Button>
+                          <Button
+                            size="sm" variant="ghost" className="h-7 text-xs text-emerald-600 hover:text-emerald-700"
+                            onClick={() => deliveredMutation.mutate(r.id)}
+                            disabled={deliveredMutation.isPending}
+                          >
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Delivered
+                          </Button>
+                        </div>
                       )}
                       {r.fulfillmentStatus === 'DELIVERED' && (
                         <span className="text-[10px] text-emerald-600 font-medium">✓ Done</span>

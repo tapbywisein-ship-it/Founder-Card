@@ -4,33 +4,63 @@ import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useSendBlast } from '@/hooks/useOrganizer';
+import { useSendBlast, useListEventBlasts, useScheduleBlast } from '@/hooks/useOrganizer';
 import { useEventContext } from '@/components/OrganizerEventLayout';
-import { Mail, Send, Users } from 'lucide-react';
+import { Mail, Send, Clock, Calendar, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const AUDIENCES = [
-  { value: 'all',        label: 'All'        },
+  { value: 'all',        label: 'All' },
   { value: 'registered', label: 'Registered' },
-  { value: 'waitlist',   label: 'Waitlist'   },
+  { value: 'waitlist',   label: 'Waitlist' },
 ] as const;
 
 type Audience = (typeof AUDIENCES)[number]['value'];
+type SendMode = 'now' | 'schedule';
+
+const toLocalDatetimeMin = (d: Date) => {
+  const offset = d.getTimezoneOffset() * 60_000;
+  return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+};
+
+const statusIcon = (status: string) => {
+  if (status === 'sent')      return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />;
+  if (status === 'scheduled') return <Clock className="w-3.5 h-3.5 text-amber-500" />;
+  return <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" />;
+};
 
 const BlastsTab = () => {
   const { id } = useParams<{ id: string }>();
-  const [subject, setSubject]     = useState('');
-  const [body, setBody]           = useState('');
-  const [audience, setAudience]   = useState<Audience>('all');
+  const [subject, setSubject]       = useState('');
+  const [body, setBody]             = useState('');
+  const [audience, setAudience]     = useState<Audience>('all');
+  const [sendMode, setSendMode]     = useState<SendMode>('now');
+  const [scheduledAt, setScheduledAt] = useState('');
 
   const { isLoading: contextLoading } = useEventContext();
-  const blastMutation = useSendBlast(id!);
+  const blastMutation    = useSendBlast(id!);
+  const scheduleMutation = useScheduleBlast(id!);
+  const { data: blasts, isLoading: blastsLoading } = useListEventBlasts(id!);
 
-  const handleSend = async () => {
-    await blastMutation.mutateAsync({ subject, body, audience });
+  const resetForm = () => {
     setSubject('');
     setBody('');
     setAudience('all');
+    setSendMode('now');
+    setScheduledAt('');
   };
+
+  const handleSend = async () => {
+    if (sendMode === 'schedule') {
+      if (!scheduledAt) { return; }
+      await scheduleMutation.mutateAsync({ subject, body, audience, scheduledAt: new Date(scheduledAt).toISOString() });
+    } else {
+      await blastMutation.mutateAsync({ subject, body, audience });
+    }
+    resetForm();
+  };
+
+  const isBusy = blastMutation.isPending || scheduleMutation.isPending;
+  const canSubmit = !!subject.trim() && !!body.trim() && (sendMode === 'now' || !!scheduledAt);
 
   if (contextLoading) {
     return (
@@ -50,7 +80,7 @@ const BlastsTab = () => {
         </div>
 
         <div className="space-y-4">
-          {/* Audience selector */}
+          {/* Audience */}
           <div>
             <Label className="mb-2 block">Audience</Label>
             <div className="flex gap-2">
@@ -95,30 +125,118 @@ const BlastsTab = () => {
             />
           </div>
 
+          {/* Send mode toggle */}
+          <div>
+            <Label className="mb-2 block">When to send</Label>
+            <div className="flex gap-2 mb-3">
+              {([
+                { value: 'now',      label: 'Send Now',    icon: Send },
+                { value: 'schedule', label: 'Schedule',    icon: Calendar },
+              ] as const).map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setSendMode(value)}
+                  className={`flex items-center gap-1.5 flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
+                    sendMode === value
+                      ? 'bg-primary text-primary-foreground border-transparent'
+                      : 'border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+
+            {sendMode === 'schedule' && (
+              <div>
+                <Label htmlFor="blast-scheduled-at" className="mb-1.5 block text-xs text-muted-foreground">Scheduled date & time</Label>
+                <Input
+                  id="blast-scheduled-at"
+                  type="datetime-local"
+                  value={scheduledAt}
+                  min={toLocalDatetimeMin(new Date(Date.now() + 5 * 60_000))}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+            )}
+          </div>
+
           <Button
             className="w-full"
-            disabled={!subject.trim() || !body.trim() || blastMutation.isPending}
+            disabled={!canSubmit || isBusy}
             onClick={handleSend}
           >
-            <Send className="w-4 h-4 mr-2" />
-            {blastMutation.isPending ? 'Sending…' : 'Send Blast'}
+            {sendMode === 'now' ? <Send className="w-4 h-4 mr-2" /> : <Calendar className="w-4 h-4 mr-2" />}
+            {isBusy
+              ? (sendMode === 'now' ? 'Sending…' : 'Scheduling…')
+              : (sendMode === 'now' ? 'Send Blast' : 'Schedule Blast')}
           </Button>
         </div>
       </Surface>
 
-      {/* Past blasts — empty state (backend does not return blast history yet) */}
+      {/* Blast history */}
       <Surface>
         <div className="flex items-center gap-2 mb-4">
-          <Users className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-sm font-medium text-foreground">Past Blasts</h2>
+          <Clock className="w-4 h-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">Blast History</h2>
         </div>
-        <div className="text-center py-8">
-          <Mail className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No blasts sent yet.</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
-            Blast history will appear here once the feature is available.
-          </p>
-        </div>
+
+        {blastsLoading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-14 bg-muted/30 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : !blasts || (blasts as unknown[]).length === 0 ? (
+          <div className="text-center py-8">
+            <Mail className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No blasts sent yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-px">
+            {(blasts as {
+              id: string;
+              subject: string;
+              audience: string;
+              status: string;
+              sent: number;
+              sentAt?: string;
+              scheduledAt?: string;
+              createdAt: string;
+            }[]).map((b) => (
+              <div key={b.id} className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/20 transition-colors">
+                <div className="mt-0.5">{statusIcon(b.status)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{b.subject}</p>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-[11px] text-muted-foreground capitalize">{b.audience}</span>
+                    <span className="text-[11px] text-muted-foreground">·</span>
+                    {b.status === 'scheduled' && b.scheduledAt ? (
+                      <span className="text-[11px] text-amber-500">
+                        Scheduled {new Date(b.scheduledAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </span>
+                    ) : b.sentAt ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        Sent {new Date(b.sentAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${
+                    b.status === 'sent'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+                      : 'border-amber-500/30 bg-amber-500/10 text-amber-500'
+                  }`}>
+                    {b.status === 'sent' ? `${b.sent} sent` : 'scheduled'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Surface>
     </div>
   );

@@ -133,9 +133,28 @@ export function useDispatchOrder() {
   return useMutation({
     mutationFn: (payload: { id: string; trackingId: string; trackingProvider: string; nfcTagId?: string }) =>
       adminService.dispatchOrder(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: adminKeys.revenue({}) });
-      toast.success('Order dispatched — email sent to customer');
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'revenue'] });
+      // Report the TRUE email outcome, not a blanket success.
+      if (res.data?.emailSent) {
+        toast.success('Order dispatched — email sent to customer');
+      } else {
+        toast.warning(
+          `Order dispatched, but the email failed${res.data?.emailError ? `: ${res.data.emailError}` : ''}. You can resend it.`
+        );
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useResendDispatchEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.resendDispatchEmail(id),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'revenue'] });
+      toast.success(`Email re-sent to ${res.data?.recipient ?? 'customer'}`);
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -146,7 +165,7 @@ export function useMarkOrderDelivered() {
   return useMutation({
     mutationFn: (id: string) => adminService.markOrderDelivered(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: adminKeys.revenue({}) });
+      qc.invalidateQueries({ queryKey: ['admin', 'revenue'] });
       toast.success('Order marked as delivered');
     },
     onError: (err: Error) => toast.error(err.message),

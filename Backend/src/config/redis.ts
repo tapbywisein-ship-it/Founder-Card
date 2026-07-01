@@ -95,8 +95,8 @@ let usingMemoryFallback = true;
 
 const REDIS_URL = process.env.REDIS_URL;
 
-if (REDIS_URL && REDIS_URL !== 'redis://localhost:6379') {
-  // Real Redis URL provided — try to connect
+if (REDIS_URL) {
+  // Redis URL provided — try to connect (falls back to in-memory on failure)
   try {
     const IORedis = require('ioredis');
 

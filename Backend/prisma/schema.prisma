@@ -196,6 +196,8 @@ model User {
   blocksMade          BlockedUser[]       @relation("BlocksMade")
   blocksReceived      BlockedUser[]       @relation("BlocksReceived")
   membership          Membership?
+  blasts              EventBlast[]
+  pushSubscriptions   PushSubscription[]
 
   @@index([email])
   @@index([supabaseId])
@@ -350,7 +352,8 @@ model Event {
   ticketTypes      Json?
   checkInToken     String?         @unique
   checkInTokenExpiresAt DateTime?
-  recapSentAt      DateTime?
+  recapSentAt           DateTime?
+  registrationDeadline  DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   deletedAt        DateTime?
@@ -369,6 +372,8 @@ model Event {
   pageViews     EventPageView[]
   payments      Payment[]
   payouts       Payout[]
+  coupons       Coupon[]
+  blasts        EventBlast[]
 
   @@index([organizerId])
   @@index([status])
@@ -409,6 +414,8 @@ model EventRegistration {
   paymentStatus  PaymentStatus?
   ticketTierId   String?
   ticketTierName String?
+  couponCode     String?
+  guestNote      String?  @db.Text
   registeredAt   DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
@@ -676,6 +683,21 @@ model Notification {
   // Serves the unread-count badge: one user's unread rows.
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Lead {
@@ -967,4 +989,47 @@ model EventTap {
   @@index([scannerUserId])
   @@index([targetUserId])
   @@map("event_taps")
+}
+
+/// Discount coupon attached to a specific event. Supports percentage discounts.
+model Coupon {
+  id          String    @id @default(uuid())
+  eventId     String
+  code        String
+  discountPct Int       // 1–100 percentage off
+  maxUses     Int?      // null = unlimited
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, code])
+  @@index([eventId])
+  @@map("coupons")
+}
+
+/// Record of every email blast sent (or scheduled) for an event.
+model EventBlast {
+  id          String    @id @default(uuid())
+  eventId     String
+  organizerId String
+  subject     String
+  body        String    @db.Text
+  audience    String    @default("all") // all | registered | waitlist
+  sent        Int       @default(0)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  status      String    @default("sent") // sent | scheduled | failed
+  createdAt   DateTime  @default(now())
+
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  organizer User  @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@index([organizerId])
+  @@index([scheduledAt, status])
+  @@map("event_blasts")
 }

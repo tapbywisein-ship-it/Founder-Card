@@ -126,6 +126,7 @@ export class EventsService {
         visibility: dto.visibility ?? 'PUBLIC',
         timezone: dto.timezone ?? 'UTC',
         ticketTypes: dto.ticketTypes ? JSON.parse(JSON.stringify(dto.ticketTypes)) : undefined,
+        registrationDeadline: dto.registrationDeadline ?? null,
         status: 'DRAFT',
       },
       include: { organizer: { include: { profile: true } } },
@@ -173,6 +174,9 @@ export class EventsService {
         ...(dto.timezone !== undefined && { timezone: dto.timezone }),
         ...(dto.ticketTypes !== undefined && {
           ticketTypes: JSON.parse(JSON.stringify(dto.ticketTypes)),
+        }),
+        ...(dto.registrationDeadline !== undefined && {
+          registrationDeadline: dto.registrationDeadline,
         }),
       },
       include: { organizer: { include: { profile: true } } },
@@ -376,6 +380,11 @@ export class EventsService {
     });
 
     if (!event) throw new NotFoundError('Event');
+
+    // Registration deadline check
+    if (event.registrationDeadline && new Date() > event.registrationDeadline) {
+      throw new BadRequestError('Registration for this event has closed');
+    }
 
     // Paid events must go through the payment flow. When Razorpay is configured
     // and the event has no free tier, block the free-registration path so a

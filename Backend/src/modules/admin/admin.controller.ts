@@ -214,6 +214,12 @@ export class AdminController {
     sendSuccess(res, result, 'Order marked as delivered');
   }
 
+  async resendDispatchEmail(req: Request, res: Response): Promise<void> {
+    const { id } = req.params as Record<string, string>;
+    const result = await adminService.resendDispatchEmail(id);
+    sendSuccess(res, result, `Dispatch email re-sent to ${result.recipient}`);
+  }
+
   async getUserActivity(req: Request, res: Response): Promise<void> {
     const { id } = req.params as Record<string, string>;
     const data = await adminService.getUserActivity(id);

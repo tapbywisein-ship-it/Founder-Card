@@ -23,7 +23,6 @@ import { HowItWorks } from '@/components/HowItWorks';
 import { useUpdateProfile, useMyProfile } from '@/hooks/useProfile';
 import { apiUpload } from '@/services/api';
 import { profileService } from '@/services/profile.service';
-import { useAppStore } from '@/store/appStore';
 
 const SKILL_SUGGESTIONS = [
   'Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Fundraising',
@@ -51,7 +50,7 @@ const STEPS: { id: Step; title: string; subtitle: string }[] = [
   { id: 'skills', title: 'What do you do?', subtitle: 'Add 3+ skills so other founders can find you.' },
   { id: 'interests', title: 'What are you into?', subtitle: 'Pick a few topics you love talking about.' },
   { id: 'lookingFor', title: "Who're you here to meet?", subtitle: 'We\'ll match you with attendees that fit.' },
-  { id: 'card', title: 'Your Tap Card is ready', subtitle: 'We\'ve issued your verified card with a unique member ID.' },
+  { id: 'card', title: "You're all set", subtitle: 'Your profile is ready. Grab a Tap Card whenever you want one.' },
 ];
 
 /**
@@ -62,8 +61,6 @@ const STEPS: { id: Step; title: string; subtitle: string }[] = [
 export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) => {
   const { data: profileData, refetch } = useMyProfile();
   const updateMutation = useUpdateProfile({ silent: true });
-  const activateCard = useAppStore((s) => s.activateCard);
-  const updateUser = useAppStore((s) => s.updateUser);
   const [stepIdx, setStepIdx] = useState(0);
   const step = STEPS[stepIdx];
 
@@ -130,17 +127,15 @@ export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) 
     }
   };
 
-  // Finishing onboarding auto-issues the user's ACTIVE <Sparkles className="h-4 w-4 text-primary" /> Tap Card (TW-XXXXX).
+  // Finishing onboarding just marks the profile complete. The Tap Card is a
+  // separate paid product — users buy it from /apply-card when they're ready.
   const finish = async () => {
     setIssuing(true);
     try {
-      const res = await profileService.completeOnboarding();
-      activateCard();
-      if (res.data?.memberId) updateUser({ memberId: res.data.memberId });
-      toast.success('Your Tap Card is ready!');
+      await profileService.completeOnboarding();
+      toast.success("You're all set!");
     } catch {
-      // Even if card issuance hiccups, don't trap the user in onboarding.
-      toast.success("You're all set");
+      toast.success("You're all set!");
     } finally {
       setIssuing(false);
       localStorage.setItem('fk:onboarded', '1');
@@ -259,11 +254,11 @@ export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) 
         {step.id === 'card' && (
           <div className="rounded-card border border-primary/30 bg-primary/5 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Sparkles className="h-4 w-4 text-primary" /> Tap Card
+              <Sparkles className="h-4 w-4 text-primary" /> Tap Card (optional)
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Tap "Finish" and we'll instantly issue your verified <Sparkles className="h-4 w-4 text-primary" /> Tap Card with a unique
-              FK member ID, your QR code, and a shareable public profile.
+              Your profile is live and shareable right now. Want a physical NFC card with a
+              verified badge and QR code? Grab one anytime from <span className="font-medium text-foreground">Tap Card</span> in your account menu.
             </p>
           </div>
         )}

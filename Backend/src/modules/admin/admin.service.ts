@@ -231,7 +231,10 @@ export class AdminService {
       `Your NFC Founder Card is on its way via ${input.trackingProvider}. Tracking ID: ${input.trackingId}`
     );
 
-    // Send dispatch email (best-effort — don't fail the API call if email fails)
+    // Send dispatch email (best-effort — don't fail the API call if email fails,
+    // but report the real outcome so the UI can tell the truth).
+    let emailSent = false;
+    let emailError: string | undefined;
     try {
       const name = purchase.user.profile?.firstName ?? 'there';
       const trackingUrl = buildTrackingUrl(input.trackingProvider, input.trackingId);
@@ -240,12 +243,37 @@ export class AdminService {
         'Your Tap Card has been dispatched ⚡',
         cardDispatchedEmail(name, input.trackingId, input.trackingProvider, trackingUrl)
       );
+      emailSent = true;
     } catch (err) {
-      // log but don't throw — dispatch is already saved
-      console.error('[dispatchOrder] email failed', err);
+      emailError = err instanceof Error ? err.message : 'Email failed';
+      console.error('[dispatchOrder] email failed', { orderId, error: emailError });
     }
 
-    return updated;
+    return { ...updated, emailSent, emailError, recipient: purchase.user.email };
+  }
+
+  /** Re-send the dispatch email for an already-dispatched order. */
+  async resendDispatchEmail(orderId: string) {
+    const purchase = await prisma.cardPurchase.findUnique({
+      where: { id: orderId },
+      include: { user: { select: { email: true, profile: { select: { firstName: true } } } } },
+    });
+    if (!purchase) throw new NotFoundError('Order');
+    if (purchase.fulfillmentStatus === 'PENDING') {
+      throw new BadRequestError('Order has not been dispatched yet');
+    }
+    if (!purchase.trackingId || !purchase.trackingProvider) {
+      throw new BadRequestError('Order has no tracking details to email');
+    }
+
+    const name = purchase.user.profile?.firstName ?? 'there';
+    const trackingUrl = buildTrackingUrl(purchase.trackingProvider, purchase.trackingId);
+    await sendEmail(
+      purchase.user.email,
+      'Your Tap Card has been dispatched ⚡',
+      cardDispatchedEmail(name, purchase.trackingId, purchase.trackingProvider, trackingUrl)
+    );
+    return { ok: true, recipient: purchase.user.email };
   }
 
   async markOrderDelivered(orderId: string) {

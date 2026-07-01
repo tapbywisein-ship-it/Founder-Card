@@ -83,5 +83,6 @@ router.get('/health', adminController.getHealth.bind(adminController));
 router.get('/revenue', adminController.getRevenue.bind(adminController));
 router.patch('/orders/:id/dispatch', adminController.dispatchOrder.bind(adminController));
 router.patch('/orders/:id/delivered', adminController.markOrderDelivered.bind(adminController));
+router.post('/orders/:id/resend-email', adminController.resendDispatchEmail.bind(adminController));
 
 export default router;

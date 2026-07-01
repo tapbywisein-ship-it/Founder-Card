@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Crown, Check, Bell, Search, BarChart3, Sparkles, AlertCircle } from 'lucide-react';
@@ -22,7 +22,7 @@ const MembershipPage = () => {
   const perks = membership?.perks ?? [];
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8 max-w-2xl">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
@@ -147,7 +147,7 @@ const MembershipPage = () => {
           Secure recurring payment via Razorpay. Cancel anytime — you keep access until your period ends.
         </p>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

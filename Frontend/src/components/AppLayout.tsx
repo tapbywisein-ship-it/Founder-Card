@@ -29,25 +29,33 @@ import {
 import { Label } from '@/components/ui/label';
 import {
   Bell, Compass, Calendar, Scan, User as UserIcon,
-  LogOut, Plus, Search, Trophy, Users, QrCode, MessageCircle, Ticket,
-  Building2, X,
+  LogOut, Trophy, Users, QrCode, MessageCircle, Ticket,
+  Building2, X, Search, CreditCard,
 } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
+import { getPushPermissionState, enablePushNotifications } from '@/services/notifications.service';
 
-const topLinks = [
-  { label: 'Discover', path: '/discover' },
-  { label: 'Events', path: '/events' },
-  { label: 'Connect', path: '/connect' },
+const sideNavItems = [
+  { label: 'Discover',      icon: Compass,       path: '/discover' },
+  { label: 'Events',        icon: Calendar,      path: '/events' },
+  { label: 'Connect',       icon: Scan,          path: '/connect' },
+  { label: 'Messages',      icon: MessageCircle, path: '/messages' },
+  { label: 'Connections',   icon: Users,         path: '/connections' },
+  { label: 'Notifications', icon: Bell,          path: '/notifications' },
+  { label: 'FK Score',      icon: Trophy,        path: '/gamification' },
+  { label: 'My Tickets',    icon: Ticket,        path: '/my-tickets' },
+  { label: 'Tap Card',      icon: CreditCard,    path: '/apply-card' },
+  { label: 'Profile',       icon: UserIcon,      path: '/profile' },
 ];
 
-const bottomNav = [
-  { label: 'Discover', icon: Compass, path: '/discover' },
-  { label: 'Events', icon: Calendar, path: '/events' },
-  { label: 'Connect', icon: Scan, path: '/connect' },
+const mobileNav = [
+  { label: 'Discover', icon: Compass,       path: '/discover' },
+  { label: 'Events',   icon: Calendar,      path: '/events' },
+  { label: 'Connect',  icon: Scan,          path: '/connect' },
   { label: 'Messages', icon: MessageCircle, path: '/messages' },
-  { label: 'Profile', icon: UserIcon, path: '/profile' },
+  { label: 'Alerts',   icon: Bell,          path: '/notifications' },
 ];
 
 interface SearchResult {
@@ -76,25 +84,46 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Organizer request dialog
   const [orgDialogOpen, setOrgDialogOpen] = useState(false);
   const [orgOrganization, setOrgOrganization] = useState('');
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const isOrganizer = user?.role === 'organizer';
 
-  // Debounce search input
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebouncedQ(searchInput.trim()), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchInput]);
 
-  // Focus input when drawer opens
   useEffect(() => {
     if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 50);
     else { setSearchInput(''); setDebouncedQ(''); }
   }, [searchOpen]);
+
+  useEffect(() => {
+    const PROMPT_KEY = 'tbw-push-prompted';
+    if (localStorage.getItem(PROMPT_KEY)) return;
+    if (getPushPermissionState() !== 'default') return;
+    const timer = setTimeout(() => {
+      localStorage.setItem(PROMPT_KEY, '1');
+      toast('Get notified in real time', {
+        description: 'Enable push notifications for event reminders and connection alerts.',
+        duration: 12_000,
+        action: {
+          label: 'Enable',
+          onClick: () => {
+            enablePushNotifications()
+              .then(() => toast.success('Push notifications enabled'))
+              .catch((err: unknown) =>
+                toast.error(err instanceof Error ? err.message : 'Could not enable notifications')
+              );
+          },
+        },
+      });
+    }, 3_000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const { data: searchResults } = useQuery<SearchResult>({
     queryKey: ['search', debouncedQ],
@@ -111,8 +140,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify({ organization: orgOrganization || undefined }),
       }),
     onSuccess: () => {
-      // Open self-signup: the upgrade is instant. Reflect the new role in the
-      // store so the gated organizer routes + portal chrome unlock immediately.
       updateUser({ role: 'organizer' });
       setActiveRole('organizer');
       toast.success("You're an organizer now — welcome to your dashboard!");
@@ -130,9 +157,15 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
   const hasResults = (searchResults?.users?.length ?? 0) > 0 || (searchResults?.events?.length ?? 0) > 0;
 
+  const getBadge = (path: string) => {
+    if (path === '/messages') return unreadMessages;
+    if (path === '/notifications') return unreadCount;
+    if (path === '/connect' || path === '/connections') return pendingRequests ?? 0;
+    return 0;
+  };
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Skip to main content — keyboard/screen-reader bypass (WCAG 2.4.1) */}
+    <div className="min-h-screen bg-background flex">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[70] focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -140,87 +173,88 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         Skip to content
       </a>
 
-      {/* ── Email verification banner (only when unverified) ─ */}
-      <VerifyEmailBanner />
+      {/* ── Left sidebar (desktop) ─────────────────────────── */}
+      <aside className="hidden md:flex flex-col w-60 border-r border-border p-4 fixed h-full z-40 bg-background">
+        <div className="mb-1 px-2"><Logo /></div>
+        <p className="text-xs text-muted-foreground mb-6 px-2">Attendee</p>
 
-      {/* ── Top Nav (sticky, 64px) ────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-xwide mx-auto h-16 px-4 md:px-8 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-8">
-            <Logo size="md" />
-            <nav className="hidden md:flex items-center gap-1">
-              {topLinks.map((link) => {
-                const active = location.pathname.startsWith(link.path);
-                return (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      active
-                        ? 'text-foreground bg-muted'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
+        <nav className="flex-1 space-y-0.5 overflow-y-auto" aria-label="Attendee">
+          {sideNavItems.map((item) => {
+            const active = location.pathname.startsWith(item.path);
+            const badge = getBadge(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                  active
+                    ? 'bg-accent text-primary font-medium border-l-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {badge > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {!isOrganizer && (
+          <button
+            onClick={() => setOrgDialogOpen(true)}
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors mt-1"
+          >
+            <Building2 className="w-4 h-4 flex-shrink-0" /> Become an organizer
+          </button>
+        )}
+
+        <div className="flex items-center gap-2 pt-3 border-t border-border mt-1">
+          <ThemeToggle />
+          <button
+            onClick={handleLogout}
+            className="flex-1 flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <LogOut className="w-4 h-4" /> Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Right content area ─────────────────────────────── */}
+      <div className="flex-1 md:ml-60 min-h-screen flex flex-col">
+        <VerifyEmailBanner />
+
+        {/* Sticky top bar */}
+        <div className="sticky top-0 z-30 flex justify-between items-center gap-2 px-4 md:px-8 py-3 bg-background/80 backdrop-blur border-b border-border md:border-none">
+          <div className="md:hidden">
+            <Logo size="sm" />
           </div>
+          <div className="hidden md:block" />
 
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setSearchOpen((v) => !v)}
               aria-label="Search"
-              className="hidden md:inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="w-9 h-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Search className="w-4 h-4" />
             </button>
 
-            <ThemeToggle />
-
-            <Link
-              to="/messages"
-              aria-label="Messages"
-              className="relative inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              {unreadMessages > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                  {unreadMessages > 9 ? '9+' : unreadMessages}
-                </span>
-              )}
-            </Link>
-
-            <Link
-              to="/notifications"
-              aria-label="Notifications"
-              className="relative inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </Link>
-
-            {isOrganizer && (
-              <Button size="sm" asChild className="hidden md:inline-flex ml-1">
-                <Link to="/organizer/events/create">
-                  <Plus className="w-4 h-4" />
-                  Create
-                </Link>
-              </Button>
-            )}
+            <div className="md:hidden">
+              <ThemeToggle />
+            </div>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   aria-label="Account menu"
-                  className="ml-1 w-9 h-9 rounded-full overflow-hidden bg-muted flex items-center justify-center text-foreground text-sm font-semibold border border-border"
+                  className="ml-1 w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center text-foreground text-sm font-semibold border border-border"
                 >
                   {user?.photoUrl ? (
                     <img src={user.photoUrl} alt="" className="w-full h-full object-cover" />
@@ -247,28 +281,22 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                 <DropdownMenuItem asChild>
                   <Link to="/gamification"><Trophy className="w-4 h-4 mr-2" /> Achievements</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/apply-card"><QrCode className="w-4 h-4 mr-2" /> Tap Card</Link>
-                </DropdownMenuItem>
-                {!isOrganizer && (
-                  <DropdownMenuItem onSelect={() => setOrgDialogOpen(true)}>
-                    <Building2 className="w-4 h-4 mr-2" /> Become an organizer
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive md:hidden"
+                >
                   <LogOut className="w-4 h-4 mr-2" /> Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
-      </header>
 
-      {/* ── Main content ──────────────────────────────────── */}
-      <main id="main-content" className="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-xwide w-full mx-auto pb-24 md:pb-10">
-        {children}
-      </main>
+        <main id="main-content" className="flex-1 p-4 md:p-8 max-w-xwide mx-auto w-full pb-24 md:pb-8">
+          {children}
+        </main>
+      </div>
 
       {/* ── Quick-share own card (floating) ───────────────── */}
       <QuickShareButton />
@@ -279,44 +307,30 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       {/* ── Mobile bottom nav ─────────────────────────────── */}
       <nav
         aria-label="Primary"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border flex items-center justify-around px-2"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}
       >
-        <div className="flex justify-around py-1.5">
-          {bottomNav.map((item) => {
-            const active = location.pathname.startsWith(item.path);
-            const badge =
-              item.path === '/connect' && pendingRequests
-                ? pendingRequests
-                : item.path === '/messages' && unreadMessages
-                ? unreadMessages
-                : 0;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className="flex flex-col items-center gap-0.5 py-1.5 px-4"
-              >
-                <div className="relative">
-                  <item.icon
-                    className={`w-5 h-5 transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`}
-                  />
-                  {badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
-                      {badge > 9 ? '9+' : badge}
-                    </span>
-                  )}
-                </div>
-                <span
-                  className={`text-[10px] font-medium transition-colors ${
-                    active ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        {mobileNav.map((item) => {
+          const active = location.pathname.startsWith(item.path);
+          const badge = getBadge(item.path);
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              <div className="relative">
+                <item.icon className="w-5 h-5" />
+                {badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       {/* ── Global search drawer ───────────────────────────── */}

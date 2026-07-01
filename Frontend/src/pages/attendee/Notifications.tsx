@@ -1,9 +1,16 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
-import { Bell, UserPlus, Calendar, Trophy, Zap, Check, CheckCheck, AlertCircle } from 'lucide-react';
+import { Bell, BellRing, UserPlus, Calendar, Trophy, Zap, CheckCheck, AlertCircle } from 'lucide-react';
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/useNotifications';
+import {
+  enablePushNotifications,
+  getPushPermissionState,
+  type PushPermissionState,
+} from '@/services/notifications.service';
+import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
 const NOTIF_ICONS: Record<string, React.ElementType> = {
@@ -30,6 +37,60 @@ const NOTIF_COLORS: Record<string, string> = {
   SYSTEM: 'bg-muted text-muted-foreground',
 };
 
+const PushBanner = () => {
+  const [state, setState] = useState<PushPermissionState>(() => getPushPermissionState());
+  const [busy, setBusy] = useState(false);
+
+  if (state === 'unsupported' || state === 'granted') return null;
+
+  const handleEnable = async () => {
+    setBusy(true);
+    try {
+      await enablePushNotifications();
+      setState('granted');
+      toast.success('Push notifications enabled');
+    } catch (err) {
+      setState(getPushPermissionState());
+      toast.error(err instanceof Error ? err.message : 'Could not enable push notifications');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (state === 'denied') {
+    return (
+      <Surface className="flex items-start gap-3 border-amber-500/20">
+        <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center flex-shrink-0">
+          <BellRing className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground">Push notifications are blocked</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Enable notifications for this site in your browser settings to get event reminders and connection alerts.
+          </p>
+        </div>
+      </Surface>
+    );
+  }
+
+  return (
+    <Surface className="flex items-center gap-3 border-primary/20">
+      <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+        <BellRing className="w-4 h-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">Get notified in real time</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Turn on browser push for event reminders, connection requests, and check-in alerts — even when the tab is closed.
+        </p>
+      </div>
+      <Button size="sm" onClick={handleEnable} disabled={busy} className="flex-shrink-0">
+        {busy ? 'Enabling…' : 'Enable'}
+      </Button>
+    </Surface>
+  );
+};
+
 const NotificationsPage = () => {
   const { data, isLoading, isError, refetch } = useNotifications(1, 50);
   const markRead = useMarkRead();
@@ -39,8 +100,9 @@ const NotificationsPage = () => {
   const unreadCount = data?.unreadCount ?? 0;
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
+        <PushBanner />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-semibold text-foreground">Notifications</h1>
@@ -125,7 +187,7 @@ const NotificationsPage = () => {
           </div>
         )}
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

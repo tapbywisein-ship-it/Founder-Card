@@ -7,6 +7,7 @@ import { AdminLayout } from '@/components/AdminLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ShippingQueue } from '@/components/ShippingQueue';
 import { apiFetch } from '@/services/api';
 
 type CardStatus = 'PENDING' | 'ACTIVE' | 'DEACTIVATED' | 'REJECTED';
@@ -47,14 +48,6 @@ const FounderCardReviewPage = () => {
   const [nfcTagId, setNfcTagId] = useState('');
   const [cardSearch, setCardSearch] = useState('');
 
-  const pending = useQuery({
-    queryKey: ['admin', 'founder-cards', 'pending'],
-    queryFn: () =>
-      apiFetch<{ data: CardRow[]; pagination: unknown }>('/founder-cards/pending'),
-    select: (res) => res.data,
-    enabled: tab === 'pending',
-  });
-
   const all = useQuery({
     queryKey: ['admin', 'founder-cards', 'all'],
     queryFn: () => apiFetch<{ data: CardRow[]; pagination: unknown }>(`/founder-cards`),
@@ -63,7 +56,6 @@ const FounderCardReviewPage = () => {
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['admin', 'founder-cards', 'pending'] });
     qc.invalidateQueries({ queryKey: ['admin', 'founder-cards', 'all'] });
   };
 
@@ -96,7 +88,7 @@ const FounderCardReviewPage = () => {
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not reactivate'),
   });
 
-  const rawCards = (tab === 'pending' ? pending.data : all.data) ?? [];
+  const rawCards = all.data ?? [];
   const cards = cardSearch.trim()
     ? rawCards.filter((c) => {
         const q = cardSearch.toLowerCase();
@@ -108,8 +100,8 @@ const FounderCardReviewPage = () => {
         );
       })
     : rawCards;
-  const isLoading = tab === 'pending' ? pending.isLoading : all.isLoading;
-  const isError = tab === 'pending' ? pending.isError : all.isError;
+  const isLoading = all.isLoading;
+  const isError = all.isError;
 
   return (
     <AdminLayout>
@@ -147,30 +139,31 @@ const FounderCardReviewPage = () => {
           ))}
         </div>
 
-        {isError && (
+        {/* Ordered (to ship) — paid orders awaiting dispatch, managed here */}
+        {tab === 'pending' && <ShippingQueue search={cardSearch} />}
+
+        {tab === 'all' && isError && (
           <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             Failed to load cards. Try refreshing the page.
           </div>
         )}
 
-        {isLoading && (
+        {tab === 'all' && isLoading && (
           <Surface className="text-center">
             <p className="text-sm text-muted-foreground">Loading…</p>
           </Surface>
         )}
 
-        {!isLoading && cards.length === 0 && (
+        {tab === 'all' && !isLoading && cards.length === 0 && (
           <Surface className="text-center py-12">
             <Package className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
-              {tab === 'pending' ? 'No cards waiting to ship — all clear.' : 'No cards yet.'}
-            </p>
+            <p className="text-sm text-muted-foreground">No cards yet.</p>
           </Surface>
         )}
 
         <div className="grid gap-3">
-          {cards.map((c) => {
+          {tab === 'all' && cards.map((c) => {
             const p = c.user.profile;
             const name = p ? `${p.firstName} ${p.lastName}`.trim() : c.user.email;
             const isOrdered = tab === 'pending';

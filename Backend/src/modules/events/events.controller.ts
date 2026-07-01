@@ -210,6 +210,13 @@ export class EventsController {
     const data = await eventsService.listVisitors(id, callerId);
     sendSuccess(res, data, 'Visitors retrieved');
   }
+
+  async validateCoupon(req: Request, res: Response): Promise<void> {
+    const { id, code } = req.params as Record<string, string>;
+    const { default: organizerService } = await import('@modules/organizer/organizer.service');
+    const data = await organizerService.validateCoupon(id, decodeURIComponent(code));
+    sendSuccess(res, data, 'Coupon valid');
+  }
 }
 
 export default new EventsController();

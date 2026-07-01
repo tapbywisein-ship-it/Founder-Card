@@ -62,6 +62,12 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().default(''),
   RAZORPAY_KEY_SECRET: z.string().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().default(''),
+
+  // Web Push (VAPID). Optional — when unset, push subscribe endpoints no-op
+  // and in-app notifications simply skip the browser-push fan-out.
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:support@tapbywisein.com'),
 });
 
 const parseResult = envSchema.safeParse(process.env);

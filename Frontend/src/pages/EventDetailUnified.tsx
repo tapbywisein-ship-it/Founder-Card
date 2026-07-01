@@ -5,9 +5,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import {
   Calendar, MapPin, Globe, ExternalLink, Users, CheckCircle2,
-  Clock, Share2, Tag, QrCode, ArrowLeft,
+  Clock, Tag, QrCode, ArrowLeft,
 } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,10 @@ import { useJsonLd } from '@/lib/useJsonLd';
 import { getRegistrationPricing } from '@/lib/ticketPricing';
 import { formatINR } from '@/lib/currency';
 import { paymentsService, loadRazorpayScript, openRazorpayCheckout } from '@/services/payments.service';
+import { organizerService } from '@/services/organizer.service';
 import { useHomePath } from '@/lib/useHomePath';
+import { AddToCalendar } from '@/components/AddToCalendar';
+import { ShareMenu } from '@/components/ShareMenu';
 
 /**
  * Unified event detail page rendered by both `/event/:id` (auth) and
@@ -79,6 +82,9 @@ const EventDetailUnified = () => {
   const [guestRsvpOpen, setGuestRsvpOpen] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState('');
   const [paying, setPaying] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; pct: number } | null>(null);
 
   // Fire a page-view beacon once per mount. Idempotent server-side per session.
   const viewedRef = useRef<string | null>(null);
@@ -133,7 +139,7 @@ const EventDetailUnified = () => {
 
   const wrap = (children: ReactNode) =>
     isAuthenticated ? (
-      <AppLayout>{children}</AppLayout>
+      <PortalLayout>{children}</PortalLayout>
     ) : (
       <div className="min-h-screen bg-background">
         <PublicNav eventId={id} />
@@ -244,6 +250,21 @@ const EventDetailUnified = () => {
     registerMutation.mutate({ eventId: event.id });
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim() || !id) return;
+    setCouponValidating(true);
+    try {
+      const { data } = await organizerService.validateCoupon(id, couponInput.trim());
+      setAppliedCoupon({ code: data.code, pct: data.discountPct });
+      toast.success(`Coupon applied — ${data.discountPct}% off`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Invalid coupon');
+      setAppliedCoupon(null);
+    } finally {
+      setCouponValidating(false);
+    }
+  };
+
   const handleBuyTicket = async () => {
     if (!effectiveTier) return;
     setPaying(true);
@@ -253,7 +274,11 @@ const EventDetailUnified = () => {
         toast.error('Could not load the payment window. Check your connection.');
         return;
       }
-      const { data: order } = await paymentsService.createOrder(event.id, effectiveTier.id);
+      const { data: order } = await paymentsService.createOrder(
+        event.id,
+        effectiveTier.id,
+        appliedCoupon?.code,
+      );
       openRazorpayCheckout({
         key: order.keyId,
         amount: order.amount,
@@ -289,19 +314,6 @@ const EventDetailUnified = () => {
         toast.error(err instanceof Error ? err.message : 'Could not start payment');
       }
       setPaying(false);
-    }
-  };
-
-  const handleShare = () => {
-    // Prefer the human-friendly slug URL for sharing on WhatsApp/LinkedIn.
-    const url = `${window.location.origin}/e/${event.slug ?? event.id}`;
-    if (navigator.share) {
-      navigator.share({ title: event.title, url }).catch(() => {});
-    } else {
-      navigator.clipboard
-        .writeText(url)
-        .then(() => toast.success('Link copied'))
-        .catch(() => toast.error('Could not copy'));
     }
   };
 
@@ -495,7 +507,7 @@ const EventDetailUnified = () => {
                     type="button"
                     disabled={soldOut}
                     onClick={() => !soldOut && setSelectedTierId(t.id)}
-                    className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    className={`w-full rounded-lg border px-3 py-2 text-sm transition-colors text-left ${
                       soldOut
                         ? 'border-border opacity-60 cursor-not-allowed'
                         : selected
@@ -503,20 +515,73 @@ const EventDetailUnified = () => {
                           : 'border-border hover:border-primary/40'
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={`h-3.5 w-3.5 rounded-full border ${selected && !soldOut ? 'border-primary bg-primary' : 'border-muted-foreground'}`}
-                      />
-                      <span className="text-foreground">{t.name}</span>
-                    </span>
-                    {soldOut ? (
-                      <span className="text-xs font-semibold text-rose-600">Sold out</span>
-                    ) : (
-                      <span className="font-semibold text-foreground">{t.priceLabel}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`h-3.5 w-3.5 rounded-full border flex-shrink-0 ${selected && !soldOut ? 'border-primary bg-primary' : 'border-muted-foreground'}`}
+                        />
+                        <span className="text-foreground font-medium">{t.name}</span>
+                      </span>
+                      {soldOut ? (
+                        <span className="text-xs font-semibold text-rose-600">Sold out</span>
+                      ) : (
+                        <span className="font-semibold text-foreground">{t.priceLabel}</span>
+                      )}
+                    </div>
+                    {t.benefits.length > 0 && (
+                      <ul className="mt-1.5 ml-5 space-y-0.5">
+                        {t.benefits.map((b) => (
+                          <li key={b} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <span className="w-1 h-1 rounded-full bg-muted-foreground/50 flex-shrink-0" />
+                            {b}
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </button>
                 );
               })}
+
+              {/* Coupon code input */}
+              {isAuthenticated && (
+                <div className="pt-1">
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-success/10 border border-success/30">
+                      <span className="text-success font-medium">
+                        <Tag className="w-3 h-3 inline mr-1" />
+                        {appliedCoupon.code} — {appliedCoupon.pct}% off applied
+                      </span>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => { setAppliedCoupon(null); setCouponInput(''); }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Coupon code"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => e.key === 'Enter' && void handleApplyCoupon()}
+                        className="h-8 text-xs"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs shrink-0"
+                        disabled={!couponInput.trim() || couponValidating}
+                        onClick={() => void handleApplyCoupon()}
+                      >
+                        {couponValidating ? '…' : 'Apply'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -592,9 +657,9 @@ const EventDetailUnified = () => {
             <Button className="w-full" size="lg" onClick={handleRegister}>
               Sign in to register
             </Button>
-          ) : user?.role !== 'attendee' ? (
+          ) : user && event.organizerId === user.id ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              Sign in as an Attendee to register for events.
+              You're the organizer of this event.
             </p>
           ) : requiresPayment ? (
             <Button
@@ -609,7 +674,9 @@ const EventDetailUnified = () => {
                   ? 'Sold out'
                   : isFull
                     ? 'Event full'
-                    : `Buy ticket — ${effectiveTier?.priceLabel ?? price}`}
+                    : appliedCoupon && effectiveTier
+                      ? `Buy ticket — ${formatINR(Math.round(effectiveTier.price * (1 - appliedCoupon.pct / 100) * 100) / 100)}`
+                      : `Buy ticket — ${effectiveTier?.priceLabel ?? price}`}
             </Button>
           ) : (
             <Button
@@ -626,23 +693,63 @@ const EventDetailUnified = () => {
             </Button>
           )}
 
-          <div className="mt-3 flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={handleShare}
-            >
-              <Share2 className="w-3.5 h-3.5" /> Share event
-            </Button>
-            {isAuthenticated && (
-              <ReportButton
-                targetType="EVENT"
-                targetId={event.id}
-                targetLabel={event.title}
-                triggerClass="h-9 w-9 border border-border"
-              />
-            )}
+          <div className="mt-3 space-y-2">
+            <AddToCalendar
+              event={{
+                title: event.title,
+                description: event.description,
+                location: [event.address, event.city, event.country].filter(Boolean).join(', ') || undefined,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                url: `${window.location.origin}/e/${event.slug ?? event.id}`,
+              }}
+            />
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <ShareMenu
+                  url={`${window.location.origin}/e/${event.slug ?? event.id}`}
+                  title={event.title}
+                  text={`Check out ${event.title} on TapByWisein`}
+                />
+              </div>
+              {isAuthenticated && (
+                <ReportButton
+                  targetType="EVENT"
+                  targetId={event.id}
+                  targetLabel={event.title}
+                  triggerClass="h-9 w-9 border border-border"
+                />
+              )}
+            </div>
+            <div className="flex gap-2">
+              {[
+                {
+                  label: 'WhatsApp',
+                  href: `https://wa.me/?text=${encodeURIComponent(`${event.title} — ${window.location.origin}/e/${event.slug ?? event.id}`)}`,
+                  color: 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:hover:bg-emerald-950',
+                },
+                {
+                  label: 'X / Twitter',
+                  href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(event.title)}&url=${encodeURIComponent(`${window.location.origin}/e/${event.slug ?? event.id}`)}`,
+                  color: 'text-foreground border-border hover:bg-muted',
+                },
+                {
+                  label: 'LinkedIn',
+                  href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`${window.location.origin}/e/${event.slug ?? event.id}`)}`,
+                  color: 'text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950',
+                },
+              ].map(({ label, href, color }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex-1 text-center text-xs font-medium py-1.5 rounded-md border transition-colors ${color}`}
+                >
+                  {label}
+                </a>
+              ))}
+            </div>
           </div>
         </Surface>
 

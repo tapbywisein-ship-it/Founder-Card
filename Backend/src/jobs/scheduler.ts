@@ -429,6 +429,47 @@ export const initScheduler = (): void => {
     }
   });
 
+  // Scheduled blast dispatcher — every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const now = new Date();
+      const due = await prisma.eventBlast.findMany({
+        where: { status: 'scheduled', scheduledAt: { lte: now } },
+        take: 20,
+        include: {
+          event: { select: { id: true, title: true, organizerId: true, deletedAt: true } },
+        },
+      });
+      if (due.length === 0) return;
+
+      const { default: orgService } = await import('@modules/organizer/organizer.service');
+      for (const blast of due) {
+        if (blast.event.deletedAt) {
+          await prisma.eventBlast.update({ where: { id: blast.id }, data: { status: 'failed' } });
+          continue;
+        }
+        try {
+          const result = await orgService.sendEventBlast(
+            blast.eventId, blast.organizerId,
+            blast.subject, blast.body,
+            blast.audience as 'all' | 'registered' | 'waitlist',
+            true // skip creating a duplicate record — we update the existing one below
+          );
+          await prisma.eventBlast.update({
+            where: { id: blast.id },
+            data: { status: 'sent', sent: result.sent, sentAt: new Date() },
+          });
+          logger.info(`Scheduler: scheduled blast ${blast.id} sent to ${result.sent} recipients`);
+        } catch (err) {
+          await prisma.eventBlast.update({ where: { id: blast.id }, data: { status: 'failed' } });
+          logger.error('Scheduler: scheduled blast failed', { blastId: blast.id, err });
+        }
+      }
+    } catch (error) {
+      logger.error('Scheduler: Error dispatching scheduled blasts', { error });
+    }
+  });
+
   void TOKEN_TTL; // suppress unused warning
   logger.info('Scheduler: All cron jobs initialized');
 };

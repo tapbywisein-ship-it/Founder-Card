@@ -55,6 +55,7 @@ const MembershipPage = lazy(() => import("./pages/attendee/Membership"));
 const NetworkSearchPage = lazy(() => import("./pages/attendee/NetworkSearch"));
 
 const OrganizerDashboard = lazy(() => import("./pages/organizer/Dashboard"));
+const EventsListPage = lazy(() => import("./pages/organizer/EventsList"));
 const CreateEventPage = lazy(() => import("./pages/organizer/CreateEvent"));
 const OrgEventDetail = lazy(() => import("./pages/organizer/OrgEventDetail"));
 const LeadsPage = lazy(() => import("./pages/organizer/Leads"));
@@ -238,10 +239,10 @@ const App = () => (
               (organizerId === currentUser.id) keep one host from seeing
               another's events. */}
           <Route path="/organizer/dashboard" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><OrganizerDashboard /></ProtectedRoute>} />
-          {/* Luma-style: page renders for anyone — even signed-out guests.
-              The CreateEventPage shows an overlay sign-in popup itself when
-              the user isn't authenticated, and the form submit is gated. */}
-          <Route path="/organizer/events/create" element={<CreateEventPage />} />
+          <Route path="/organizer/events" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><EventsListPage /></ProtectedRoute>} />
+          {/* Hosting is gated to organizers/admins. Attendees become organizers
+              instantly via the "Become an organizer" flow, then land here. */}
+          <Route path="/organizer/events/create" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><CreateEventPage /></ProtectedRoute>} />
           <Route path="/organizer/attendees" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><AttendeeDirectoryPage /></ProtectedRoute>} />
           <Route path="/organizer/leads" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><LeadsPage /></ProtectedRoute>} />
           <Route path="/organizer/payouts" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><PayoutsPage /></ProtectedRoute>} />

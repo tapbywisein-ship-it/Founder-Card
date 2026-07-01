@@ -1,24 +1,25 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { useEventGuests, useCheckInAttendee, orgKeys } from '@/hooks/useOrganizer';
+import {
+  useEventGuests, useCheckInAttendee, orgKeys,
+  usePromoteFromWaitlist, useBulkCheckIn, useUpdateGuestNote,
+} from '@/hooks/useOrganizer';
 import { useEventContext } from '@/components/OrganizerEventLayout';
 import { organizerService } from '@/services/organizer.service';
 import { RoleBadge } from '@/components/RoleBadge';
 import { CsvImportDialog } from '@/components/CsvImportDialog';
-import { useQuery } from '@tanstack/react-query';
-import { Search, CheckCircle2, Clock, Users, Mail, Upload, UserCheck, UserX } from 'lucide-react';
+import {
+  Search, CheckCircle2, Clock, Users, Mail, Upload,
+  UserCheck, UserX, ArrowUpCircle, ScanLine, MessageSquare,
+} from 'lucide-react';
 
 type EventRole = 'ATTENDEE' | 'VIP' | 'SPEAKER' | 'STAFF' | 'SPONSOR';
 const ROLE_OPTIONS: EventRole[] = ['ATTENDEE', 'VIP', 'SPEAKER', 'STAFF', 'SPONSOR'];
@@ -28,11 +29,17 @@ const GuestsTab = () => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'registered'>('name');
   const [importOpen, setImportOpen] = useState(false);
+  const [noteEditing, setNoteEditing] = useState<string | null>(null); // userId
+  const [noteValue, setNoteValue] = useState('');
 
   const { isLoading: contextLoading } = useEventContext();
   const { data: guestsData, isLoading } = useEventGuests(id!, { search: search || undefined });
-  const checkInMutation = useCheckInAttendee(id!);
-  const qc = useQueryClient();
+  const checkInMutation  = useCheckInAttendee(id!);
+  const promoteMutation  = usePromoteFromWaitlist(id!);
+  const bulkCheckIn      = useBulkCheckIn(id!);
+  const noteMutation     = useUpdateGuestNote(id!);
+  const qc               = useQueryClient();
+
   const setRoleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: EventRole }) =>
       organizerService.setEventRole(id!, userId, role),
@@ -42,6 +49,7 @@ const GuestsTab = () => {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not update role'),
   });
+
   const refundMutation = useMutation({
     mutationFn: (userId: string) => organizerService.refundAttendee(id!, userId),
     onSuccess: () => {
@@ -77,15 +85,23 @@ const GuestsTab = () => {
       const nameB = b.profile ? `${b.profile.firstName} ${b.profile.lastName}` : b.email;
       return nameA.localeCompare(nameB);
     }
-    if (sortBy === 'status') {
-      return (a.status ?? '').localeCompare(b.status ?? '');
-    }
-    // registered — fall back to id order (no registeredAt in Guest type)
+    if (sortBy === 'status') return (a.status ?? '').localeCompare(b.status ?? '');
     return 0;
   });
 
-  const checkedInCount = guests.filter((g) => g.checkedIn).length;
-  const waitlistCount  = guests.filter((g) => g.status === 'WAITLISTED').length;
+  const checkedInCount  = guests.filter((g) => g.checkedIn).length;
+  const waitlistCount   = guests.filter((g) => g.status === 'WAITLISTED').length;
+  const pendingCheckIn  = guests.filter((g) => !g.checkedIn && g.status === 'REGISTERED').length;
+
+  const openNote = (userId: string, current: string | null | undefined) => {
+    setNoteEditing(userId);
+    setNoteValue(current ?? '');
+  };
+
+  const saveNote = (userId: string) => {
+    noteMutation.mutate({ userId, note: noteValue });
+    setNoteEditing(null);
+  };
 
   if (contextLoading) {
     return (
@@ -101,9 +117,9 @@ const GuestsTab = () => {
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Registered', value: guests.length,   icon: Users },
-          { label: 'Checked In', value: checkedInCount,  icon: CheckCircle2 },
-          { label: 'Waitlisted', value: waitlistCount,   icon: Clock },
+          { label: 'Registered', value: guests.length,  icon: Users },
+          { label: 'Checked In', value: checkedInCount, icon: CheckCircle2 },
+          { label: 'Waitlisted', value: waitlistCount,  icon: Clock },
         ].map(({ label, value, icon: Icon }) => (
           <Surface key={label} padding="md" className="text-center">
             <Icon className="w-4 h-4 text-muted-foreground mx-auto mb-1.5" />
@@ -113,7 +129,7 @@ const GuestsTab = () => {
         ))}
       </div>
 
-      {/* Pending approvals panel */}
+      {/* Pending approvals */}
       {pending.data && pending.data.length > 0 && (
         <Surface className="border-amber-500/30 bg-amber-500/5">
           <div className="mb-3 flex items-center gap-2">
@@ -128,10 +144,7 @@ const GuestsTab = () => {
                 ? `${p.user.profile.firstName} ${p.user.profile.lastName}`.trim()
                 : p.user.email;
               return (
-                <div
-                  key={p.id}
-                  className="flex items-start gap-3 rounded-card border border-border bg-card p-3"
-                >
+                <div key={p.id} className="flex items-start gap-3 rounded-card border border-border bg-card p-3">
                   {p.user.profile?.avatar ? (
                     <img src={p.user.profile.avatar} alt={name} loading="lazy" className="h-10 w-10 rounded-full object-cover" />
                   ) : (
@@ -158,20 +171,11 @@ const GuestsTab = () => {
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button
-                      size="sm"
-                      onClick={() => action.mutate({ regId: p.id, act: 'APPROVE' })}
-                      disabled={action.isPending}
-                    >
+                    <Button size="sm" onClick={() => action.mutate({ regId: p.id, act: 'APPROVE' })} disabled={action.isPending}>
                       <UserCheck className="mr-1 h-3.5 w-3.5" /> Approve
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-rose-600 hover:bg-rose-500/10 hover:text-rose-700"
-                      onClick={() => action.mutate({ regId: p.id, act: 'DENY' })}
-                      disabled={action.isPending}
-                    >
+                    <Button size="sm" variant="ghost" className="text-rose-600 hover:bg-rose-500/10 hover:text-rose-700"
+                      onClick={() => action.mutate({ regId: p.id, act: 'DENY' })} disabled={action.isPending}>
                       <UserX className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -183,7 +187,21 @@ const GuestsTab = () => {
       )}
 
       {/* Top action row */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (pendingCheckIn === 0) { toast.info('No registered guests to check in'); return; }
+            if (confirm(`Check in all ${pendingCheckIn} registered attendees at once?`)) {
+              bulkCheckIn.mutate();
+            }
+          }}
+          disabled={bulkCheckIn.isPending || pendingCheckIn === 0}
+        >
+          <ScanLine className="mr-1.5 h-3.5 w-3.5" />
+          Check In All ({pendingCheckIn})
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
           <Upload className="mr-1.5 h-3.5 w-3.5" /> Import CSV
         </Button>
@@ -234,39 +252,31 @@ const GuestsTab = () => {
             </p>
           </div>
         ) : (
-          <>
-            {/* Table header */}
-            <div className="grid grid-cols-[1fr_1fr_140px_auto_auto] gap-2 px-3 py-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border/60 mb-1">
-              <span>Name</span>
-              <span>Email</span>
-              <span>Role</span>
-              <span>Status</span>
-              <span className="w-20 text-right">Actions</span>
-            </div>
-            <div className="space-y-px">
-              {sorted.map((g) => {
-                const name = g.profile
-                  ? `${g.profile.firstName} ${g.profile.lastName}`.trim()
-                  : g.email;
-                return (
-                  <div
-                    key={g.id}
-                    className="grid grid-cols-[1fr_1fr_140px_auto_auto] gap-2 items-center px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors"
-                  >
+          <div className="space-y-px">
+            {sorted.map((g) => {
+              const name = g.profile
+                ? `${g.profile.firstName} ${g.profile.lastName}`.trim()
+                : g.email;
+              const isEditingNote = noteEditing === g.userId;
+
+              return (
+                <div key={g.id} className="rounded-xl hover:bg-muted/30 transition-colors px-3 py-2.5">
+                  <div className="grid grid-cols-[1fr_1fr_140px_auto_auto] gap-2 items-center">
                     {/* Name */}
                     <div className="flex items-center gap-2.5 min-w-0">
                       {g.profile?.avatar ? (
-                        <img
-                          src={g.profile.avatar}
-                          alt={name}
-                          className="w-7 h-7 rounded-full object-cover flex-shrink-0"
-                        />
+                        <img src={g.profile.avatar} alt={name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-foreground flex-shrink-0">
                           {name[0]?.toUpperCase()}
                         </div>
                       )}
-                      <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                        {g.profile?.company && (
+                          <p className="text-[10px] text-muted-foreground truncate">{g.profile.company}</p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Email */}
@@ -279,9 +289,7 @@ const GuestsTab = () => {
                     <div className="flex items-center gap-1.5">
                       <Select
                         value={g.eventRole ?? 'ATTENDEE'}
-                        onValueChange={(v) =>
-                          setRoleMutation.mutate({ userId: g.userId, role: v as EventRole })
-                        }
+                        onValueChange={(v) => setRoleMutation.mutate({ userId: g.userId, role: v as EventRole })}
                       >
                         <SelectTrigger className="h-7 text-xs">
                           <SelectValue />
@@ -294,9 +302,7 @@ const GuestsTab = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      {g.eventRole && g.eventRole !== 'ATTENDEE' && (
-                        <RoleBadge role={g.eventRole} />
-                      )}
+                      {g.eventRole && g.eventRole !== 'ATTENDEE' && <RoleBadge role={g.eventRole} />}
                     </div>
 
                     {/* Status badge */}
@@ -311,37 +317,78 @@ const GuestsTab = () => {
                     </span>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1">
+                      {/* Waitlist promote */}
+                      {g.status === 'WAITLISTED' && (
+                        <Button variant="outline" size="sm" className="text-xs h-7 px-2 text-amber-600"
+                          onClick={() => promoteMutation.mutate(g.userId)}
+                          disabled={promoteMutation.isPending}
+                          title="Promote from waitlist">
+                          <ArrowUpCircle className="w-3 h-3 mr-1" /> Promote
+                        </Button>
+                      )}
+                      {/* Check in */}
                       {!g.checkedIn && g.status === 'REGISTERED' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7 px-2"
+                        <Button variant="outline" size="sm" className="text-xs h-7 px-2"
                           onClick={() => checkInMutation.mutate(g.userId)}
-                          disabled={checkInMutation.isPending}
-                        >
+                          disabled={checkInMutation.isPending}>
                           Check In
                         </Button>
                       )}
+                      {/* Refund */}
                       {g.paymentStatus === 'PAID' && g.status !== 'CANCELLED' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs h-7 px-2 text-rose-600 hover:text-rose-700"
+                        <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-rose-600 hover:text-rose-700"
                           onClick={() => {
-                            if (confirm('Refund and cancel this attendee\'s paid ticket?')) refundMutation.mutate(g.userId);
+                            if (confirm("Refund and cancel this attendee's paid ticket?")) refundMutation.mutate(g.userId);
                           }}
-                          disabled={refundMutation.isPending}
-                        >
+                          disabled={refundMutation.isPending}>
                           Refund
                         </Button>
                       )}
+                      {/* Guest note */}
+                      <button
+                        onClick={() => openNote(g.userId, g.guestNote)}
+                        title={g.guestNote ? `Note: ${g.guestNote}` : 'Add note'}
+                        className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+                          g.guestNote
+                            ? 'text-primary'
+                            : 'text-muted-foreground/50 hover:text-muted-foreground'
+                        }`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </>
+
+                  {/* Inline note editor */}
+                  {isEditingNote && (
+                    <div className="mt-2 flex gap-2 items-center pl-9">
+                      <input
+                        autoFocus
+                        value={noteValue}
+                        onChange={(e) => setNoteValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveNote(g.userId);
+                          if (e.key === 'Escape') setNoteEditing(null);
+                        }}
+                        placeholder="e.g. Speaker, sponsor, VIP…"
+                        className="flex-1 text-xs px-2 py-1 rounded-lg border border-border bg-muted/30 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <button onClick={() => saveNote(g.userId)}
+                        className="text-xs text-primary font-medium hover:underline">Save</button>
+                      <button onClick={() => setNoteEditing(null)}
+                        className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+                    </div>
+                  )}
+
+                  {/* Show saved note */}
+                  {g.guestNote && !isEditingNote && (
+                    <p className="mt-1 pl-9 text-[11px] text-muted-foreground italic">{g.guestNote}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </Surface>
     </div>

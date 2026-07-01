@@ -51,7 +51,7 @@ export class PaymentsService {
    * Create a Razorpay order for one paid ticket tier and persist a CREATED
    * Payment row. Returns the data the frontend Checkout widget needs.
    */
-  async createOrder(userId: string, eventId: string, ticketTierId: string) {
+  async createOrder(userId: string, eventId: string, ticketTierId: string, couponCode?: string) {
     if (!paymentsConfigured()) {
       throw new ServiceUnavailableError('Payments are not configured');
     }
@@ -82,7 +82,22 @@ export class PaymentsService {
       throw new ConflictError('You already have a paid ticket for this event');
     }
 
-    const amountPaise = Math.round(tier.price * 100);
+    // Apply coupon discount if provided.
+    let finalPrice = tier.price;
+    let appliedCoupon: { discountPct: number; code: string } | null = null;
+    if (couponCode?.trim()) {
+      const orgService = (await import('@modules/organizer/organizer.service')).default;
+      appliedCoupon = await orgService.validateCoupon(eventId, couponCode.trim());
+      finalPrice = Math.round(tier.price * (1 - appliedCoupon.discountPct / 100) * 100) / 100;
+      if (finalPrice <= 0) finalPrice = 0;
+    }
+
+    // If coupon makes it free, reject (use free registration flow instead).
+    if (finalPrice <= 0) {
+      throw new BadRequestError('Coupon makes this ticket free — register without payment');
+    }
+
+    const amountPaise = Math.round(finalPrice * 100);
     let order: { id: string; amount: number; currency: string };
     try {
       const res = await fetch(`${RAZORPAY_API}/orders`, {
@@ -92,7 +107,10 @@ export class PaymentsService {
           amount: amountPaise,
           currency: 'INR',
           receipt: `evt_${eventId.slice(0, 8)}_${userId.slice(0, 8)}_${Date.now()}`,
-          notes: { eventId, userId, ticketTierId, ticketTierName: tier.name },
+          notes: {
+            eventId, userId, ticketTierId, ticketTierName: tier.name,
+            ...(appliedCoupon ? { couponCode: appliedCoupon.code, discountPct: appliedCoupon.discountPct } : {}),
+          },
         }),
       });
       if (!res.ok) {
@@ -112,11 +130,14 @@ export class PaymentsService {
         userId,
         eventId,
         razorpayOrderId: order.id,
-        amount: tier.price,
+        amount: finalPrice,
         currency: 'INR',
         ticketTierId,
         ticketTierName: tier.name,
         status: 'CREATED',
+        ...(appliedCoupon
+          ? { notes: { couponCode: appliedCoupon.code, discountPct: appliedCoupon.discountPct, originalPrice: tier.price } }
+          : {}),
       },
     });
 
@@ -127,6 +148,7 @@ export class PaymentsService {
       keyId: env.RAZORPAY_KEY_ID,
       eventTitle: event.title,
       ticketTierName: tier.name,
+      ...(appliedCoupon ? { discountPct: appliedCoupon.discountPct, couponCode: appliedCoupon.code } : {}),
     };
   }
 

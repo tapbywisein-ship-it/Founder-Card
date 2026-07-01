@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Sparkles, Users, AlertCircle } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { RoleBadge } from '@/components/RoleBadge';
@@ -109,7 +109,7 @@ const EventAttendeesPage = () => {
   const { data: suggestions } = useEventSuggestions(eventId);
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <div className="flex items-center gap-2">
           <Button
@@ -174,7 +174,7 @@ const EventAttendeesPage = () => {
           </div>
         </section>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 
