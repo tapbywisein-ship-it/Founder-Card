@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AppLayout } from '@/components/AppLayout';
 import { Surface } from '@/components/Surface';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Crown, Sparkles, AlertCircle, Building2, Briefcase, Tag, CalendarDays, User } from 'lucide-react';
+import { Search, AlertCircle, Building2, Briefcase, Tag, CalendarDays, User } from 'lucide-react';
 import { useNetworkSearch } from '@/hooks/useConnections';
 
 const MATCH_META: Record<string, { label: string; icon: React.ElementType }> = {
@@ -21,7 +20,6 @@ const NetworkSearchPage = () => {
   const [query, setQuery] = useState('');
   const { data, isFetching, error } = useNetworkSearch(query);
 
-  const isLocked = (error as { status?: number } | null)?.status === 402;
   const results = data?.results ?? [];
 
   return (
@@ -47,26 +45,8 @@ const NetworkSearchPage = () => {
           />
         </div>
 
-        {/* Member gate */}
-        {isLocked && (
-          <Surface className="border-amber-500/30 bg-amber-500/5 text-center py-8">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center mx-auto mb-3">
-              <Crown className="w-6 h-6 text-white" />
-            </div>
-            <p className="font-semibold text-foreground">Network Search is a Founder perk</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">
-              Upgrade to instantly find who in your network is at a company, has a skill, or you met at an event.
-            </p>
-            <Link to="/membership">
-              <Button className="bg-amber-500 hover:bg-amber-600 text-white">
-                <Sparkles className="w-4 h-4 mr-1.5" /> Upgrade to Founder
-              </Button>
-            </Link>
-          </Surface>
-        )}
-
-        {/* Other errors */}
-        {error && !isLocked && (
+        {/* Errors */}
+        {error && (
           <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             Search failed. Please try again.
@@ -74,28 +54,28 @@ const NetworkSearchPage = () => {
         )}
 
         {/* Prompt before typing */}
-        {!isLocked && query.trim().length < 2 && (
+        {query.trim().length < 2 && (
           <div className="text-center py-12 text-sm text-muted-foreground">
             Type at least 2 characters to search your network.
           </div>
         )}
 
         {/* Loading */}
-        {!isLocked && query.trim().length >= 2 && isFetching && (
+        {query.trim().length >= 2 && isFetching && (
           <div className="space-y-2">
             {[...Array(3)].map((_, i) => <Surface key={i} className="h-16 animate-pulse" />)}
           </div>
         )}
 
         {/* Empty */}
-        {!isLocked && !isFetching && query.trim().length >= 2 && results.length === 0 && !error && (
+        {!isFetching && query.trim().length >= 2 && results.length === 0 && !error && (
           <div className="text-center py-12 text-sm text-muted-foreground">
             No one in your network matches “{query.trim()}”.
           </div>
         )}
 
         {/* Results */}
-        {!isLocked && results.length > 0 && (
+        {results.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">{results.length} match{results.length === 1 ? '' : 'es'}</p>
             {results.map((r, i) => {
