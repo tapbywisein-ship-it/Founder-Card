@@ -148,25 +148,25 @@ const AdminSettingsPage = () => {
               </div>
             </Surface>
 
-            {/* SMTP — read-only */}
+            {/* Email (Resend) — read-only */}
             <Surface>
               <div className="flex items-center gap-2 mb-2">
                 <Mail className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-xl font-semibold text-foreground">Email (SMTP)</h2>
+                <h2 className="text-xl font-semibold text-foreground">Email (Resend)</h2>
               </div>
               <p className="text-xs text-muted-foreground mb-4">
-                SMTP credentials are managed via deployment environment variables
-                (<code className="text-primary">SMTP_HOST</code>, <code className="text-primary">SMTP_FROM</code>).
+                Email credentials are managed via deployment environment variables
+                (<code className="text-primary">RESEND_API_KEY</code>, <code className="text-primary">EMAIL_FROM</code>).
                 To change them, update the deploy config and redeploy.
               </p>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground">From address</span>
-                  <span className="font-mono text-foreground">env: SMTP_FROM</span>
+                  <span className="font-mono text-foreground">env: EMAIL_FROM</span>
                 </div>
                 <div className="flex justify-between p-2 rounded bg-muted/30">
-                  <span className="text-muted-foreground">SMTP host</span>
-                  <span className="font-mono text-foreground">env: SMTP_HOST</span>
+                  <span className="text-muted-foreground">Provider</span>
+                  <span className="font-mono text-foreground">env: RESEND_API_KEY</span>
                 </div>
               </div>
               <Button

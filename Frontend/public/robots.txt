@@ -1,4 +1,4 @@
-# FounderKey — allow public pages, keep private/admin/API routes out of the index.
+# TapByWisein — allow public pages, keep private/admin/API routes out of the index.
 User-agent: *
 Allow: /
 Disallow: /admin
@@ -14,4 +14,4 @@ Disallow: /my-tickets
 Disallow: /people-i-met
 Disallow: /gamification
 
-Sitemap: https://founderkey-prashanth1710.azurewebsites.net/sitemap.xml
+Sitemap: https://www.tapbywisein.com/sitemap.xml
