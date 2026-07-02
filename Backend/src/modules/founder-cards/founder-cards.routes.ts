@@ -3,6 +3,7 @@ import founderCardsController from './founder-cards.controller';
 import { authenticate, optionalAuthenticate } from '@middlewares/authenticate';
 import { authorize } from '@middlewares/authorize';
 import { validate } from '@middlewares/validate';
+import { publicWriteLimiter } from '@middlewares/rateLimiter';
 import { applyCardSchema } from './founder-cards.validation';
 
 const router = Router();
@@ -50,8 +51,10 @@ router.get(
   founderCardsController.listLeads.bind(founderCardsController)
 );
 // Public lead capture — anyone viewing a card can leave their details.
+// Rate-limited (unauthenticated write) to stop bulk spam of the owner's inbox.
 router.post(
   '/public/user/:userId/lead',
+  publicWriteLimiter,
   founderCardsController.captureLead.bind(founderCardsController)
 );
 router.post(

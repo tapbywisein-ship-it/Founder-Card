@@ -36,6 +36,12 @@ import { ogImageRouter, ogHtmlRouter } from '@modules/og/og.routes';
 
 const app = express();
 
+// Behind Render's (and any) reverse proxy, trust the first proxy hop so
+// req.ip resolves the real client IP from X-Forwarded-For. Without this,
+// express-rate-limit keys every request on the proxy IP — one shared bucket
+// for all users, and trivially bypassable per-IP limits.
+app.set('trust proxy', 1);
+
 // ─── Security Middleware ─────────────────────────────────────────────────────
 app.use(
   helmet({

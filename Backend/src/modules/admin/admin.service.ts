@@ -184,7 +184,8 @@ export class AdminService {
       trackingId: string;
       trackingProvider: string;
       nfcTagId?: string;
-    }
+    },
+    actingAdminId?: string
   ) {
     const purchase = await prisma.cardPurchase.findUnique({
       where: { id: orderId },
@@ -245,19 +246,50 @@ export class AdminService {
       console.error('[dispatchOrder] email failed', err);
     }
 
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: actingAdminId,
+          action: 'ORDER_DISPATCHED',
+          resource: 'CardPurchase',
+          resourceId: orderId,
+          metadata: {
+            targetUserId: purchase.userId,
+            trackingId: input.trackingId,
+            trackingProvider: input.trackingProvider,
+            ...(input.nfcTagId && { nfcTagId: input.nfcTagId }),
+          },
+        },
+      })
+      .catch(() => {});
+
     return updated;
   }
 
-  async markOrderDelivered(orderId: string) {
+  async markOrderDelivered(orderId: string, actingAdminId?: string) {
     const purchase = await prisma.cardPurchase.findUnique({ where: { id: orderId } });
     if (!purchase) throw new NotFoundError('Order');
     if (purchase.fulfillmentStatus !== 'DISPATCHED') {
       throw new BadRequestError('Order must be in DISPATCHED state to mark delivered');
     }
-    return prisma.cardPurchase.update({
+    const updated = await prisma.cardPurchase.update({
       where: { id: orderId },
       data: { fulfillmentStatus: 'DELIVERED', deliveredAt: new Date() },
     });
+
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: actingAdminId,
+          action: 'ORDER_DELIVERED',
+          resource: 'CardPurchase',
+          resourceId: orderId,
+          metadata: { targetUserId: purchase.userId },
+        },
+      })
+      .catch(() => {});
+
+    return updated;
   }
 
   async getUsers(
@@ -453,7 +485,7 @@ export class AdminService {
     }
     await this.assertNotLastAdmin(user, wouldRemoveAdmin);
 
-    return prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: userId },
       data: {
         ...(dto.role !== undefined && { role: dto.role }),
@@ -467,6 +499,28 @@ export class AdminService {
         },
       },
     });
+
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: actingAdminId,
+          action: 'USER_UPDATED',
+          resource: 'User',
+          resourceId: userId,
+          metadata: {
+            targetEmail: user.email,
+            changes: {
+              ...(dto.role !== undefined && { role: dto.role }),
+              ...(dto.tier !== undefined && { tier: dto.tier }),
+              ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+              ...(dto.isEmailVerified !== undefined && { isEmailVerified: dto.isEmailVerified }),
+            },
+          },
+        },
+      })
+      .catch(() => {});
+
+    return updated;
   }
 
   /** Change a user's role, with an audit-trail entry naming the acting admin. */

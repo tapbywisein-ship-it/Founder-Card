@@ -11,7 +11,7 @@ export interface EventLocation {
 
 export interface EventOrganizer {
   id: string;
-  email: string;
+  username?: string | null;
   profile?: {
     firstName: string;
     lastName: string;

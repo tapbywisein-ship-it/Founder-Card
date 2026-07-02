@@ -13,6 +13,16 @@ import notificationsService from '@modules/notifications/notifications.service';
 import { hasFreeOption } from '@utils/ticketPricing';
 import paymentsService, { paymentsConfigured } from '@modules/payments/payments.service';
 
+// Safe public shape for an event's organizer. Never `include` the full User
+// row on an event — that exposes email/supabaseId/googleId on public endpoints.
+const PUBLIC_ORGANIZER_SELECT = {
+  id: true,
+  username: true,
+  profile: {
+    select: { firstName: true, lastName: true, avatar: true, company: true },
+  },
+} as const;
+
 // Maps a Prisma User (with profile / founderCard / gamification eager-loaded)
 // to the shape /auth/login returns. Used by guest RSVP auto-sign-in.
 function buildAuthUser(
@@ -128,7 +138,7 @@ export class EventsService {
         ticketTypes: dto.ticketTypes ? JSON.parse(JSON.stringify(dto.ticketTypes)) : undefined,
         status: 'DRAFT',
       },
-      include: { organizer: { include: { profile: true } } },
+      include: { organizer: { select: PUBLIC_ORGANIZER_SELECT } },
     });
 
     return event;
@@ -175,7 +185,7 @@ export class EventsService {
           ticketTypes: JSON.parse(JSON.stringify(dto.ticketTypes)),
         }),
       },
-      include: { organizer: { include: { profile: true } } },
+      include: { organizer: { select: PUBLIC_ORGANIZER_SELECT } },
     });
 
     return updated;
@@ -217,18 +227,7 @@ export class EventsService {
     const event = await prisma.event.findFirst({
       where,
       include: {
-        organizer: {
-          include: {
-            profile: {
-              select: {
-                firstName: true,
-                lastName: true,
-                avatar: true,
-                company: true,
-              },
-            },
-          },
-        },
+        organizer: { select: PUBLIC_ORGANIZER_SELECT },
         _count: { select: { registrations: { where: { status: { not: 'CANCELLED' } } } } },
       },
     });
@@ -331,13 +330,7 @@ export class EventsService {
       prisma.event.findMany({
         where,
         include: {
-          organizer: {
-            include: {
-              profile: {
-                select: { firstName: true, lastName: true, avatar: true, company: true },
-              },
-            },
-          },
+          organizer: { select: PUBLIC_ORGANIZER_SELECT },
           _count: { select: { registrations: { where: { status: { not: 'CANCELLED' } } } } },
         },
         skip: pagination.skip,
@@ -905,13 +898,7 @@ export class EventsService {
         include: {
           event: {
             include: {
-              organizer: {
-                include: {
-                  profile: {
-                    select: { firstName: true, lastName: true, avatar: true, company: true },
-                  },
-                },
-              },
+              organizer: { select: PUBLIC_ORGANIZER_SELECT },
             },
           },
         },
@@ -1044,13 +1031,7 @@ export class EventsService {
         include: {
           event: {
             include: {
-              organizer: {
-                include: {
-                  profile: {
-                    select: { firstName: true, lastName: true, avatar: true, company: true },
-                  },
-                },
-              },
+              organizer: { select: PUBLIC_ORGANIZER_SELECT },
               _count: { select: { registrations: true } },
             },
           },

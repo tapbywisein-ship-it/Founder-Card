@@ -46,7 +46,7 @@ npm run dev                 # ts-node-dev on http://localhost:3000
 | `ALLOWED_ORIGINS` | yes | Comma-separated CORS origins |
 | `REDIS_URL` | no | Falls back to in-memory store if absent or `localhost:6379` |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | yes (OAuth) | For Google sign-in verification |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_FROM_NAME` | yes (email) | Gmail SMTP defaults to 587 / STARTTLS |
+| `RESEND_API_KEY`, `EMAIL_FROM` | yes (email) | Transactional email via Resend; `EMAIL_FROM` must be a Resend-verified sender |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | no | Payments are gracefully disabled when unset |
 | `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX` | no | Global limiter tunables |
 | `LOG_LEVEL`, `LOG_DIR` | no | Defaults `info`, `logs` |
