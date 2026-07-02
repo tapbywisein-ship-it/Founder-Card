@@ -132,7 +132,7 @@ export const EventCard = ({
             <p className="text-xs text-muted-foreground truncate">
               {event.organizer.profile
                 ? `By ${event.organizer.profile.firstName} ${event.organizer.profile.lastName}`
-                : `By ${event.organizer.email}`}
+                : `By ${event.organizer.username ?? 'the organizer'}`}
             </p>
           )}
           {locationStr && (
@@ -184,7 +184,7 @@ export const EventCard = ({
             <p className="text-xs text-muted-foreground truncate">
               {event.organizer.profile
                 ? `By ${event.organizer.profile.firstName} ${event.organizer.profile.lastName}`
-                : `By ${event.organizer.email}`}
+                : `By ${event.organizer.username ?? 'the organizer'}`}
             </p>
           )}
           {locationStr && (

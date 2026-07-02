@@ -81,6 +81,27 @@ export const strictLimiter = rateLimit({
 });
 
 /**
+ * Limiter for unauthenticated public writes (e.g. capturing a lead from a
+ * public Founder Card). Kept moderate rather than strict because attendees at
+ * an event often share one venue NAT/IP — too tight a cap would block genuine
+ * visitors — while still stopping bulk spam of a card owner's inbox.
+ */
+export const publicWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many submissions from this network, please try again shortly.',
+  },
+  statusCode: StatusCodes.TOO_MANY_REQUESTS,
+  skipSuccessfulRequests: false,
+  skip: () => isDev,
+  keyGenerator: (req) => req.ip ?? req.socket.remoteAddress ?? 'unknown',
+});
+
+/**
  * Per-user limiter for the messages routes. Conversation IDs are UUIDs but
  * not secret; a per-user cap stops a logged-in attacker from brute-forcing
  * UUID space by hitting GET /messages/:id at rate-of-IP.

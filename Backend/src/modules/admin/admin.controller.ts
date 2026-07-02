@@ -204,13 +204,17 @@ export class AdminController {
       res.status(400).json({ message: 'trackingId and trackingProvider are required' });
       return;
     }
-    const result = await adminService.dispatchOrder(id, { trackingId, trackingProvider, nfcTagId });
+    const result = await adminService.dispatchOrder(
+      id,
+      { trackingId, trackingProvider, nfcTagId },
+      req.user!.userId
+    );
     sendSuccess(res, result, 'Order dispatched successfully');
   }
 
   async markOrderDelivered(req: Request, res: Response): Promise<void> {
     const { id } = req.params as Record<string, string>;
-    const result = await adminService.markOrderDelivered(id);
+    const result = await adminService.markOrderDelivered(id, req.user!.userId);
     sendSuccess(res, result, 'Order marked as delivered');
   }
 

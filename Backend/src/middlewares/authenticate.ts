@@ -56,9 +56,10 @@ async function resolveUser(token: string) {
       const lastName = rawLast === firstName ? '' : rawLast;
       const avatar: string | undefined = meta.avatar_url ?? meta.picture;
 
-      const requestedRole = (supabaseUser.user_metadata?.signup_role as string | undefined)?.toUpperCase();
-      const initialRole = requestedRole === 'ORGANIZER' ? 'ORGANIZER' : 'ATTENDEE';
-
+      // Never trust a client-supplied role. `signup_role` lives in Supabase
+      // user_metadata, which the user controls — honoring it would let anyone
+      // self-grant ORGANIZER at signup. Everyone starts as ATTENDEE and becomes
+      // an organizer through an explicit in-app action.
       user = await prisma.user.create({
         data: {
           email,
@@ -67,7 +68,7 @@ async function resolveUser(token: string) {
           authProvider: supabaseUser.app_metadata?.provider ?? 'email',
           password: null,
           isEmailVerified: true,
-          role: initialRole,
+          role: 'ATTENDEE',
           profile: {
             create: { firstName, lastName, avatar: avatar ?? null },
           },
