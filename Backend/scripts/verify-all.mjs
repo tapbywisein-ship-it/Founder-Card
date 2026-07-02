@@ -7,9 +7,18 @@ import { createHash, randomBytes } from 'crypto';
 config();
 const p = new PrismaClient();
 
-const URL = 'https://founderkey-prashanth1710.azurewebsites.net';
-const ADMIN_EMAIL = 'admin@founderkey.app';
-const ADMIN_PW = 'Admin@FounderKey2026';
+// All configuration comes from the environment — never hardcode a target host
+// or admin credentials in a committed script.
+const URL = process.env.VERIFY_BASE_URL || 'http://localhost:3000';
+const ADMIN_EMAIL = process.env.VERIFY_ADMIN_EMAIL;
+const ADMIN_PW = process.env.VERIFY_ADMIN_PW;
+
+if (!ADMIN_EMAIL || !ADMIN_PW) {
+  console.error(
+    'Set VERIFY_ADMIN_EMAIL and VERIFY_ADMIN_PW (and optionally VERIFY_BASE_URL) before running.'
+  );
+  process.exit(1);
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const J = (b) => JSON.stringify(b);
@@ -51,7 +60,7 @@ async function loginAdmin() {
 }
 
 const randomEmail = () =>
-  `verify-${Math.random().toString(36).slice(2, 10)}@founderkey.test`;
+  `verify-${Math.random().toString(36).slice(2, 10)}@tapbywisein.test`;
 
 async function run() {
   await warm();
@@ -67,7 +76,9 @@ async function run() {
   // user then logging in would 403 on the email-verification gate, not because
   // of casing.
   {
-    const mixed = 'AdMiN@FoUnDeRkEy.ApP';
+    const mixed = ADMIN_EMAIL.split('')
+      .map((c, i) => (i % 2 ? c.toUpperCase() : c.toLowerCase()))
+      .join('');
     const lg = await fetch(URL + '/api/v1/auth/login', {
       method: 'POST',
       headers: headers(),
