@@ -15,7 +15,7 @@ interface PlatformSetting {
 }
 
 const BRANDING_KEYS = [
-  { key: 'platform.name', label: 'Platform name', placeholder: 'Founder Key', type: 'string' },
+  { key: 'platform.name', label: 'Platform name', placeholder: 'TapByWisein', type: 'string' },
   { key: 'platform.logoUrl', label: 'Logo URL', placeholder: 'https://…/logo.svg', type: 'string' },
   { key: 'platform.brandColor', label: 'Primary brand colour', placeholder: '#5b8def', type: 'string' },
 ] as const;

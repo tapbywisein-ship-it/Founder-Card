@@ -105,17 +105,17 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
   switch (data.type) {
     case 'welcome':
       html = welcomeEmail(data.name);
-      subject = 'Welcome to Founder Key!';
+      subject = 'Welcome to TapByWisein!';
       break;
     case 'verification':
       if (!data.token || !data.url) throw new Error('Token and URL required');
       html = verificationEmail(data.name, data.token, data.url);
-      subject = 'Verify Your Email - Founder Key';
+      subject = 'Verify Your Email - TapByWisein';
       break;
     case 'passwordReset':
       if (!data.token || !data.url) throw new Error('Token and URL required');
       html = passwordResetEmail(data.name, data.token, data.url);
-      subject = 'Password Reset Request - Founder Key';
+      subject = 'Password Reset Request - TapByWisein';
       break;
     case 'connectionRequest':
       html = connectionRequestEmail(
@@ -123,11 +123,11 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
         data.requesterName ?? 'Someone',
         data.requesterCompany
       );
-      subject = 'New Connection Request - Founder Key';
+      subject = 'New Connection Request - TapByWisein';
       break;
     case 'founderCardApproved':
       html = founderCardApprovedEmail(data.name);
-      subject = 'Your Founder Card is Approved! - Founder Key';
+      subject = 'Your Founder Card is Approved! - TapByWisein';
       break;
     case 'eventReminder':
       if (!data.eventTitle || !data.eventDate || !data.eventLocation || !data.eventUrl) {
@@ -176,7 +176,7 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
         data.messagePreview ?? '',
         data.conversationUrl ?? ''
       );
-      subject = `New message from ${data.senderName ?? 'Founder Key'}`;
+      subject = `New message from ${data.senderName ?? 'TapByWisein'}`;
       break;
     case 'waitlistPromoted':
       if (!data.eventTitle || !data.eventUrl) throw new Error('Event details required');

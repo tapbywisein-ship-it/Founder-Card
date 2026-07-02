@@ -238,8 +238,8 @@ export class AdminController {
       : user.email;
     await sendEmail(
       user.email,
-      'Your Founder Key invite — claim your account',
-      inviteClaimEmail(name, claimUrl, 'Founder Key')
+      'Your TapByWisein invite — claim your account',
+      inviteClaimEmail(name, claimUrl, 'TapByWisein')
     );
     sendSuccess(res, { sent: true }, 'Invite re-sent');
   }

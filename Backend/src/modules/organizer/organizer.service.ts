@@ -1113,7 +1113,7 @@ export class OrganizerService {
           const displayName = [row.firstName, row.lastName].filter(Boolean).join(' ');
           sendEmail(
             row.email,
-            `You're invited to ${event.title} — Founder Key`,
+            `You're invited to ${event.title} — TapByWisein`,
             inviteClaimEmail(displayName, claimUrl, event.title)
           )
             .then(() => {
@@ -1124,7 +1124,7 @@ export class OrganizerService {
       } else {
         sendEmail(
           row.email,
-          `You're registered for ${event.title} — Founder Key`,
+          `You're registered for ${event.title} — TapByWisein`,
           `<p>You've been registered for <strong>${event.title}</strong>.</p>` +
             `<p>Sign in to view your ticket.</p>`
         )

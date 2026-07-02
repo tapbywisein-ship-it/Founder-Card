@@ -55,8 +55,8 @@ export class OgController {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.status(404).send(
         renderCrawlerHtml({
-          title: 'Card not found · Founder Key',
-          description: 'This Founder Key card link is no longer valid.',
+          title: 'Card not found · TapByWisein',
+          description: 'This TapByWisein card link is no longer valid.',
           imgUrl: `${env.FRONTEND_URL}/og-default.png`,
           redirectUrl: env.FRONTEND_URL,
         })
@@ -86,8 +86,8 @@ export class OgController {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.status(404).send(
         renderCrawlerHtml({
-          title: 'Event not found · Founder Key',
-          description: 'This Founder Key event link is no longer valid.',
+          title: 'Event not found · TapByWisein',
+          description: 'This TapByWisein event link is no longer valid.',
           imgUrl: `${env.FRONTEND_URL}/og-default.png`,
           redirectUrl: env.FRONTEND_URL,
         })

@@ -531,7 +531,7 @@ export class FounderCardsService {
 
       sendEmail(
         card.user.email,
-        'Your Founder Card is Approved! - Founder Key',
+        'Your Founder Card is Approved! - TapByWisein',
         founderCardApprovedEmail(name)
       ).catch(() => {});
     }

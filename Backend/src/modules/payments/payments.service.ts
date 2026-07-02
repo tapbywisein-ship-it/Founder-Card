@@ -418,7 +418,7 @@ export class PaymentsService {
     const name = user.profile?.firstName ?? 'there';
     await sendEmail(
       user.email,
-      'Refund processed — Founder Key',
+      'Refund processed — TapByWisein',
       refundConfirmationEmail(
         name,
         event?.title ?? 'your event',

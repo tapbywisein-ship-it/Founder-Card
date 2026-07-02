@@ -19,7 +19,7 @@ const SEEN_KEY = 'fk:seen-explainer';
  * land via a QR/NFC link (public card or event page) and may not know the
  * product. Shows once, then never again (localStorage).
  */
-export const WhatIsFounderKey = () => {
+export const WhatIsTapByWisein = () => {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const [open, setOpen] = useState(false);
 

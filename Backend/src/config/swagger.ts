@@ -7,7 +7,7 @@ const swaggerDefinition = {
     title: 'TapByWisein API',
     version: '1.0.0',
     description: `
-      Production-ready REST API for the Founder Key platform.
+      Production-ready REST API for the TapByWisein platform.
 
       ## Features
       - Authentication (JWT + Refresh Tokens)

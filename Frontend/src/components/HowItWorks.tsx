@@ -19,7 +19,7 @@ const STEPS = [
 ];
 
 /** Reusable "NFC tap → profile → connect" explainer. Used in onboarding and the
- *  "What is FounderKey?" modal. */
+ *  "What is TapByWisein?" modal. */
 export const HowItWorks = ({ compact = false }: { compact?: boolean }) => (
   <div className={compact ? 'space-y-3' : 'grid gap-4 sm:grid-cols-3'}>
     {STEPS.map((s, i) => (

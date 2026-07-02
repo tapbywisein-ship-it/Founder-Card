@@ -120,7 +120,7 @@ export class OgService {
 
     const p = card.user.profile;
     const name = p ? `${p.firstName} ${p.lastName}`.trim() : 'Founder';
-    const subtitle = [p?.position, p?.company].filter(Boolean).join(' · ') || 'Founder Key member';
+    const subtitle = [p?.position, p?.company].filter(Boolean).join(' · ') || 'TapByWisein member';
 
     const svg = cardSvg({
       name,
@@ -175,10 +175,10 @@ export class OgService {
     if (!card || !card.user || !card.user.isActive) throw new NotFoundError('Founder Card');
     const p = card.user.profile;
     const name = p ? `${p.firstName} ${p.lastName}`.trim() : 'Founder';
-    const subtitle = [p?.position, p?.company].filter(Boolean).join(' · ') || 'Founder Key member';
+    const subtitle = [p?.position, p?.company].filter(Boolean).join(' · ') || 'TapByWisein member';
     return {
-      title: `${name} · Founder Key`,
-      description: p?.bio?.slice(0, 200) ?? `${subtitle} on Founder Key.`,
+      title: `${name} · TapByWisein`,
+      description: p?.bio?.slice(0, 200) ?? `${subtitle} on TapByWisein.`,
     };
   }
 
@@ -248,7 +248,7 @@ export class OgService {
       year: 'numeric',
     });
     return {
-      title: `${event.title} · Founder Key`,
+      title: `${event.title} · TapByWisein`,
       description:
         event.description.slice(0, 200) || `${dateStr}${event.city ? ` · ${event.city}` : ''}`,
     };

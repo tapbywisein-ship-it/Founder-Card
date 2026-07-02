@@ -32,7 +32,7 @@ import { useAppStore } from '@/store/appStore';
 import { useActiveEventId } from '@/lib/useActiveEvent';
 import { founderCardService, type PublicCard } from '@/services/founderCard.service';
 import { useJsonLd } from '@/lib/useJsonLd';
-import { WhatIsFounderKey as WhatIsTapByWisein } from '@/components/WhatIsFounderKey';
+import { WhatIsTapByWisein } from '@/components/WhatIsTapByWisein';
 import { connectionsService } from '@/services/connections.service';
 import { useStartConversation } from '@/hooks/useMessages';
 
