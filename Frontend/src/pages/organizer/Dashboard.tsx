@@ -91,7 +91,7 @@ const OrganizerDashboard = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-muted-foreground" />
-                  <span className="section-label">Registrations — Last 7 Days</span>
+                  <span className="section-label">Registrations - Last 7 Days</span>
                 </div>
                 {trend.length > 0 && (
                   <span className="text-xs text-muted-foreground">

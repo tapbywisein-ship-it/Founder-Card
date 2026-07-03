@@ -31,7 +31,7 @@ export const NfcProvisioner = ({ cardUrl }: NfcProvisionerProps) => {
     return (
       <p className="text-xs text-muted-foreground">
         {isIOS()
-          ? 'iOS doesn’t expose Web NFC for writing. Use the iOS Shortcuts app to write your card URL to a sticker — iOS will read it from the lock screen.'
+          ? 'iOS doesn’t expose Web NFC for writing. Use the iOS Shortcuts app to write your card URL to a sticker. iOS will read it from the lock screen.'
           : 'Use Chrome on Android to write your card URL to a blank NFC sticker.'}
       </p>
     );

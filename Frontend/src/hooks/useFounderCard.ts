@@ -92,7 +92,7 @@ export function useBuyCard(prefill?: { name?: string; email?: string }) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: cardKeys.mine() });
-      toast.success('Payment successful — your Tap Card is now active!');
+      toast.success('Payment successful. Your Tap Card is now active!');
     },
     onError: (err: Error) => {
       if (err.message === 'Payment cancelled') return; // user closed the modal

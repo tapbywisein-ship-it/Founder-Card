@@ -135,7 +135,7 @@ export function useDispatchOrder() {
       adminService.dispatchOrder(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminKeys.revenue({}) });
-      toast.success('Order dispatched — email sent to customer');
+      toast.success('Order dispatched. Email sent to customer');
     },
     onError: (err: Error) => toast.error(err.message),
   });

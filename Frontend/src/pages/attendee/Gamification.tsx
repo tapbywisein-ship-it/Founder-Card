@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { useMyScore, useMyBadges, useAllBadges, useLeaderboard, useScoreHistory } from '@/hooks/useGamification';
 import { useAppStore } from '@/store/appStore';
@@ -51,7 +51,7 @@ const GamificationPage = () => {
   const progressPct = Math.min(100, (score / nextLevelScore) * 100);
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <h1 className="text-3xl font-semibold text-foreground">FK Score & Badges</h1>
         {scoreError && (
@@ -206,7 +206,7 @@ const GamificationPage = () => {
               <div className="flex items-center gap-2 mb-3">
                 <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Locked — how to unlock
+                  Locked, how to unlock
                 </p>
               </div>
               <div className="space-y-2">
@@ -290,7 +290,7 @@ const GamificationPage = () => {
           </Surface>
         )}
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

@@ -56,7 +56,7 @@ export const CardBlocksEditor = () => {
       <div className="mb-3 flex items-center gap-2">
         <Layers className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold text-foreground">Card blocks</h2>
-        <span className="text-xs text-muted-foreground">— pitch deck, video, booking link…</span>
+        <span className="text-xs text-muted-foreground">e.g. pitch deck, video, booking link…</span>
       </div>
 
       {list.length > 0 && (

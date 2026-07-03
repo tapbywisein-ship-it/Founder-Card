@@ -7,7 +7,7 @@ import {
   Calendar, MapPin, Globe, ExternalLink, Users, CheckCircle2,
   Clock, Share2, Tag, QrCode, ArrowLeft,
 } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +40,7 @@ import { useHomePath } from '@/lib/useHomePath';
 /**
  * Unified event detail page rendered by both `/event/:id` (auth) and
  * `/e/:id` (public shareable). Layout chrome is chosen by auth state:
- * authenticated visitors get the full AppLayout (top nav, side menu);
+ * authenticated visitors get the full PortalLayout (top nav, side menu);
  * public visitors get a minimal `PublicNav` so the page is shareable.
  *
  * Body is the same Luma-style 820px single column for both modes:
@@ -133,7 +133,7 @@ const EventDetailUnified = () => {
 
   const wrap = (children: ReactNode) =>
     isAuthenticated ? (
-      <AppLayout>{children}</AppLayout>
+      <PortalLayout>{children}</PortalLayout>
     ) : (
       <div className="min-h-screen bg-background">
         <PublicNav eventId={id} />
@@ -273,7 +273,7 @@ const EventDetailUnified = () => {
                 razorpaySignature: resp.razorpay_signature,
               });
               await queryClient.invalidateQueries({ queryKey: ['events'] });
-              toast.success('Payment successful — you\'re registered!');
+              toast.success('Payment successful, you\'re registered!');
             } catch (err) {
               toast.error(err instanceof Error ? err.message : 'Payment verification failed');
             } finally {
@@ -609,7 +609,7 @@ const EventDetailUnified = () => {
                   ? 'Sold out'
                   : isFull
                     ? 'Event full'
-                    : `Buy ticket — ${effectiveTier?.priceLabel ?? price}`}
+                    : `Buy ticket - ${effectiveTier?.priceLabel ?? price}`}
             </Button>
           ) : (
             <Button
@@ -835,7 +835,7 @@ const GuestRsvpModal = ({
                 Register for this event
               </DialogTitle>
               <DialogDescription>
-                Enter your name and email — we'll send you a confirmation.
+                Enter your name and email. We'll send you a confirmation.
                 {' '}If you already have an account, your RSVP will attach to it.
               </DialogDescription>
             </DialogHeader>
@@ -895,7 +895,7 @@ const GuestRsvpModal = ({
                 {doneMessage} for <strong>{eventTitle}</strong>. We sent a
                 confirmation to <strong>{email}</strong>.
                 {requiresSignIn
-                  ? ' This email already has an account — sign in to manage your tickets.'
+                  ? ' This email already has an account. Sign in to manage your tickets.'
                   : ' You can jump straight to your dashboard to see all your upcoming events.'}
               </DialogDescription>
             </DialogHeader>

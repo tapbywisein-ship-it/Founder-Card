@@ -176,7 +176,7 @@ const AdminEventsPage = () => {
                       const cfg = statusConfig[e.status] ?? statusConfig.DRAFT;
                       const orgName = e.organizer?.profile
                         ? `${e.organizer.profile.firstName} ${e.organizer.profile.lastName}`
-                        : e.organizer?.email ?? '—';
+                        : e.organizer?.email ?? '-';
                       const isSelected = selected.has(e.id);
                       return (
                         <motion.tr

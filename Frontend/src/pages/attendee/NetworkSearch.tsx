@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Input } from '@/components/ui/input';
 import { Search, AlertCircle, Building2, Briefcase, Tag, CalendarDays, User } from 'lucide-react';
@@ -23,7 +23,7 @@ const NetworkSearchPage = () => {
   const results = data?.results ?? [];
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8 max-w-2xl">
         <div>
           <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
@@ -125,7 +125,7 @@ const NetworkSearchPage = () => {
           </div>
         )}
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

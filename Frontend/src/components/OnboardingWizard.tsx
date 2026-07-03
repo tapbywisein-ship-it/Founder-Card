@@ -110,7 +110,7 @@ export const OnboardingWizard = ({ open, onOpenChange }: OnboardingWizardProps) 
       refetch();
     },
     onError: (err: Error) => {
-      toast.error(err.message || 'Failed to save — please try again');
+      toast.error(err.message || 'Failed to save. Please try again');
     },
   });
 

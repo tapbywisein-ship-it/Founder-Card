@@ -97,7 +97,7 @@ const CheckInPage = () => {
         {/* Live indicator */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
-          <span>Live — refreshes every 15s</span>
+          <span>Live - refreshes every 15s</span>
         </div>
 
         {/* Stats */}

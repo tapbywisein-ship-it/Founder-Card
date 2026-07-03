@@ -185,7 +185,7 @@ export const ConnectionNotes = ({ targetUserId }: ConnectionNotesProps) => {
       <div className="mb-3 flex items-center gap-2 border-t border-border pt-4">
         <NotebookPen className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">Private notes</h3>
-        <span className="text-xs text-muted-foreground">— only you see these</span>
+        <span className="text-xs text-muted-foreground">- only you see these</span>
       </div>
 
       {/* New-note input */}
@@ -195,7 +195,7 @@ export const ConnectionNotes = ({ targetUserId }: ConnectionNotesProps) => {
           onChange={(e) => setDraft(e.target.value)}
           rows={2}
           maxLength={2000}
-          placeholder="e.g. met at coffee — follow up about Series A"
+          placeholder="e.g. met at coffee, follow up about Series A"
         />
         <div className="flex justify-end">
           <Button

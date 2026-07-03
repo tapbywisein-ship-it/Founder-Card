@@ -54,7 +54,7 @@ const severityClasses: Record<'low' | 'medium' | 'high', string> = {
 
 const reporterName = (r: Report): string => {
   const p = r.reporter?.profile;
-  return p ? `${p.firstName} ${p.lastName}`.trim() : r.reporter?.email ?? '—';
+  return p ? `${p.firstName} ${p.lastName}`.trim() : r.reporter?.email ?? '-';
 };
 
 const AdminPermissionsPage = () => {
@@ -146,7 +146,7 @@ const AdminPermissionsPage = () => {
                 <Surface className="text-center py-12">
                   <Flag className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">
-                    {search ? 'No reports match your search.' : 'No reports — quiet day.'}
+                    {search ? 'No reports match your search.' : 'No reports, quiet day.'}
                   </p>
                 </Surface>
               )}
@@ -230,7 +230,7 @@ const AdminPermissionsPage = () => {
 
           {tab === 'permissions' && (
             <motion.div key="permissions" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
-              <p className="text-sm text-muted-foreground">Reference matrix — what each role can do on the platform.</p>
+              <p className="text-sm text-muted-foreground">Reference matrix - what each role can do on the platform.</p>
               {permissionRoles.map((role, i) => (
                 <motion.div key={role.role} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                   <Surface>

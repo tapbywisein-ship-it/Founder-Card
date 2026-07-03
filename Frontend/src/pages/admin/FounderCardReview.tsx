@@ -77,7 +77,7 @@ const FounderCardReviewPage = () => {
       setProvisioningId(null);
       setNfcTagId('');
       invalidate();
-      toast.success('Card provisioned — NFC tag assigned');
+      toast.success('Card provisioned, NFC tag assigned');
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not provision'),
   });
@@ -164,7 +164,7 @@ const FounderCardReviewPage = () => {
           <Surface className="text-center py-12">
             <Package className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">
-              {tab === 'pending' ? 'No cards waiting to ship — all clear.' : 'No cards yet.'}
+              {tab === 'pending' ? 'No cards waiting to ship. All clear.' : 'No cards yet.'}
             </p>
           </Surface>
         )}

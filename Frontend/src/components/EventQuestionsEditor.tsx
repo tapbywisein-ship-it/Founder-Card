@@ -74,7 +74,7 @@ export const EventQuestionsEditor = ({ eventId }: EventQuestionsEditorProps) => 
     <Surface>
       <h3 className="mb-3 text-base font-semibold text-foreground">Registration questions</h3>
       <p className="mb-4 text-xs text-muted-foreground">
-        Ask attendees up to a few quick questions when they register — answers show up in the
+        Ask attendees up to a few quick questions when they register. Answers show up in the
         guests tab and the pending-approval queue.
       </p>
 

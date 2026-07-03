@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Sparkles, Users, AlertCircle } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { RoleBadge } from '@/components/RoleBadge';
@@ -20,7 +20,7 @@ const cardLink = (a: EventAttendee | EventSuggestion) =>
 const AttendeeRow = ({ a }: { a: EventAttendee }) => {
   const navigate = useNavigate();
   const p = a.user.profile;
-  const name = p ? `${p.firstName} ${p.lastName}`.trim() : a.user.email ?? '—';
+  const name = p ? `${p.firstName} ${p.lastName}`.trim() : a.user.email ?? '-';
   const initial = name.charAt(0).toUpperCase();
   return (
     <button
@@ -62,7 +62,7 @@ const AttendeeRow = ({ a }: { a: EventAttendee }) => {
 const SuggestionRow = ({ s }: { s: EventSuggestion }) => {
   const navigate = useNavigate();
   const p = s.user.profile;
-  const name = p ? `${p.firstName} ${p.lastName}`.trim() : '—';
+  const name = p ? `${p.firstName} ${p.lastName}`.trim() : '-';
   const initial = name.charAt(0).toUpperCase();
   return (
     <button
@@ -109,7 +109,7 @@ const EventAttendeesPage = () => {
   const { data: suggestions } = useEventSuggestions(eventId);
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <div className="flex items-center gap-2">
           <Button
@@ -128,7 +128,7 @@ const EventAttendeesPage = () => {
             Who's here
           </h1>
           <p className="text-sm text-muted-foreground">
-            People going to {event?.title ?? 'this event'} — tap a card to connect.
+            People going to {event?.title ?? 'this event'}. Tap a card to connect.
           </p>
         </header>
 
@@ -164,7 +164,7 @@ const EventAttendeesPage = () => {
           )}
           {attendeesData?.attendees.length === 0 && (
             <Surface className="text-center">
-              <p className="text-sm text-muted-foreground">No attendees yet — be the first.</p>
+              <p className="text-sm text-muted-foreground">No attendees yet. Be the first.</p>
             </Surface>
           )}
           <div className="grid gap-2">
@@ -174,7 +174,7 @@ const EventAttendeesPage = () => {
           </div>
         </section>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

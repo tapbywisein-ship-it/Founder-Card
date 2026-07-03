@@ -49,7 +49,7 @@ const MoreTab = () => {
       await organizerService.cancelEvent(id);
       await queryClient.invalidateQueries({ queryKey: ['organizer', 'events'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('Event cancelled — attendees notified and paid tickets refunded');
+      toast.success('Event cancelled. Attendees notified and paid tickets refunded');
       navigate('/organizer/dashboard');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not cancel event');
@@ -229,7 +229,7 @@ const MoreTab = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this draft?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This permanently removes the draft. Published events can't be deleted — cancel
+                    This permanently removes the draft. Published events can't be deleted: cancel
                     them instead so attendees are notified and refunded.
                   </AlertDialogDescription>
                 </AlertDialogHeader>

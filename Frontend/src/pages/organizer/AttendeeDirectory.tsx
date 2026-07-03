@@ -277,10 +277,10 @@ const AttendeeDirectoryPage = () => {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                            {a.user?.profile?.company ?? '—'}
+                            {a.user?.profile?.company ?? '-'}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="chip text-[10px] whitespace-nowrap">{a.event?.title ?? '—'}</span>
+                            <span className="chip text-[10px] whitespace-nowrap">{a.event?.title ?? '-'}</span>
                           </td>
                           <td className="px-4 py-3">
                             {isFounder ? (
@@ -356,7 +356,7 @@ const AttendeeDirectoryPage = () => {
                   <div className="space-y-2 text-sm">
                     {[
                       { label: 'Email',      value: a.email },
-                      { label: 'Event',      value: a.event?.title ?? '—' },
+                      { label: 'Event',      value: a.event?.title ?? '-' },
                       { label: 'FK Score',   value: a.user?.gamification?.fkScore ?? 0 },
                       { label: 'Registered', value: new Date(a.registeredAt).toLocaleDateString() },
                     ].map(({ label, value }) => (

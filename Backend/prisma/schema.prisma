@@ -333,7 +333,9 @@ model Event {
   locationType     EventType       @default(IN_PERSON)
   address          String?
   city             String?
+  state            String?
   country          String?
+  pincode          String?
   meetingUrl       String?
   capacity         Int             @default(100)
   ticketPrice      Decimal?        @db.Decimal(10, 2)

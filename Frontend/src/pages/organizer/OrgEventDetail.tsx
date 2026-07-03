@@ -132,7 +132,7 @@ const OrgEventDetail = () => {
                 </p>
                 <p className="text-muted-foreground text-xs">
                   {startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                  {' — '}
+                  {' - '}
                   {endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   {isPast && <span className="ml-2 text-red-400">(Past)</span>}
                 </p>

@@ -68,7 +68,7 @@ export async function apiFetch<T = unknown>(
       ? errData.errors.map((e) => `${e.field}: ${e.message}`).join(' | ')
       : null;
     const message = detail
-      ? `${errData.message || 'Validation failed'} — ${detail}`
+      ? `${errData.message || 'Validation failed'}: ${detail}`
       : errData.message || 'Request failed';
     throw new ApiError(message, res.status);
   }

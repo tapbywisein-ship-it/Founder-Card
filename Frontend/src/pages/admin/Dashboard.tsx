@@ -49,7 +49,7 @@ const AdminDashboard = () => {
               {isLoading ? (
                 <div className="h-7 bg-muted/50 rounded animate-pulse mb-1 mx-auto w-14" />
               ) : (
-                <p className="text-2xl font-bold text-foreground mb-0.5">{value !== undefined ? fmt(value) : '—'}</p>
+                <p className="text-2xl font-bold text-foreground mb-0.5">{value !== undefined ? fmt(value) : '-'}</p>
               )}
               <p className="text-[11px] text-muted-foreground">{label}</p>
             </Surface>
@@ -76,7 +76,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold text-foreground">New Signups — Last 7 Days</h2>
+                  <h2 className="text-base font-semibold text-foreground">New Signups (Last 7 Days)</h2>
                 </div>
                 {trend.length > 0 && (
                   <span className="text-xs text-muted-foreground">

@@ -156,7 +156,7 @@ const AdminAuditLogsPage = () => {
                         .filter(([, v]) => v !== null && v !== undefined)
                         .map(([k, v]) => `${k}: ${String(v)}`)
                         .join(' · ')
-                    : '—';
+                    : '-';
                   return (
                     <tr
                       key={log.id}
@@ -185,10 +185,10 @@ const AdminAuditLogsPage = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm text-foreground">
-                        {log.resource ?? '—'}
+                        {log.resource ?? '-'}
                       </td>
                       <td className="py-3 px-4 text-xs text-muted-foreground font-mono">
-                        {log.resourceId ? log.resourceId.slice(0, 8) + '…' : '—'}
+                        {log.resourceId ? log.resourceId.slice(0, 8) + '…' : '-'}
                       </td>
                       <td className="py-3 px-4 text-xs text-muted-foreground max-w-xs truncate">
                         {details}

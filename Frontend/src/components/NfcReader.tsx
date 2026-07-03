@@ -92,7 +92,7 @@ export const NfcReader = ({ onResult, onSwitchToQr }: NfcReaderProps) => {
       }
     };
     const onReadingError = () => {
-      setError('Could not read tag — try again');
+      setError('Could not read tag, try again');
     };
 
     reader.addEventListener('reading', onReading);
@@ -119,7 +119,7 @@ export const NfcReader = ({ onResult, onSwitchToQr }: NfcReaderProps) => {
           </h4>
           <p className="mt-1 text-xs text-muted-foreground">
             {ios
-              ? "iOS doesn't let websites read NFC tags. Your TapByWisein card still works — use the QR scanner to connect."
+              ? "iOS doesn't let websites read NFC tags. Your TapByWisein card still works, use the QR scanner to connect."
               : "Your browser doesn't support Web NFC. Open this page in Chrome on Android, or scan the QR code instead."}
           </p>
         </div>
@@ -144,7 +144,7 @@ export const NfcReader = ({ onResult, onSwitchToQr }: NfcReaderProps) => {
           {scanning
             ? 'Hold a TapByWisein card near your phone…'
             : done
-              ? 'Tag read — connecting…'
+              ? 'Tag read, connecting…'
               : 'Tap "Start" then bring another phone or sticker close.'}
         </p>
         {error && <p className="mt-2 text-xs text-destructive">{error}</p>}

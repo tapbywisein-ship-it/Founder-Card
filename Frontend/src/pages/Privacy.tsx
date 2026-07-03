@@ -27,7 +27,7 @@ const Privacy = () => (
         <section>
           <h2 className="text-lg font-semibold text-foreground mb-1">How we use it</h2>
           <p>
-            To run the networking platform — issue your Tap Card, match you with other founders,
+            To run the networking platform: issue your Tap Card, match you with other founders,
             send event confirmations/reminders, and (with your consent) measure product usage to
             improve the experience.
           </p>

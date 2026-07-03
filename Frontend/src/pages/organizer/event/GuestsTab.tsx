@@ -46,7 +46,7 @@ const GuestsTab = () => {
     mutationFn: (userId: string) => organizerService.refundAttendee(id!, userId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orgKeys.guests(id!) });
-      toast.success('Refunded — attendee notified');
+      toast.success('Refunded, attendee notified');
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not refund'),
   });

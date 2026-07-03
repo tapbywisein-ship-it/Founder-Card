@@ -59,7 +59,7 @@ export const CardActionRow = ({ card, cardUrl, showPersonal }: CardActionRowProp
 
   const saveContact = () => {
     if (!profile) {
-      toast.error("Can't export — profile is empty");
+      toast.error("Can't export: profile is empty");
       return;
     }
     downloadVCard({

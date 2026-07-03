@@ -196,7 +196,7 @@ export const EventSpeakersAgendaEditor = ({ eventId }: Props) => {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground">
-                    {format(new Date(it.startsAt), 'PP p')} — {it.title}
+                    {format(new Date(it.startsAt), 'PP p')} - {it.title}
                   </p>
                   {it.description && (
                     <p className="text-xs text-muted-foreground">{it.description}</p>
@@ -237,7 +237,7 @@ export const EventSpeakersAgendaEditor = ({ eventId }: Props) => {
               onChange={(e) => setASpeaker(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
             >
-              <option value="">— None —</option>
+              <option value="">- None -</option>
               {(speakers.data ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}

@@ -49,7 +49,7 @@ export const ProfileCompletionMeter = ({ onResume }: ProfileCompletionMeterProps
         <p className="text-xs text-muted-foreground">
           {pct < 50
             ? 'Add skills + interests so you can be matched at events.'
-            : 'Almost there — just a few more details.'}
+            : 'Almost there, just a few more details.'}
         </p>
       </div>
       <Button size="sm" variant="outline" onClick={onResume} className="shrink-0">

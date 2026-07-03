@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,7 +95,7 @@ const EventsPage = () => {
     : `tapbywisein://event/${registerModal?.id}/user/${user?.id}`;
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         {/* Filter active banner: comes from /card/:id → "Find at events" link.
             Tells the user the list has been narrowed to events they and the
@@ -419,7 +419,7 @@ const EventsPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

@@ -56,7 +56,7 @@ const Payouts = () => {
   const onboard = useMutation({
     mutationFn: () => payoutsService.onboard(form),
     onSuccess: () => {
-      toast.success('Account created — pending KYC verification from Razorpay');
+      toast.success('Account created, pending KYC verification from Razorpay');
       setShowForm(false);
       qc.invalidateQueries({ queryKey: ['organizer', 'payouts', 'account'] });
     },
@@ -108,7 +108,7 @@ const Payouts = () => {
         <div>
           <h1 className="text-3xl font-semibold text-foreground">Payouts</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Automated via Razorpay Route — your share is transferred instantly when a ticket is sold.
+            Automated via Razorpay Route, your share is transferred instantly when a ticket is sold.
           </p>
         </div>
 
@@ -165,7 +165,7 @@ const Payouts = () => {
                 <div className="text-sm text-foreground">
                   <p className="font-medium">Set up automated payouts</p>
                   <p className="text-muted-foreground text-xs mt-0.5">
-                    Connect a Razorpay Route account. Once verified, <strong>95% of every ticket sale</strong> is automatically transferred to your bank — no manual requests needed.
+                    Connect a Razorpay Route account. Once verified, <strong>95% of every ticket sale</strong> is automatically transferred to your bank, no manual requests needed.
                   </p>
                 </div>
               </div>
@@ -186,7 +186,7 @@ const Payouts = () => {
               {account.razorpayAccountStatus === 'activated' && (
                 <div className="flex items-center gap-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 text-xs text-emerald-700">
                   <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                  Automatic split is live — 95% goes to your bank, 5% stays on the platform.
+                  Automatic split is live: 95% goes to your bank, 5% stays on the platform.
                 </div>
               )}
             </div>

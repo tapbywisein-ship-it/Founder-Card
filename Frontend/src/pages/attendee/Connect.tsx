@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { QRCodeSVG } from 'qrcode.react';
@@ -53,7 +53,7 @@ const ConnectPage = () => {
   });
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <h1 className="text-3xl font-semibold text-foreground">Connect</h1>
 
@@ -196,9 +196,9 @@ const ConnectPage = () => {
           <h3 className="text-sm font-medium text-foreground mb-3">Your Profile Stats</h3>
           <div className="grid grid-cols-3 gap-3 text-center">
             {[
-              { label: 'Profile views', value: '—' },
-              { label: 'QR scans', value: '—' },
-              { label: 'Connections', value: '—' },
+              { label: 'Profile views', value: '-' },
+              { label: 'QR scans', value: '-' },
+              { label: 'Connections', value: '-' },
             ].map((s) => (
               <div key={s.label}>
                 <p className="text-xl font-bold text-foreground">{s.value}</p>
@@ -208,7 +208,7 @@ const ConnectPage = () => {
           </div>
         </Surface>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

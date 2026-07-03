@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,7 +66,7 @@ const ConnectionsPage = () => {
   const dueCount = followUpList.filter((f) => f.overdue).length;
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         {isError && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -294,7 +294,7 @@ const ConnectionsPage = () => {
                 <Bell className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-foreground font-medium">No follow-ups scheduled</p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
-                  Open any connection's notes to set a reminder — it'll show up here.
+                  Open any connection's notes to set a reminder. It'll show up here.
                 </p>
               </div>
             ) : (
@@ -304,7 +304,7 @@ const ConnectionsPage = () => {
                   const fname = p ? `${p.firstName} ${p.lastName}`.trim() : f.user.email;
                   const due = f.followUpAt
                     ? new Date(f.followUpAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
-                    : '—';
+                    : '-';
                   return (
                     <motion.div key={f.connectionId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                       <Surface
@@ -350,7 +350,7 @@ const ConnectionsPage = () => {
         name={crmTarget?.name ?? ''}
         onClose={() => setCrmTarget(null)}
       />
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

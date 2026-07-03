@@ -23,7 +23,9 @@ export interface CreateEventPayload {
   location?: {
     address?: string;
     city?: string;
+    state?: string;
     country?: string;
+    pincode?: string;
     meetingUrl?: string;
   };
   capacity?: number;

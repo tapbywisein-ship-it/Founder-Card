@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Bell, UserPlus, Calendar, Trophy, Zap, Check, CheckCheck, AlertCircle } from 'lucide-react';
@@ -39,7 +39,7 @@ const NotificationsPage = () => {
   const unreadCount = data?.unreadCount ?? 0;
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -125,7 +125,7 @@ const NotificationsPage = () => {
           </div>
         )}
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

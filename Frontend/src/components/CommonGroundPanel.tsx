@@ -105,14 +105,14 @@ export const CommonGroundPanel = ({ targetUserId, enabled = true }: CommonGround
               <p className="text-foreground">
                 <span className="text-muted-foreground">They're looking for:</span>{' '}
                 {theyWantYourSkills.join(', ')}{' '}
-                <span className="text-muted-foreground">— that's you.</span>
+                <span className="text-muted-foreground">- that's you.</span>
               </p>
             )}
             {youWantTheirSkills.length > 0 && (
               <p className="text-foreground">
                 <span className="text-muted-foreground">You're looking for:</span>{' '}
                 {youWantTheirSkills.join(', ')}{' '}
-                <span className="text-muted-foreground">— that's them.</span>
+                <span className="text-muted-foreground">- that's them.</span>
               </p>
             )}
           </div>

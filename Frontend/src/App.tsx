@@ -129,7 +129,7 @@ const RouterMounted = () => {
 };
 
 const BRAND = "TapByWisein";
-const DEFAULT_TITLE = "TapByWisein — NFC Business Cards for Startup Networking Events";
+const DEFAULT_TITLE = "TapByWisein - NFC Business Cards for Startup Networking Events";
 // Longest-prefix match → "<Page> | TapByWisein". Detail pages keep the brand default.
 const TITLE_BY_PREFIX: [string, string][] = [
   ["/login", "Sign in"],

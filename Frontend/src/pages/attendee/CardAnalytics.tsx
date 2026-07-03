@@ -57,7 +57,7 @@ const CardAnalyticsPage = () => {
 
         {/* 14-day views sparkline */}
         <Surface>
-          <h2 className="text-sm font-semibold text-foreground mb-4">Views — last 14 days</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-4">Views, last 14 days</h2>
           {isLoading ? (
             <div className="h-28 bg-muted/40 rounded-xl animate-pulse" />
           ) : (

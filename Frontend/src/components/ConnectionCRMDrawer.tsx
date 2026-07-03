@@ -135,7 +135,7 @@ export const ConnectionCRMDrawer = ({ connectionId, name, onClose }: Props) => {
                   <>
                     {followUpDone && (
                       <p className="text-xs text-emerald-400 mb-2 flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5" /> Followed up — set a new reminder anytime
+                        <Check className="w-3.5 h-3.5" /> Followed up. Set a new reminder anytime
                       </p>
                     )}
                     <div className="grid grid-cols-2 gap-2">

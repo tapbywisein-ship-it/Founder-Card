@@ -5,7 +5,9 @@ import type { User } from '@/store/appStore';
 export interface EventLocation {
   address?: string;
   city?: string;
+  state?: string;
   country?: string;
+  pincode?: string;
   meetingUrl?: string;
 }
 
@@ -29,7 +31,9 @@ export interface Event {
   locationType: 'IN_PERSON' | 'VIRTUAL' | 'HYBRID';
   address?: string;
   city?: string;
+  state?: string;
   country?: string;
+  pincode?: string;
   meetingUrl?: string;
   capacity: number;
   ticketPrice?: string | null;

@@ -22,7 +22,7 @@ export const VerifyEmailBanner = () => {
     try {
       const { error } = await supabase.auth.resend({ type: 'signup', email: user.email });
       if (error) throw new Error(error.message);
-      toast.success('Verification email sent — check your inbox');
+      toast.success('Verification email sent, check your inbox');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not send verification email');
     } finally {
@@ -60,7 +60,7 @@ export const requireVerifiedEmail = (
   user: { isEmailVerified?: boolean } | null
 ): boolean => {
   if (user && user.isEmailVerified === false) {
-    toast.error('Please verify your email first — check your inbox for the link.');
+    toast.error('Please verify your email first. Check your inbox for the link.');
     return false;
   }
   return true;

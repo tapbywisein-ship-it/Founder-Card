@@ -129,21 +129,23 @@ export const connectionsService = {
   },
 
   async sendRequest(receiverId: string) {
-    return apiFetch<{ data: Connection }>('/connections', {
+    return apiFetch<{ data: Connection }>('/connections/request', {
       method: 'POST',
       body: JSON.stringify({ receiverId }),
     });
   },
 
   async acceptRequest(connectionId: string) {
-    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/accept`, {
+    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/respond`, {
       method: 'PUT',
+      body: JSON.stringify({ action: 'ACCEPT' }),
     });
   },
 
   async rejectRequest(connectionId: string) {
-    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/reject`, {
+    return apiFetch<{ data: Connection }>(`/connections/${connectionId}/respond`, {
       method: 'PUT',
+      body: JSON.stringify({ action: 'REJECT' }),
     });
   },
 

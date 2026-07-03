@@ -55,7 +55,7 @@ export const ReportDialog = ({
     mutationFn: () =>
       reportsService.fileReport({ targetType, targetId, category, reason: reason.trim() }),
     onSuccess: () => {
-      toast.success('Report submitted — our team will review.');
+      toast.success('Report submitted. Our team will review.');
       setReason('');
       onOpenChange(false);
     },
@@ -75,7 +75,7 @@ export const ReportDialog = ({
           </DialogTitle>
           <DialogDescription>
             {targetLabel ? `Report "${targetLabel}".` : `Flag this ${targetWord} for review.`}{' '}
-            Reports are confidential — the user you report will not see your identity.
+            Reports are confidential. The user you report will not see your identity.
           </DialogDescription>
         </DialogHeader>
 
@@ -104,7 +104,7 @@ export const ReportDialog = ({
               onChange={(e) => setReason(e.target.value)}
               rows={4}
               maxLength={2000}
-              placeholder="Please be specific — minimum 8 characters."
+              placeholder="Please be specific, minimum 8 characters."
             />
           </div>
           <div className="flex justify-end gap-2">

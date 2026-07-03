@@ -23,7 +23,7 @@ const TIERS = [
   {
     name: 'Pro',
     price: '5%',
-    sub: 'Per paid ticket — no monthly fee',
+    sub: 'Per paid ticket, no monthly fee',
     cta: 'Create an event',
     to: '/organizer/events/create',
     highlight: true,

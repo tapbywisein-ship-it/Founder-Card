@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ArrowLeft, Calendar, Users, AlertCircle, NotebookPen } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { ConnectionCRMDrawer } from '@/components/ConnectionCRMDrawer';
@@ -51,7 +51,7 @@ const PeopleIMetPage = () => {
   }, [data]);
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="space-y-6 pb-24 md:pb-8">
         <Button variant="ghost" size="sm" onClick={() => navigate('/profile')}>
           <ArrowLeft className="mr-1 h-4 w-4" /> Profile
@@ -117,7 +117,7 @@ const PeopleIMetPage = () => {
           groups.noEvent.length === 0 && (
             <Surface className="text-center">
               <p className="text-sm text-muted-foreground">
-                You haven't connected with anyone yet — start by scanning a card.
+                You haven't connected with anyone yet. Start by scanning a card.
               </p>
               <Button className="mt-3" onClick={() => navigate('/connect')}>
                 Open scanner
@@ -131,14 +131,14 @@ const PeopleIMetPage = () => {
         name={crmTarget?.name ?? ''}
         onClose={() => setCrmTarget(null)}
       />
-    </AppLayout>
+    </PortalLayout>
   );
 };
 
 const PersonRow = ({ c, onNotes }: { c: ConnectionRow; onNotes: (t: { id: string; name: string }) => void }) => {
   const navigate = useNavigate();
   const p = c.user?.profile;
-  const name = p ? `${p.firstName} ${p.lastName}`.trim() : c.user?.email ?? '—';
+  const name = p ? `${p.firstName} ${p.lastName}`.trim() : c.user?.email ?? '-';
   return (
     <div className="flex w-full items-center gap-3 rounded-card border border-border bg-card p-3 transition-colors hover:bg-secondary">
       <button

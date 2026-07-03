@@ -245,7 +245,7 @@ const ProfilePage = () => {
                       setForm((f) => ({ ...f, status: e.target.value }))
                     }
                     maxLength={80}
-                    placeholder="Live status — e.g. Raising a seed round, Hiring engineers"
+                    placeholder="Live status - e.g. Raising a seed round, Hiring engineers"
                   />
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-1 text-xs rounded-md bg-muted text-muted-foreground border border-border">+91</span>

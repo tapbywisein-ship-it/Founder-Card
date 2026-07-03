@@ -3,7 +3,7 @@ import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Logo } from '@/components/Logo';
 import { CreditCard, CheckCircle2, XCircle, Zap, Package, MapPin, ChevronRight, ChevronLeft, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -67,19 +67,19 @@ const ApplyCardPage = () => {
   // Only block on skeleton if we have no store hint and card data hasn't arrived yet.
   if (isLoading && !hasCardInStore) {
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-content mx-auto space-y-4 pb-24 md:pb-8">
           <div className="h-8 w-48 bg-muted/50 rounded animate-pulse" />
           <div className="h-64 bg-muted/50 rounded-2xl animate-pulse" />
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
   if (card && (card.status === 'DEACTIVATED' || card.status === 'REJECTED')) {
     const isRejected = card.status === 'REJECTED';
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
           <h1 className="text-3xl font-semibold text-foreground">Tap Card</h1>
           <Surface className="text-center space-y-3">
@@ -95,14 +95,14 @@ const ApplyCardPage = () => {
             </Button>
           </Surface>
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
   if (card?.physicalCardOrdered && !card.nfcTagId) {
     const isDispatched = card.fulfillmentStatus === 'DISPATCHED' || card.fulfillmentStatus === 'DELIVERED';
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
           <h1 className="text-3xl font-semibold text-foreground">Tap Card</h1>
           <Surface className="text-center space-y-4">
@@ -149,13 +149,13 @@ const ApplyCardPage = () => {
             </Button>
           </Surface>
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
   if (card?.nfcTagId) {
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
           <h1 className="text-3xl font-semibold text-foreground">Tap Card</h1>
           <Surface className="space-y-4">
@@ -182,19 +182,19 @@ const ApplyCardPage = () => {
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
-              Tap your card against any phone to instantly open your verified founder profile — no app needed.
+              Tap your card against any phone to instantly open your verified founder profile, no app needed.
             </p>
             <Button variant="outline" className="w-full" asChild>
               <Link to="/dashboard">Back to Dashboard</Link>
             </Button>
           </Surface>
         </div>
-      </AppLayout>
+      </PortalLayout>
     );
   }
 
   return (
-    <AppLayout>
+    <PortalLayout>
       <div className="max-w-md mx-auto space-y-6 pb-24 md:pb-8">
         <div>
           <h1 className="text-3xl font-semibold text-foreground">Get your Tap Card</h1>
@@ -223,10 +223,10 @@ const ApplyCardPage = () => {
               <Surface className="space-y-5">
                 <div className="space-y-3">
                   {[
-                    { title: 'Tap to share — no app needed', desc: 'Works on any NFC-enabled iPhone or Android. One tap shares your full profile instantly.' },
+                    { title: 'Tap to share, no app needed', desc: 'Works on any NFC-enabled iPhone or Android. One tap shares your full profile instantly.' },
                     { title: 'QR code on every card', desc: 'Scan-friendly fallback for phones without NFC or in low-connectivity venues.' },
-                    { title: 'Verified founder badge', desc: 'Your profile gets a ✦ Founder badge — signals credibility at events and on your public card.' },
-                    { title: 'Your profile, always up to date', desc: 'Edit your details anytime. The card always points to your latest profile — no reprinting.' },
+                    { title: 'Verified founder badge', desc: 'Your profile gets a ✦ Founder badge, signaling credibility at events and on your public card.' },
+                    { title: 'Your profile, always up to date', desc: 'Edit your details anytime. The card always points to your latest profile, no reprinting.' },
                     { title: 'Built-in lead capture', desc: 'Visitors can leave their details on your card page even without signing up.' },
                     { title: 'Priority event access & exclusive perks', desc: 'Early RSVP windows, founder-only events, and higher FK Score multipliers.' },
                     { title: 'Free shipping across India', desc: 'Delivered to your doorstep. Usually within 5–7 business days.' },
@@ -332,7 +332,7 @@ const ApplyCardPage = () => {
           )}
         </AnimatePresence>
       </div>
-    </AppLayout>
+    </PortalLayout>
   );
 };
 

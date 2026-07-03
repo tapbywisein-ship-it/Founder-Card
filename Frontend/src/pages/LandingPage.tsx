@@ -194,7 +194,7 @@ const LandingPage = () => {
               className="max-w-md text-lg"
               style={{ color: TEXT_DIM, lineHeight: 1.6 }}
             >
-              Set up an event page, invite founders, and host a memorable gathering today — built for
+              Set up an event page, invite founders, and host a memorable gathering today. Built for
               the network of people building the future.
             </motion.p>
 
@@ -281,8 +281,8 @@ const LandingPage = () => {
 
           <div className="mt-12 grid gap-5 sm:grid-cols-3">
             {[
-              { icon: ScanLine, t: 'Tap or scan', b: "Tap an NFC card or scan a QR to open a founder's card instantly — no app needed.", solid: true },
-              { icon: BadgeCheck, t: 'See their card', b: "Who they are, what they're building, and what they're looking for — at a glance.", solid: false },
+              { icon: ScanLine, t: 'Tap or scan', b: "Tap an NFC card or scan a QR to open a founder's card instantly. No app needed.", solid: true },
+              { icon: BadgeCheck, t: 'See their card', b: "Who they are, what they're building, and what they're looking for, at a glance.", solid: false },
               { icon: Users, t: 'Connect & follow up', b: 'Connect in one tap, then message and follow up after the event.', solid: false },
             ].map((s, i) => {
               const solid = i === 0;
@@ -354,7 +354,7 @@ const LandingPage = () => {
                 <span className="italic" style={{ color: ACCENT }}>next event.</span>
               </h2>
               <p className="mx-auto mt-4 max-w-lg text-lg" style={{ color: TEXT_DIM, lineHeight: 1.6 }}>
-                2-minute setup. Issue cards, capture connections, and send a recap — no hardware required.
+                2-minute setup. Issue cards, capture connections, and send a recap. No hardware required.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <button className={btnSolidLight} onClick={goCreate}>

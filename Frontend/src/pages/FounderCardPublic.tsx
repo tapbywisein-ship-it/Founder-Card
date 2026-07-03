@@ -16,7 +16,7 @@ import {
   UserPlus,
   Zap,
 } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { SignInModal } from '@/components/SignInModal';
@@ -446,7 +446,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
   // on the in-app route (e.g. /card/some-username) get the public chrome.
   if (mode === 'app' && isAuthenticated) {
     return (
-      <AppLayout>
+      <PortalLayout>
         <div className="space-y-6 pb-24 md:pb-8">{body}</div>
         <SignInModal
           open={signInOpen}
@@ -457,7 +457,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
           title="Sign in to connect"
           description="Save this card to your network in one click."
         />
-      </AppLayout>
+      </PortalLayout>
     );
   }
 

@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
 const locationSchema = z.object({
-  address: z.string().max(255).optional(),
-  city: z.string().max(100).optional(),
-  country: z.string().max(100).optional(),
+  address: z.string().min(1, 'Address is required').max(255),
+  city: z.string().min(1, 'City is required').max(100),
+  state: z.string().min(1, 'State is required').max(100),
+  country: z.string().min(1, 'Country is required').max(100),
+  pincode: z.string().min(3, 'Pincode is required').max(20),
   virtual: z.boolean().optional(),
   meetingUrl: z.string().url().optional().or(z.literal('')),
 });

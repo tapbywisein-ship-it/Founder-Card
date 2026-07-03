@@ -151,7 +151,7 @@ const AdminRevenuePage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <Surface padding="md" className="text-center">
             <IndianRupee className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">{stats?.totalRevenue !== undefined ? formatINR(stats.totalRevenue) : '—'}</p>
+            <p className="text-2xl font-bold text-foreground">{stats?.totalRevenue !== undefined ? formatINR(stats.totalRevenue) : '-'}</p>
             <p className="text-[11px] text-muted-foreground">Total Collected</p>
           </Surface>
           <Surface padding="md" className="text-center">
@@ -163,7 +163,7 @@ const AdminRevenuePage = () => {
           </Surface>
           <Surface padding="md" className="text-center">
             <IndianRupee className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">{pagination?.total ?? '—'}</p>
+            <p className="text-2xl font-bold text-foreground">{pagination?.total ?? '-'}</p>
             <p className="text-[11px] text-muted-foreground">Total Orders</p>
           </Surface>
         </div>
@@ -246,7 +246,7 @@ const AdminRevenuePage = () => {
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground/40">—</span>
+                        <span className="text-xs text-muted-foreground/40">-</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -281,15 +281,15 @@ const AdminRevenuePage = () => {
                         <div className="text-xs text-foreground leading-relaxed">
                           <p className="font-medium">{r.shippingAddress.fullName}</p>
                           <p className="text-muted-foreground">{r.shippingAddress.addressLine1}{r.shippingAddress.addressLine2 ? `, ${r.shippingAddress.addressLine2}` : ''}</p>
-                          <p className="text-muted-foreground">{r.shippingAddress.city}, {r.shippingAddress.state} — {r.shippingAddress.pincode}</p>
+                          <p className="text-muted-foreground">{r.shippingAddress.city}, {r.shippingAddress.state}, {r.shippingAddress.pincode}</p>
                           <p className="text-muted-foreground">{r.shippingAddress.phone}</p>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground/50">—</span>
+                        <span className="text-xs text-muted-foreground/50">-</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-xs text-muted-foreground font-mono">
-                      {r.razorpayOrderId ? r.razorpayOrderId.slice(-12) : '—'}
+                      {r.razorpayOrderId ? r.razorpayOrderId.slice(-12) : '-'}
                     </td>
                     <td className="py-3 px-4 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -374,7 +374,7 @@ const AdminRevenuePage = () => {
                 </div>
                 <p>{dispatchTarget.shippingAddress.fullName} · {dispatchTarget.shippingAddress.phone}</p>
                 <p>{dispatchTarget.shippingAddress.addressLine1}{dispatchTarget.shippingAddress.addressLine2 ? `, ${dispatchTarget.shippingAddress.addressLine2}` : ''}</p>
-                <p>{dispatchTarget.shippingAddress.city}, {dispatchTarget.shippingAddress.state} — {dispatchTarget.shippingAddress.pincode}</p>
+                <p>{dispatchTarget.shippingAddress.city}, {dispatchTarget.shippingAddress.state}, {dispatchTarget.shippingAddress.pincode}</p>
               </div>
             )}
 
@@ -403,7 +403,7 @@ const AdminRevenuePage = () => {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="nfc-tag">NFC Tag ID <span className="text-muted-foreground">(optional — marks card as programmed)</span></Label>
+                <Label htmlFor="nfc-tag">NFC Tag ID <span className="text-muted-foreground">(optional, marks card as programmed)</span></Label>
                 <Input
                   id="nfc-tag"
                   value={nfcTagId}

@@ -4,12 +4,12 @@ const STEPS = [
   {
     icon: Nfc,
     title: 'Tap or scan',
-    body: "Tap an NFC card or scan a QR code to open a founder's digital card instantly — no app install, no typing.",
+    body: "Tap an NFC card or scan a QR code to open a founder's digital card instantly. No app install, no typing.",
   },
   {
     icon: IdCard,
     title: 'See their card',
-    body: 'View who they are, what they’re building, and what they’re looking for — all on one Tap Card.',
+    body: 'View who they are, what they’re building, and what they’re looking for. All on one Tap Card.',
   },
   {
     icon: Handshake,

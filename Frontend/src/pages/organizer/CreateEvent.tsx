@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { OrganizerLayout } from '@/components/OrganizerLayout';
 import { SignInModal } from '@/components/SignInModal';
 import { Surface } from '@/components/Surface';
@@ -8,6 +8,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useCreateEvent } from '@/hooks/useOrganizer';
 import { useAppStore } from '@/store/appStore';
 import { EVENT_THEMES, THEME_IDS } from '@/lib/eventThemes';
+import { getCountryOptions, getStateOptions, getCityOptions, getCountryName, getStateName } from '@/lib/geo';
 import { apiUpload } from '@/services/api';
 import { toast } from 'sonner';
 import {
@@ -18,17 +19,17 @@ import {
 
 const TIMEZONES = [
   { value: 'UTC',                 label: 'UTC (Coordinated Universal Time)' },
-  { value: 'Asia/Kolkata',        label: 'IST — India (+05:30)' },
-  { value: 'Asia/Dubai',          label: 'GST — Dubai (+04:00)' },
-  { value: 'Asia/Singapore',      label: 'SGT — Singapore (+08:00)' },
-  { value: 'Asia/Tokyo',          label: 'JST — Tokyo (+09:00)' },
-  { value: 'Asia/Shanghai',       label: 'CST — Shanghai (+08:00)' },
-  { value: 'Europe/London',       label: 'GMT — London (+00:00)' },
-  { value: 'Europe/Paris',        label: 'CET — Paris (+01:00)' },
-  { value: 'America/New_York',    label: 'EST — New York (-05:00)' },
-  { value: 'America/Chicago',     label: 'CST — Chicago (-06:00)' },
-  { value: 'America/Los_Angeles', label: 'PST — Los Angeles (-08:00)' },
-  { value: 'Australia/Sydney',    label: 'AEDT — Sydney (+11:00)' },
+  { value: 'Asia/Kolkata',        label: 'IST - India (+05:30)' },
+  { value: 'Asia/Dubai',          label: 'GST - Dubai (+04:00)' },
+  { value: 'Asia/Singapore',      label: 'SGT - Singapore (+08:00)' },
+  { value: 'Asia/Tokyo',          label: 'JST - Tokyo (+09:00)' },
+  { value: 'Asia/Shanghai',       label: 'CST - Shanghai (+08:00)' },
+  { value: 'Europe/London',       label: 'GMT - London (+00:00)' },
+  { value: 'Europe/Paris',        label: 'CET - Paris (+01:00)' },
+  { value: 'America/New_York',    label: 'EST - New York (-05:00)' },
+  { value: 'America/Chicago',     label: 'CST - Chicago (-06:00)' },
+  { value: 'America/Los_Angeles', label: 'PST - Los Angeles (-08:00)' },
+  { value: 'Australia/Sydney',    label: 'AEDT - Sydney (+11:00)' },
 ];
 
 const DEFAULT_TICKET_TYPES: TicketType[] = [
@@ -93,12 +94,17 @@ interface FormState {
   locationType: 'IN_PERSON' | 'VIRTUAL' | 'HYBRID';
   address: string;
   city: string;
+  /** ISO state code, e.g. "TG" — converted to the full state name on submit. */
+  state: string;
+  /** ISO country code, e.g. "IN" — converted to the full country name on submit. */
   country: string;
+  pincode: string;
   meetingUrl: string;
   coverImage: string;
   theme: string;
   useTicketTypes: boolean;
   capacity: number;
+  isPaid: boolean;
   ticketPrice: string;
   ticketTypes: TicketType[];
   requiresApproval: boolean;
@@ -159,12 +165,15 @@ const CreateEventPage = () => {
     locationType: 'IN_PERSON',
     address: '',
     city: '',
+    state: '',
     country: '',
+    pincode: '',
     meetingUrl: '',
     coverImage: '',
     theme: 'indigo',
     useTicketTypes: false,
     capacity: 100,
+    isPaid: false,
     ticketPrice: '',
     ticketTypes: DEFAULT_TICKET_TYPES,
     requiresApproval: false,
@@ -176,6 +185,17 @@ const CreateEventPage = () => {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  // ── Location cascade: country → state → city ────────────────────────────────
+  const countryOptions = useMemo(() => getCountryOptions(), []);
+  const stateOptions = useMemo(
+    () => (form.country ? getStateOptions(form.country) : []),
+    [form.country]
+  );
+  const cityOptions = useMemo(
+    () => (form.country && form.state ? getCityOptions(form.country, form.state) : []),
+    [form.country, form.state]
+  );
 
   // ── Ticket allocation ─────────────────────────────────────────────────────
 
@@ -224,7 +244,7 @@ const CreateEventPage = () => {
         set('coverImage', dataUrl);
       };
       reader.readAsDataURL(file);
-      toast.error('Upload failed — image will be embedded as data URL');
+      toast.error('Upload failed, image will be embedded as data URL');
     } finally {
       setUploading(false);
     }
@@ -289,6 +309,16 @@ const CreateEventPage = () => {
       return;
     }
 
+    if (!form.country || !form.state || !form.city || !form.address) {
+      toast.error('Please complete the event location: country, state, city, and address.');
+      return;
+    }
+
+    if (!form.pincode.trim()) {
+      toast.error('Pincode is required.');
+      return;
+    }
+
     const startISO = toISO(form.startDate, form.startTime);
     const endISO   = toISO(form.endDate, form.endTime);
 
@@ -306,6 +336,11 @@ const CreateEventPage = () => {
       return;
     }
 
+    if (!form.useTicketTypes && form.isPaid && !(Number(form.ticketPrice) > 0)) {
+      toast.error('Please enter a ticket price.');
+      return;
+    }
+
     const meetingUrl = form.locationType !== 'IN_PERSON' ? (form.meetingUrl || undefined) : undefined;
     const activeTickets = form.useTicketTypes ? form.ticketTypes.filter((t) => t.isEnabled) : undefined;
 
@@ -317,16 +352,18 @@ const CreateEventPage = () => {
       endDate: endISO,
       type: form.locationType,
       location: {
-        address: form.address || undefined,
-        city: form.city || undefined,
-        country: form.country || undefined,
+        address: form.address,
+        city: form.city,
+        state: getStateName(form.country, form.state),
+        country: getCountryName(form.country),
+        pincode: form.pincode.trim(),
         meetingUrl,
       },
       coverImage: form.coverImage || undefined,
       theme: form.theme,
       timezone: form.timezone,
       capacity: form.capacity,
-      ticketPrice: (!form.useTicketTypes && form.ticketPrice) ? Number(form.ticketPrice) : undefined,
+      ticketPrice: (!form.useTicketTypes && form.isPaid && form.ticketPrice) ? Number(form.ticketPrice) : undefined,
       ticketTypes: activeTickets,
       requiresApproval: form.requiresApproval,
       waitlistEnabled: form.waitlistEnabled,
@@ -417,7 +454,7 @@ const CreateEventPage = () => {
                   <>
                     <Upload className="w-8 h-8 text-white/80" />
                     <p className="text-sm font-medium text-white/90">Upload cover image</p>
-                    <p className="text-xs text-white/60">JPG, PNG, WEBP — max 5MB</p>
+                    <p className="text-xs text-white/60">JPG, PNG, WEBP - max 5MB</p>
                   </>
                 )}
               </div>
@@ -498,7 +535,7 @@ const CreateEventPage = () => {
                         : 'border-border text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {v === 'PUBLIC' ? '🌍 Public' : '🔒 Private'}
+                    {v === 'PUBLIC' ? 'Public' : 'Private'}
                   </button>
                 ))}
               </div>
@@ -520,7 +557,6 @@ const CreateEventPage = () => {
               <div className="space-y-3">
                 {/* Start */}
                 <div className="flex items-center gap-3">
-                  <span className="text-base shrink-0">📅</span>
                   <div className="flex flex-col sm:flex-row gap-2 flex-1">
                     <div className="flex-1">
                       <label className="text-[11px] text-muted-foreground block mb-0.5">Start date</label>
@@ -535,7 +571,6 @@ const CreateEventPage = () => {
 
                 {/* End */}
                 <div className="flex items-center gap-3">
-                  <span className="text-base shrink-0">📅</span>
                   <div className="flex flex-col sm:flex-row gap-2 flex-1">
                     <div className="flex-1">
                       <label className="text-[11px] text-muted-foreground block mb-0.5">End date</label>
@@ -573,7 +608,7 @@ const CreateEventPage = () => {
               >
                 <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
                 <span className={locationExpanded ? 'text-foreground font-medium' : 'text-muted-foreground'}>
-                  {form.address ? form.address : 'Add Event Location — In Person'}
+                  {form.address ? form.address : 'Add Event Location - In Person'}
                 </span>
                 <span className="ml-auto text-muted-foreground text-xs">{locationExpanded ? '▲' : '▼'}</span>
               </button>
@@ -584,16 +619,72 @@ const CreateEventPage = () => {
                     <MapPin className="w-3.5 h-3.5" />
                     <span>In Person</span>
                   </div>
+
+                  <select
+                    value={form.country}
+                    onChange={(e) => {
+                      const country = e.target.value;
+                      setForm((prev) => ({ ...prev, country, state: '', city: '' }));
+                    }}
+                    className="w-full h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Select country…</option>
+                    {countryOptions.map((c) => (
+                      <option key={c.code} value={c.code}>{c.name}</option>
+                    ))}
+                  </select>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={form.state}
+                      onChange={(e) => {
+                        const state = e.target.value;
+                        setForm((prev) => ({ ...prev, state, city: '' }));
+                      }}
+                      disabled={!form.country}
+                      className="h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                    >
+                      <option value="">Select state…</option>
+                      {stateOptions.map((s) => (
+                        <option key={s.code} value={s.code}>{s.name}</option>
+                      ))}
+                    </select>
+
+                    {cityOptions.length > 0 ? (
+                      <select
+                        value={form.city}
+                        onChange={(e) => set('city', e.target.value)}
+                        disabled={!form.state}
+                        className="h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                      >
+                        <option value="">Select city…</option>
+                        {cityOptions.map((c) => (
+                          <option key={c.code} value={c.code}>{c.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        value={form.city}
+                        onChange={(e) => set('city', e.target.value)}
+                        placeholder="City"
+                        disabled={!form.state}
+                        className="h-9 text-sm disabled:opacity-50"
+                      />
+                    )}
+                  </div>
+
                   <Input
                     value={form.address}
                     onChange={(e) => set('address', e.target.value)}
-                    placeholder="Venue address"
+                    placeholder="Venue / local address"
                     className="h-9 text-sm"
                   />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="City" className="h-9 text-sm" />
-                    <Input value={form.country} onChange={(e) => set('country', e.target.value)} placeholder="Country" className="h-9 text-sm" />
-                  </div>
+                  <Input
+                    value={form.pincode}
+                    onChange={(e) => set('pincode', e.target.value)}
+                    placeholder="Pincode"
+                    className="h-9 text-sm"
+                  />
                 </div>
               )}
             </Surface>
@@ -605,7 +696,6 @@ const CreateEventPage = () => {
                 onClick={() => setDescExpanded((v) => !v)}
                 className="w-full flex items-center gap-2 text-sm text-left"
               >
-                <span className="text-base shrink-0">📝</span>
                 <span className={descExpanded ? 'text-foreground font-medium' : 'text-muted-foreground'}>
                   {form.description ? form.description.slice(0, 60) + (form.description.length > 60 ? '…' : '') : 'Add Description'}
                 </span>
@@ -625,7 +715,6 @@ const CreateEventPage = () => {
             {/* Category — required */}
             <Surface>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-base">🏷️</span>
                 <span className="text-sm font-medium text-foreground">Category</span>
                 <span className="text-xs text-red-500">*</span>
               </div>
@@ -651,46 +740,51 @@ const CreateEventPage = () => {
               <Surface>
                 <div className="space-y-4">
 
-                  {/* Ticket Price */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-base">🎫</span>
-                      <span className="text-sm font-medium text-foreground">Ticket Price</span>
-                    </div>
-                    <div className="flex gap-2 mb-2">
-                      {([false, true] as const).map((isPaid) => (
-                        <button
-                          key={String(isPaid)}
-                          type="button"
-                          onClick={() => {
-                            if (!isPaid) set('ticketPrice', '');
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                            (!isPaid && !form.ticketPrice) || (isPaid && !!form.ticketPrice)
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'border-border text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          {isPaid ? 'Paid' : 'Free'}
-                        </button>
-                      ))}
-                    </div>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={form.ticketPrice}
-                      onChange={(e) => set('ticketPrice', e.target.value)}
-                      placeholder="Price in ₹ (leave empty for free)"
-                      className="h-9 text-sm"
-                    />
-                  </div>
+                  {/* Ticket Price — hidden once multiple ticket tiers are enabled, since each tier sets its own price */}
+                  {!form.useTicketTypes && (
+                    <>
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium text-foreground">Ticket Price</span>
+                        </div>
+                        <div className="flex gap-2 mb-2">
+                          {([false, true] as const).map((isPaid) => (
+                            <button
+                              key={String(isPaid)}
+                              type="button"
+                              onClick={() => {
+                                if (!isPaid) set('ticketPrice', '');
+                                set('isPaid', isPaid);
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                form.isPaid === isPaid
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'border-border text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {isPaid ? 'Paid' : 'Free'}
+                            </button>
+                          ))}
+                        </div>
+                        {form.isPaid && (
+                          <Input
+                            type="number"
+                            min={0}
+                            value={form.ticketPrice}
+                            onChange={(e) => set('ticketPrice', e.target.value)}
+                            placeholder="Price in ₹"
+                            className="h-9 text-sm"
+                          />
+                        )}
+                      </div>
 
-                  <div className="h-px bg-border" />
+                      <div className="h-px bg-border" />
+                    </>
+                  )}
 
                   {/* Require Approval */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-base">✅</span>
                       <span className="text-sm font-medium text-foreground">Require Approval</span>
                     </div>
                     <button
@@ -707,7 +801,6 @@ const CreateEventPage = () => {
                   {/* Capacity */}
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-base">👥</span>
                       <span className="text-sm font-medium text-foreground">Capacity</span>
                     </div>
                     <Input
@@ -737,7 +830,6 @@ const CreateEventPage = () => {
                   {/* Multiple ticket tiers toggle */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-base">🎟️</span>
                       <label
                         className="text-sm font-medium text-foreground cursor-pointer select-none"
                         onClick={() => {
@@ -947,7 +1039,7 @@ const CreateEventPage = () => {
         }}
         intendedRoute="/organizer/events/create"
         title="Sign in to create your event"
-        description="Save and publish your event in a moment — sign in with email or Google."
+        description="Save and publish your event in a moment, sign in with email or Google."
       />
     </OrganizerLayout>
   );

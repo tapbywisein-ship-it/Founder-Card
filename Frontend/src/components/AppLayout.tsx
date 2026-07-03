@@ -40,6 +40,7 @@ const topLinks = [
   { label: 'Discover', path: '/discover' },
   { label: 'Events', path: '/events' },
   { label: 'Connect', path: '/connect' },
+  { label: 'Tap Card', path: '/apply-card' },
 ];
 
 const bottomNav = [
@@ -115,7 +116,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       // store so the gated organizer routes + portal chrome unlock immediately.
       updateUser({ role: 'organizer' });
       setActiveRole('organizer');
-      toast.success("You're an organizer now — welcome to your dashboard!");
+      toast.success("You're an organizer now. Welcome to your dashboard!");
       setOrgDialogOpen(false);
       setOrgOrganization('');
       navigate('/organizer/dashboard');
@@ -431,7 +432,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <DialogHeader>
             <DialogTitle>Become an Organizer</DialogTitle>
             <DialogDescription>
-              Unlock the host portal to create and manage your own events. Your account upgrades instantly — you'll still keep access to everything you have today.
+              Unlock the host portal to create and manage your own events. Your account upgrades instantly. You'll still keep access to everything you have today.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
