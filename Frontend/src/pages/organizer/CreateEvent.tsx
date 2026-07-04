@@ -1,18 +1,21 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { OrganizerLayout } from '@/components/OrganizerLayout';
+import { PortalLayout } from '@/components/PortalLayout';
 import { SignInModal } from '@/components/SignInModal';
+import { RoleChoiceModal } from '@/components/RoleChoiceModal';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { useCreateEvent } from '@/hooks/useOrganizer';
+import { useCreateEvent, useRequestOrganizer } from '@/hooks/useOrganizer';
 import { useAppStore } from '@/store/appStore';
 import { EVENT_THEMES, THEME_IDS } from '@/lib/eventThemes';
 import { getCountryOptions, getStateOptions, getCityOptions, getCountryName, getStateName } from '@/lib/geo';
 import { apiUpload } from '@/services/api';
 import { toast } from 'sonner';
 import {
-  Calendar, Check, MapPin, Upload, X, Plus, Trash2, Shuffle, Globe,
+  Calendar, Check, MapPin, Upload, X, Plus, Trash2, Shuffle, Globe, Building2, Loader2,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -116,9 +119,17 @@ interface FormState {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const BECOME_ORGANIZER_STEPS = [
+  'Click "Become an organizer" below',
+  'Optionally add your company or event brand name',
+  "You're upgraded instantly — no approval or waiting period",
+  'You land right back here, ready to create your first event',
+];
+
 const CreateEventPage = () => {
   const navigate = useNavigate();
   const createMutation = useCreateEvent();
+  const requestOrgMutation = useRequestOrganizer();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Luma pattern: render the form for signed-out visitors too. The modal
@@ -126,27 +137,43 @@ const CreateEventPage = () => {
   // state persists across the auth round-trip because we don't unmount.
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const userRole = useAppStore((s) => s.user?.role);
+  const [orgName, setOrgName] = useState('');
 
-  // Admins manage events via /admin — bounce them to their dashboard.
-  if (isAuthenticated && userRole === 'admin') {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
+  // ─── Auth gate ───────────────────────────────────────────────────────────
+  // All gate hooks live ABOVE the early returns below so hook order stays stable
+  // regardless of auth/role state (Rules of Hooks).
 
-  // Attendees can't create events — send them home.
-  if (isAuthenticated && userRole === 'attendee') {
-    return <Navigate to="/dashboard" replace />;
-  }
-  const [signInOpen, setSignInOpen] = useState(false);
-
-  // Auto-open the sign-in popup on first render for anonymous visitors.
+  // Signed-out visitors first pick a path (organize vs attend), then sign in.
+  const [gateStep, setGateStep] = useState<'choose' | 'organizer' | 'attendee' | null>(
+    isAuthenticated ? null : 'choose'
+  );
   useEffect(() => {
-    if (!isAuthenticated) setSignInOpen(true);
+    setGateStep(isAuthenticated ? null : 'choose');
   }, [isAuthenticated]);
 
-  // Once they sign in, dismiss the modal automatically.
+  // Organizer path: users who explicitly chose "Organize" carry a pending-upgrade
+  // flag (set in SignInModal). The backend starts everyone as ATTENDEE, so we
+  // auto-run the instant self-serve upgrade here instead of making them click the
+  // manual "Become an organizer" card. Seeded from the flag at mount so the manual
+  // card never flashes.
+  const [autoUpgrading, setAutoUpgrading] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem('fk-pending-organizer-upgrade') === '1'
+  );
   useEffect(() => {
-    if (isAuthenticated) setSignInOpen(false);
-  }, [isAuthenticated]);
+    if (!isAuthenticated) return;
+    const pending = localStorage.getItem('fk-pending-organizer-upgrade') === '1';
+    if (pending && userRole === 'attendee') {
+      localStorage.removeItem('fk-pending-organizer-upgrade');
+      setAutoUpgrading(true);
+      requestOrgMutation.mutate('', { onError: () => setAutoUpgrading(false) });
+    } else if (userRole && userRole !== 'attendee') {
+      // Already elevated (or admin) — drop any stale flag.
+      localStorage.removeItem('fk-pending-organizer-upgrade');
+      setAutoUpgrading(false);
+    }
+    // requestOrgMutation is stable from react-query; excluded to avoid re-runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userRole]);
 
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>('');
@@ -196,6 +223,93 @@ const CreateEventPage = () => {
     () => (form.country && form.state ? getCityOptions(form.country, form.state) : []),
     [form.country, form.state]
   );
+
+  // ─── Role guards ───────────────────────────────────────────────────────────
+  // Kept below all hooks so hook order stays stable across renders (Rules of Hooks).
+
+  // Admins manage events via /admin — bounce them to their dashboard.
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  // Attendees can't create events — offer the instant self-serve upgrade instead
+  // of silently bouncing them away. Once the mutation flips their role, this same
+  // component re-renders past this guard and shows the real form, no navigation needed.
+  if (isAuthenticated && userRole === 'attendee') {
+    // Organizer path: instant self-serve upgrade is running — show a brief
+    // loading state instead of the manual card.
+    if (autoUpgrading) {
+      return (
+        <PortalLayout>
+          <div className="max-w-md mx-auto py-8 md:py-12">
+            <Surface className="text-center space-y-4 py-10">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">Setting up your organizer account…</h1>
+                <p className="mt-1 text-sm text-muted-foreground">This only takes a moment.</p>
+              </div>
+            </Surface>
+          </div>
+        </PortalLayout>
+      );
+    }
+    return (
+      <PortalLayout>
+        <div className="max-w-md mx-auto py-8 md:py-12">
+          <Surface className="text-center space-y-5">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <Building2 className="w-7 h-7 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">Only organizers can create events</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Upgrade your account to start hosting — it's instant and free.
+              </p>
+            </div>
+
+            <div className="text-left space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                How to become an organizer
+              </p>
+              {BECOME_ORGANIZER_STEPS.map((step, i) => (
+                <div key={step} className="flex items-start gap-3">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+                    {i + 1}
+                  </span>
+                  <p className="text-sm text-foreground">{step}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-1 text-left">
+              <Label htmlFor="orgName">Organization name (optional)</Label>
+              <Input
+                id="orgName"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                placeholder="e.g. Acme Events"
+              />
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={() =>
+                requestOrgMutation.mutate(orgName, {
+                  onSuccess: () => toast.success("You're an organizer now. Let's create your event!"),
+                })
+              }
+              disabled={requestOrgMutation.isPending}
+            >
+              {requestOrgMutation.isPending ? 'Upgrading…' : 'Become an organizer'}
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => navigate('/dashboard')}>
+              Maybe later
+            </Button>
+          </Surface>
+        </div>
+      </PortalLayout>
+    );
+  }
 
   // ── Ticket allocation ─────────────────────────────────────────────────────
 
@@ -541,14 +655,15 @@ const CreateEventPage = () => {
               </div>
             </div>
 
-            {/* Event name — h1-style large input */}
-            <div>
-              <input
+            {/* Event name — clearly labeled input (not a page-title heading) */}
+            <div className="space-y-1.5">
+              <Label htmlFor="event-title">Event Name</Label>
+              <Input
+                id="event-title"
                 value={form.title}
                 onChange={(e) => set('title', e.target.value)}
-                placeholder="Event Name"
-                className="w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/50 focus:ring-0 p-0"
-                aria-label="Event Name"
+                placeholder="Enter event name"
+                className="text-lg font-semibold h-11"
               />
             </div>
 
@@ -1028,18 +1143,27 @@ const CreateEventPage = () => {
           </div>
         </div>
       </div>
+      {/* Signed-out gate: pick a path, then sign in. Both steps are locked
+          (no dismiss) — auth is required to use this page. */}
+      <RoleChoiceModal
+        open={gateStep === 'choose'}
+        onOpenChange={() => {}}
+        onChoose={(role) => setGateStep(role)}
+        locked
+      />
       <SignInModal
-        open={signInOpen}
-        onOpenChange={(o) => {
-          // Don't let signed-out visitors dismiss the modal — sign-in is
-          // required to actually create an event. They can hit "Back to home"
-          // in the modal footer or close the tab.
-          if (!o && !isAuthenticated) return;
-          setSignInOpen(o);
-        }}
-        intendedRoute="/organizer/events/create"
-        title="Sign in to create your event"
-        description="Save and publish your event in a moment, sign in with email or Google."
+        open={gateStep === 'organizer' || gateStep === 'attendee'}
+        onOpenChange={() => {}}
+        onBack={() => setGateStep('choose')}
+        locked
+        roleIntent={gateStep === 'attendee' ? 'attendee' : 'organizer'}
+        intendedRoute={gateStep === 'attendee' ? '/dashboard' : '/organizer/events/create'}
+        title={gateStep === 'attendee' ? 'Sign in to attend events' : 'Sign in to create your event'}
+        description={
+          gateStep === 'attendee'
+            ? 'Sign in to RSVP, get tickets, and connect at events.'
+            : 'Save and publish your event in a moment, sign in with email or Google.'
+        }
       />
     </OrganizerLayout>
   );

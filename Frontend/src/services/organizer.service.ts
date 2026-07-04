@@ -117,6 +117,13 @@ export interface EventAnalytics {
 }
 
 export const organizerService = {
+  async requestOrganizer(organization?: string) {
+    return apiFetch('/users/me/request-organizer', {
+      method: 'POST',
+      body: JSON.stringify({ organization: organization || undefined }),
+    });
+  },
+
   async getDashboardStats() {
     return apiFetch<{ data: {
       totalEvents: number;
@@ -223,14 +230,14 @@ export const organizerService = {
   },
 
   async sendEventBlast(eventId: string, payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) {
-    return apiFetch<{ data: { sent: number; recipients: string[] } }>(
+    return apiFetch<{ data: { sent: number; failed: number; total: number; recipients: string[] } }>(
       `/organizer/events/${eventId}/blast`,
       { method: 'POST', body: JSON.stringify(payload) }
     );
   },
 
   async sendAttendeeBlast(payload: { userIds: string[]; subject: string; body: string }) {
-    return apiFetch<{ data: { sent: number; recipients: string[] } }>(
+    return apiFetch<{ data: { sent: number; failed: number; total: number; recipients: string[] } }>(
       '/organizer/attendees/blast',
       { method: 'POST', body: JSON.stringify(payload) }
     );

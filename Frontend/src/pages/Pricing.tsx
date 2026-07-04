@@ -4,6 +4,7 @@ import { Check, ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { RequestDemoModal } from '@/components/RequestDemoModal';
+import { FeatureBento } from '@/components/FeatureBento';
 
 const TIERS = [
   {
@@ -109,6 +110,8 @@ const Pricing = () => {
           The 5% platform fee applies only to paid ticket revenue. Free events are always free.
         </p>
       </main>
+
+      <FeatureBento />
 
       <RequestDemoModal open={demoOpen} onOpenChange={setDemoOpen} />
     </div>

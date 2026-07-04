@@ -2,7 +2,27 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { organizerService, CreateEventPayload } from '@/services/organizer.service';
 import type { Event, Pagination } from '@/services/events.service';
 import type { Guest, AttendeeItem } from '@/services/organizer.service';
+import { useAppStore } from '@/store/appStore';
 import { toast } from 'sonner';
+
+/**
+ * Self-serve organizer upgrade — instant, no approval step. Flips the
+ * signed-in attendee's role to organizer and reflects it in the store so
+ * gated organizer routes + portal chrome unlock immediately.
+ */
+export function useRequestOrganizer() {
+  const updateUser = useAppStore((s) => s.updateUser);
+  const setActiveRole = useAppStore((s) => s.setActiveRole);
+
+  return useMutation({
+    mutationFn: (organization?: string) => organizerService.requestOrganizer(organization),
+    onSuccess: () => {
+      updateUser({ role: 'organizer' });
+      setActiveRole('organizer');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
 
 export const orgKeys = {
   dashboard: () => ['organizer', 'dashboard'] as const,
@@ -146,11 +166,27 @@ export function useCheckInAttendee(eventId: string) {
   });
 }
 
+/** Report the real delivery outcome so a silent Resend failure doesn't look like success. */
+function reportBlastResult(res: unknown, noun: string) {
+  const d = (res as { data?: { sent?: number; failed?: number } }).data;
+  const sent = d?.sent ?? 0;
+  const failed = d?.failed ?? 0;
+  if (sent === 0 && failed === 0) {
+    toast.error(`No matching ${noun} to email.`);
+  } else if (sent === 0) {
+    toast.error(`Delivery failed for all ${failed} ${noun}. Check email configuration.`);
+  } else if (failed > 0) {
+    toast.warning(`Sent to ${sent} ${noun} · ${failed} failed to deliver.`);
+  } else {
+    toast.success(`Sent to ${sent} ${noun}.`);
+  }
+}
+
 export function useSendAttendeeBlast() {
   return useMutation({
     mutationFn: (payload: { userIds: string[]; subject: string; body: string }) =>
       organizerService.sendAttendeeBlast(payload),
-    onSuccess: (res) => toast.success(`Email sent to ${(res as { data: { sent: number } }).data?.sent ?? 0} attendees`),
+    onSuccess: (res) => reportBlastResult(res, 'attendees'),
     onError: (err: Error) => toast.error(err.message),
   });
 }
@@ -159,7 +195,7 @@ export function useSendBlast(eventId: string) {
   return useMutation({
     mutationFn: (payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) =>
       organizerService.sendEventBlast(eventId, payload),
-    onSuccess: (res) => toast.success(`Blast sent to ${(res as { data: { sent: number } }).data?.sent ?? 0} recipients`),
+    onSuccess: (res) => reportBlastResult(res, 'recipients'),
     onError: (err: Error) => toast.error(err.message),
   });
 }

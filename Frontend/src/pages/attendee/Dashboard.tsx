@@ -13,7 +13,7 @@ import { useMyProfile } from '@/hooks/useProfile';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useConnectionSuggestions, useSendConnectionRequest } from '@/hooks/useConnections';
 import { useSocket } from '@/lib/socket';
-import { profileNeedsOnboarding, profileCompletion } from '@/lib/profileCompletion';
+import { profileNeedsOnboarding, profileCompletion, hasUploadedAvatar } from '@/lib/profileCompletion';
 import { useMyCard } from '@/hooks/useFounderCard';
 import { toast } from 'sonner';
 import {
@@ -174,7 +174,7 @@ const AttendeeDashboard = () => {
 
   /* checklist items */
   const checklistItems = [
-    { done: !!profile?.avatar, label: 'Add a profile photo', action: 'Upload', to: '/profile' },
+    { done: hasUploadedAvatar(profile?.avatar), label: 'Add a profile photo', action: 'Upload', to: '/profile' },
     { done: !!(profile?.bio && profile.bio.length >= 20), label: 'Write a short bio', action: 'Add bio', to: '/profile' },
     { done: !!(profile?.position || profile?.company), label: 'Add your role & company', action: 'Add', to: '/profile' },
     { done: (profile?.skills?.length ?? 0) >= 3, label: 'Add at least 3 skills', action: 'Add skills', to: '/profile' },

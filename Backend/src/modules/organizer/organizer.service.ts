@@ -2,9 +2,8 @@ import prisma from '@config/database';
 import { NotFoundError, ForbiddenError, BadRequestError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { parseAttendeeCsv } from '@utils/csvImport';
-import { sendEmail, inviteClaimEmail } from '@utils/email';
+import { sendEmail, inviteClaimEmail, eventBlastEmail } from '@utils/email';
 import authService from '@modules/auth/auth.service';
-import { addEmailJob } from '@jobs/email.queue';
 import logger from '@utils/logger';
 
 export class OrganizerService {
@@ -427,9 +426,14 @@ export class OrganizerService {
     });
     if (!event) throw new NotFoundError('Event');
 
+    // "Registered" = the confirmed guest list — everyone holding an active spot
+    // except the waitlist. This spans REGISTERED, ATTENDED (checked in) and
+    // PENDING_APPROVAL, not just the literal REGISTERED status; otherwise a
+    // checked-in / approval-pending attendee is invisible to the blast even
+    // though the organizer sees them as a registered guest.
     const statusFilter: Record<string, unknown> =
       audience === 'registered'
-        ? { status: 'REGISTERED' }
+        ? { status: { notIn: ['CANCELLED', 'WAITLISTED'] } }
         : audience === 'waitlist'
           ? { status: 'WAITLISTED' }
           : { status: { not: 'CANCELLED' } };
@@ -446,24 +450,25 @@ export class OrganizerService {
       },
     });
 
-    // Enqueue one email per recipient with {{firstName}} substitution.
-    let queued = 0;
+    // Send one email per recipient with {{firstName}} substitution. We send
+    // synchronously and count real successes so the organizer sees the true
+    // delivery result — a Resend failure now surfaces instead of a false "sent".
+    let sent = 0;
+    let failed = 0;
+    const delivered: string[] = [];
     for (const r of registrations) {
       const firstName = r.user.profile?.firstName ?? '';
       const personalizedBody = body.replace(/\{\{\s*firstName\s*\}\}/g, firstName);
       try {
-        await addEmailJob('eventBlast', {
-          to: r.user.email,
-          name: firstName,
-          subject,
-          bodyHtml: personalizedBody,
-        });
-        queued += 1;
+        await sendEmail(r.user.email, subject, eventBlastEmail(firstName, personalizedBody));
+        sent += 1;
+        delivered.push(r.user.email);
       } catch (err) {
-        logger.warn('Failed to enqueue blast email', { eventId, to: r.user.email, err });
+        failed += 1;
+        logger.warn('Failed to send blast email', { eventId, to: r.user.email, err });
       }
     }
-    return { sent: queued, recipients: registrations.map((r) => r.user.email) };
+    return { sent, failed, total: registrations.length, recipients: delivered };
   }
 
   /**
@@ -491,23 +496,22 @@ export class OrganizerService {
       },
     });
 
-    let queued = 0;
+    let sent = 0;
+    let failed = 0;
+    const delivered: string[] = [];
     for (const r of eligible) {
       const firstName = r.user.profile?.firstName ?? '';
       const personalizedBody = body.replace(/\{\{\s*firstName\s*\}\}/g, firstName);
       try {
-        await addEmailJob('eventBlast', {
-          to: r.user.email,
-          name: firstName,
-          subject,
-          bodyHtml: personalizedBody,
-        });
-        queued += 1;
+        await sendEmail(r.user.email, subject, eventBlastEmail(firstName, personalizedBody));
+        sent += 1;
+        delivered.push(r.user.email);
       } catch (err) {
-        logger.warn('Failed to enqueue attendee blast email', { to: r.user.email, err });
+        failed += 1;
+        logger.warn('Failed to send attendee blast email', { to: r.user.email, err });
       }
     }
-    return { sent: queued, recipients: eligible.map((r) => r.user.email) };
+    return { sent, failed, total: eligible.length, recipients: delivered };
   }
 
   async checkInAttendee(eventId: string, organizerId: string, userId: string) {

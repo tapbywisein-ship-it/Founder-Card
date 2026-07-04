@@ -10,7 +10,7 @@ import { env } from '@config/env';
 import logger from '@utils/logger';
 import gamificationService from '@modules/gamification/gamification.service';
 import notificationsService from '@modules/notifications/notifications.service';
-import { hasFreeOption } from '@utils/ticketPricing';
+import { hasFreeOption, resolveTiers } from '@utils/ticketPricing';
 import paymentsService, { paymentsConfigured } from '@modules/payments/payments.service';
 
 // Safe public shape for an event's organizer. Never `include` the full User
@@ -305,17 +305,6 @@ export class EventsService {
       ];
     }
 
-    // Free/paid filter (Discover toggle). Operates on the single ticketPrice
-    // field — "free" matches null or 0, "paid" matches > 0.
-    if (dto.price === 'paid') {
-      where.ticketPrice = { gt: 0 };
-    } else if (dto.price === 'free') {
-      where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
-        { OR: [{ ticketPrice: null }, { ticketPrice: 0 }] },
-      ];
-    }
-
     // "Events we both registered for" — drives the "Find at events" button
     // on a connection's card. Uses an AND of two `some` filters so an event
     // qualifies only when BOTH users have a non-cancelled registration row.
@@ -325,6 +314,24 @@ export class EventsService {
         { registrations: { some: { userId: dto.viewerId, status: { not: 'CANCELLED' } } } },
         { registrations: { some: { userId: dto.withUser, status: { not: 'CANCELLED' } } } },
       ];
+    }
+
+    // Free/paid filter (Discover toggle). Price can live in the scalar
+    // `ticketPrice` OR inside the `ticketTypes` JSON tiers, so it can't be
+    // expressed as a Prisma where clause. Resolve it in app code with the same
+    // shared `resolveTiers` logic the UI + payments use (an event is "paid" iff
+    // any enabled tier — or the derived ticketPrice tier — costs > 0), over the
+    // already-narrowed set, then constrain the paginated query to matching ids.
+    if (dto.price === 'paid' || dto.price === 'free') {
+      const wantPaid = dto.price === 'paid';
+      const candidates = await prisma.event.findMany({
+        where,
+        select: { id: true, ticketPrice: true, ticketTypes: true },
+      });
+      const matchingIds = candidates
+        .filter((e) => resolveTiers(e).some((t) => t.price > 0) === wantPaid)
+        .map((e) => e.id);
+      where.id = { in: matchingIds };
     }
 
     const orderByField = dto.orderBy ?? 'startDate';

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, getCachedAccessToken } from '@/lib/supabase';
 
 let _onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(fn: () => void) { _onUnauthorized = fn; }
@@ -15,33 +15,37 @@ export class ApiError extends Error {
   }
 }
 
-// Cache the token in memory so we don't call getSession() on every request.
-// Supabase fires onAuthStateChange when the session changes (sign-in, refresh,
-// sign-out) — we update the cache there instead of fetching per-request.
-let _cachedToken: string | null = null;
-supabase.auth.onAuthStateChange((_event, session) => {
-  _cachedToken = session?.access_token ?? null;
-});
-// Warm the cache immediately on module load (handles page refreshes).
-supabase.auth.getSession().then(({ data }) => {
-  _cachedToken = data.session?.access_token ?? null;
-}).catch(() => { /* ignore */ });
+// Slow-path session fetch, bounded by a timeout so a contended cross-tab auth
+// lock (navigator.locks) can never hang a request indefinitely. On timeout we
+// resolve to null — the request proceeds unauthenticated and surfaces a normal
+// error instead of an infinite skeleton loader.
+async function getSessionTokenWithTimeout(ms = 4000): Promise<string | null> {
+  return Promise.race([
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[auth] getSession error:', error.message);
+          return null;
+        }
+        return data.session?.access_token ?? null;
+      })
+      .catch((err) => {
+        console.error('[auth] Failed to retrieve session:', err);
+        return null;
+      }),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
 
 async function getAuthHeader(): Promise<string | null> {
-  if (_cachedToken) return `Bearer ${_cachedToken}`;
-  // Fallback: token not cached yet — fetch once and cache.
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) {
-      console.error('[auth] getSession error:', error.message);
-      return null;
-    }
-    _cachedToken = data.session?.access_token ?? null;
-    return _cachedToken ? `Bearer ${_cachedToken}` : null;
-  } catch (err) {
-    console.error('[auth] Failed to retrieve session:', err);
-    return null;
-  }
+  // Fast path: the in-memory token maintained by onAuthStateChange in
+  // lib/supabase.ts. Avoids awaiting getSession() (cross-tab lock) per request.
+  const cached = getCachedAccessToken();
+  if (cached) return `Bearer ${cached}`;
+  // Slow path (token missing / near expiry): let supabase refresh, but bounded.
+  const token = await getSessionTokenWithTimeout();
+  return token ? `Bearer ${token}` : null;
 }
 
 export async function apiFetch<T = unknown>(

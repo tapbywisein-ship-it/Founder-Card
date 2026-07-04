@@ -6,6 +6,7 @@ import { InstallPrompt } from '@/components/InstallPrompt';
 import { useAppStore } from '@/store/appStore';
 import { useUnreadCount } from '@/hooks/useNotifications';
 import { useUnreadMessageCount } from '@/hooks/useMessages';
+import { useRequestOrganizer } from '@/hooks/useOrganizer';
 import { VerifyEmailBanner } from '@/components/VerifyEmailBanner';
 import { QuickShareButton } from '@/components/QuickShareButton';
 import { Button } from '@/components/ui/button';
@@ -61,8 +62,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
-  const updateUser = useAppStore((s) => s.updateUser);
-  const setActiveRole = useAppStore((s) => s.setActiveRole);
   const { data: unreadCount = 0 } = useUnreadCount();
   const { data: unreadMessages = 0 } = useUnreadMessageCount();
   const { data: pendingRequests } = useQuery({
@@ -105,24 +104,18 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
     staleTime: 30_000,
   });
 
-  const orgRequestMutation = useMutation({
-    mutationFn: () =>
-      apiFetch('/users/me/request-organizer', {
-        method: 'POST',
-        body: JSON.stringify({ organization: orgOrganization || undefined }),
-      }),
-    onSuccess: () => {
-      // Open self-signup: the upgrade is instant. Reflect the new role in the
-      // store so the gated organizer routes + portal chrome unlock immediately.
-      updateUser({ role: 'organizer' });
-      setActiveRole('organizer');
-      toast.success("You're an organizer now. Welcome to your dashboard!");
-      setOrgDialogOpen(false);
-      setOrgOrganization('');
-      navigate('/organizer/dashboard');
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+  const orgRequestMutation = useRequestOrganizer();
+
+  const handleRequestOrganizer = () => {
+    orgRequestMutation.mutate(orgOrganization, {
+      onSuccess: () => {
+        toast.success("You're an organizer now. Welcome to your dashboard!");
+        setOrgDialogOpen(false);
+        setOrgOrganization('');
+        navigate('/organizer/dashboard');
+      },
+    });
+  };
 
   const handleSearchSelect = (path: string) => {
     setSearchOpen(false);
@@ -449,7 +442,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOrgDialogOpen(false)}>Cancel</Button>
             <Button
-              onClick={() => orgRequestMutation.mutate()}
+              onClick={handleRequestOrganizer}
               disabled={orgRequestMutation.isPending}
             >
               {orgRequestMutation.isPending ? 'Upgrading…' : 'Become an organizer'}

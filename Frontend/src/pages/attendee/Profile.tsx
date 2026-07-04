@@ -18,6 +18,31 @@ import { useAppStore } from '@/store/appStore';
 import { apiUpload } from '@/services/api';
 import { profileService } from '@/services/profile.service';
 
+/** Social/website link fields — validated as URLs (backend requires a full URL). */
+const LINK_KEYS = ['linkedin', 'twitter', 'website'] as const;
+
+/** Backend caps each skill/interest/looking-for tag at 50 chars (`z.string().max(50)`). */
+const MAX_TAG_LEN = 50;
+
+/** Prepend https:// when the user omits a scheme so "example.com" is treated as a URL. */
+function normalizeUrl(value: string): string {
+  const v = value.trim();
+  if (!v) return '';
+  return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+}
+
+/** Empty is allowed; otherwise must parse to an http(s) URL — mirrors the backend `.url()` rule. */
+function isValidUrl(value: string): boolean {
+  const v = value.trim();
+  if (!v) return true;
+  try {
+    const u = new URL(normalizeUrl(v));
+    return (u.protocol === 'http:' || u.protocol === 'https:') && u.hostname.includes('.');
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Profile — Posh-style oversized FK Score numeric display, graphite Tap Card chip,
  * Events Hosted (organizers only) and Events Attending lists.
@@ -33,6 +58,7 @@ const ProfilePage = () => {
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [linkErrors, setLinkErrors] = useState<Record<string, string>>({});
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,16 +146,36 @@ const ProfilePage = () => {
       twitter: profile.twitter ?? '',
       website: profile.website ?? '',
     });
+    setLinkErrors({});
     setEditing(true);
   };
 
   const saveEditWithPhone = async () => {
+    // Inline URL validation — surface errors under each link field instead of
+    // letting the backend reject with a generic "website: Invalid url" toast.
+    const nextLinkErrors: Record<string, string> = {};
+    for (const key of LINK_KEYS) {
+      if (!isValidUrl(form[key] ?? '')) {
+        nextLinkErrors[key] = 'Enter a valid URL, e.g. https://example.com';
+      }
+    }
+    setLinkErrors(nextLinkErrors);
+    if (Object.keys(nextLinkErrors).length > 0) {
+      toast.error('Please fix the highlighted links.');
+      return;
+    }
+
     const payload: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(form)) {
       if (k === 'phone') continue;
       // firstName/lastName have a min(2) backend constraint — omit if empty
       if ((k === 'firstName' || k === 'lastName') && !v.trim()) continue;
       payload[k] = v;
+    }
+    // Normalize link URLs (prepend https:// when the scheme was omitted).
+    for (const key of LINK_KEYS) {
+      const val = (form[key] ?? '').trim();
+      payload[key] = val ? normalizeUrl(val) : '';
     }
     const phoneRaw = form.phone ?? '';
     if (phoneRaw) {
@@ -303,33 +349,15 @@ const ProfilePage = () => {
               )}
             </div>
 
-            {/* Edit / Save / Cancel */}
-            <div className="flex gap-2">
-              {!editing ? (
+            {/* Enter edit mode here; Save/Cancel live at the bottom of the form
+                so users can review everything before saving. */}
+            {!editing && (
+              <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={startEdit}>
                   <Edit3 className="w-3.5 h-3.5" /> Edit
                 </Button>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditing(false)}
-                    disabled={updateMutation.isPending}
-                  >
-                    <X className="w-3.5 h-3.5" /> Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={saveEdit}
-                    disabled={updateMutation.isPending}
-                  >
-                    <Check className="w-3.5 h-3.5" />{' '}
-                    {updateMutation.isPending ? 'Saving…' : 'Save'}
-                  </Button>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* FK Score — Posh-style oversized mono numeral */}
@@ -443,9 +471,9 @@ const ProfilePage = () => {
             <div className="space-y-3">
               {(
                 [
-                  { key: 'linkedin', placeholder: 'LinkedIn URL', icon: Linkedin },
-                  { key: 'twitter', placeholder: 'Twitter / X handle', icon: Twitter },
-                  { key: 'website', placeholder: 'Website URL', icon: Globe },
+                  { key: 'linkedin', placeholder: 'https://linkedin.com/in/you', icon: Linkedin },
+                  { key: 'twitter', placeholder: 'https://x.com/you', icon: Twitter },
+                  { key: 'website', placeholder: 'https://example.com', icon: Globe },
                 ] as const
               ).map(({ key, placeholder, icon: Icon }) => (
                 <div key={key} className="space-y-1.5">
@@ -457,13 +485,25 @@ const ProfilePage = () => {
                     <Input
                       id={`link-${key}`}
                       value={form[key] ?? ''}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, [key]: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setForm((f) => ({ ...f, [key]: val }));
+                        // Clear a stale error as soon as the value becomes valid.
+                        if (linkErrors[key] && isValidUrl(val)) {
+                          setLinkErrors((prev) => {
+                            const { [key]: _, ...rest } = prev;
+                            return rest;
+                          });
+                        }
+                      }}
                       placeholder={placeholder}
-                      className="pl-9"
+                      aria-invalid={Boolean(linkErrors[key])}
+                      className={`pl-9 ${linkErrors[key] ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                     />
                   </div>
+                  {linkErrors[key] && (
+                    <p className="text-xs text-red-600">{linkErrors[key]}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -520,7 +560,32 @@ const ProfilePage = () => {
           editing={editing}
           values={profile?.lookingFor ?? []}
           onChange={(next) => updateMutation.mutate({ lookingFor: next })}
+          maxItems={10}
         />
+
+        {/* Save / Cancel — anchored at the bottom so the whole form can be
+            reviewed before saving. Sticky so it stays reachable while scrolling. */}
+        {editing && (
+          <div className="sticky bottom-4 z-10">
+            <Surface className="flex items-center justify-end gap-2 shadow-card">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditing(false);
+                  setLinkErrors({});
+                }}
+                disabled={updateMutation.isPending}
+              >
+                <X className="w-3.5 h-3.5" /> Cancel
+              </Button>
+              <Button size="sm" onClick={saveEdit} disabled={updateMutation.isPending}>
+                <Check className="w-3.5 h-3.5" />{' '}
+                {updateMutation.isPending ? 'Saving…' : 'Save'}
+              </Button>
+            </Surface>
+          </div>
+        )}
 
         {/* Events Hosted — organizers only */}
         {isOrganizer && (
@@ -649,20 +714,35 @@ type TagListSurfaceProps = {
   values: string[];
   onChange: (next: string[]) => void;
   chipClass?: string;
+  /** Max number of tags allowed (backend caps skills/interests at 20, looking-for at 10). */
+  maxItems?: number;
 };
 
-function TagListSurface({ title, editing, values, onChange, chipClass = 'chip' }: TagListSurfaceProps) {
+function TagListSurface({ title, editing, values, onChange, chipClass = 'chip', maxItems = 20 }: TagListSurfaceProps) {
   const [draft, setDraft] = useState('');
+  const [error, setError] = useState('');
+  const singular = title.toLowerCase().replace(/s$/, '');
 
   if (!editing && values.length === 0) return null;
 
   const addTag = () => {
     const v = draft.trim();
     if (!v) return;
+    // Validate inline here, at the section — before onChange fires a save the
+    // backend would reject with a generic toast.
+    if (v.length > MAX_TAG_LEN) {
+      setError(`Keep each ${singular} under ${MAX_TAG_LEN} characters (${v.length}/${MAX_TAG_LEN}).`);
+      return;
+    }
+    if (values.length >= maxItems) {
+      setError(`You can add up to ${maxItems} ${title.toLowerCase()}.`);
+      return;
+    }
     if (values.includes(v)) {
       setDraft('');
       return;
     }
+    setError('');
     onChange([...values, v]);
     setDraft('');
   };
@@ -693,22 +773,30 @@ function TagListSurface({ title, editing, values, onChange, chipClass = 'chip' }
         )}
       </div>
       {editing && (
-        <div className="flex gap-2">
-          <Input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault();
-                addTag();
-              }
-            }}
-            placeholder={`Add a ${title.toLowerCase().replace(/s$/, '')}…`}
-          />
-          <Button size="sm" variant="outline" onClick={addTag} disabled={!draft.trim()}>
-            Add
-          </Button>
-        </div>
+        <>
+          <div className="flex gap-2">
+            <Input
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (error) setError('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  addTag();
+                }
+              }}
+              placeholder={`Add a ${singular}…`}
+              aria-invalid={Boolean(error)}
+              className={error ? 'border-red-500 focus-visible:ring-red-500' : ''}
+            />
+            <Button size="sm" variant="outline" onClick={addTag} disabled={!draft.trim()}>
+              Add
+            </Button>
+          </div>
+          {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+        </>
       )}
     </Surface>
   );

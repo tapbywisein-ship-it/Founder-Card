@@ -88,7 +88,11 @@ export class OrganizerController {
       audience?: 'all' | 'registered' | 'waitlist';
     };
     const result = await organizerService.sendEventBlast(id, organizerId, subject, body, audience);
-    sendSuccess(res, result, `Blast sent to ${result.sent} recipients`);
+    const msg =
+      result.failed > 0
+        ? `Blast sent to ${result.sent} of ${result.total} recipients (${result.failed} failed)`
+        : `Blast sent to ${result.sent} recipients`;
+    sendSuccess(res, result, msg);
   }
 
   async sendAttendeeBlast(req: Request, res: Response): Promise<void> {
@@ -103,7 +107,11 @@ export class OrganizerController {
       return;
     }
     const result = await organizerService.sendAttendeeBlast(organizerId, userIds, subject, body);
-    sendSuccess(res, result, `Email sent to ${result.sent} attendees`);
+    const msg =
+      result.failed > 0
+        ? `Email sent to ${result.sent} of ${result.total} attendees (${result.failed} failed)`
+        : `Email sent to ${result.sent} attendees`;
+    sendSuccess(res, result, msg);
   }
 
   async checkInAttendee(req: Request, res: Response): Promise<void> {

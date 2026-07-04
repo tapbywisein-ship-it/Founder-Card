@@ -133,6 +133,38 @@
   }
 }
 
+/* Editorial serif italic — reserved for marketing-page accent words. */
+.font-serif-display {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Halftone/dot-matrix wordmark — text filled with a dot pattern instead of a solid color.
+   Override the dot color per-use with the --dot-color custom property. */
+.text-dotted {
+  --dot-color: rgba(255, 255, 255, 0.4);
+  background-image: radial-gradient(circle, var(--dot-color) 1.3px, transparent 1.3px);
+  background-size: 6px 6px;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Subtle film-grain overlay for premium dark surfaces. Layer with mix-blend + low opacity. */
+.bg-grain {
+  position: relative;
+}
+.bg-grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 @layer components {
 
   /* Progress bar primitives */

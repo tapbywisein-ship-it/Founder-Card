@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Mail, Eye, EyeOff } from 'lucide-react';
+import { Mail, Eye, EyeOff, ChevronLeft } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,12 @@ interface SignInModalProps {
   intendedRoute?: string;
   title?: string;
   description?: string;
+  /** Which path the user picked — drives signup role intent + OAuth flags. */
+  roleIntent?: 'organizer' | 'attendee';
+  /** Hide the close (X) and block escape/outside dismissal — mandatory gate. */
+  locked?: boolean;
+  /** Show a "Back" affordance (e.g. to return to a role chooser). */
+  onBack?: () => void;
 }
 
 /**
@@ -37,6 +43,9 @@ export const SignInModal = ({
   intendedRoute,
   title = 'Welcome to TapByWisein',
   description = 'Sign in to continue.',
+  roleIntent,
+  locked = false,
+  onBack,
 }: SignInModalProps) => {
   const navigate = useNavigate();
   const login = useAppStore((s) => s.login);
@@ -68,9 +77,11 @@ export const SignInModal = ({
       // Role-aware redirect: each role has a home, override intendedRoute if needed.
       if (user.role === 'admin') {
         navigate('/admin/dashboard');
-      } else if (user.role === 'attendee' && intendedRoute === '/organizer/events/create') {
-        // Attendees can't create events — send them home.
-        navigate('/dashboard');
+      } else if (roleIntent === 'organizer') {
+        // Organizer path: head to the create-event page. If they're still an
+        // attendee, that page auto-runs the instant self-serve upgrade.
+        if (user.role === 'attendee') localStorage.setItem('fk-pending-organizer-upgrade', '1');
+        navigate('/organizer/events/create');
       } else if (intendedRoute) {
         navigate(intendedRoute);
       }
@@ -84,11 +95,13 @@ export const SignInModal = ({
   const handleGoogle = async () => {
     setLoading(true);
     try {
-      if (intendedRoute === '/organizer/events/create') {
-        // Tell AuthCallback to (a) register new users as ORGANIZER and
-        // (b) forward to the create-event page after sign-in.
+      if (roleIntent === 'organizer') {
+        // Tell AuthCallback to forward to the create-event page after sign-in,
+        // and flag a pending self-serve organizer upgrade (backend starts
+        // everyone as ATTENDEE; CreateEvent auto-runs the upgrade on arrival).
         localStorage.setItem('fk-oauth-create-intent', '1');
         localStorage.setItem('fk-oauth-role', 'organizer');
+        localStorage.setItem('fk-pending-organizer-upgrade', '1');
       }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -109,8 +122,26 @@ export const SignInModal = ({
         if (!o) reset();
       }}
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent
+        className="sm:max-w-md"
+        hideClose={locked}
+        onEscapeKeyDown={locked ? (e) => e.preventDefault() : undefined}
+        onPointerDownOutside={locked ? (e) => e.preventDefault() : undefined}
+      >
+        {onBack && (
+          <button
+            type="button"
+            onClick={() => {
+              reset();
+              onBack();
+            }}
+            className="absolute left-4 top-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back
+          </button>
+        )}
+        <DialogHeader className={onBack ? 'mt-4' : undefined}>
           <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
@@ -206,9 +237,11 @@ export const SignInModal = ({
                 state: {
                   from: intendedRoute ? { pathname: intendedRoute } : undefined,
                   signupRole:
-                    intendedRoute === '/organizer/events/create'
+                    roleIntent === 'organizer'
                       ? 'ORGANIZER'
-                      : undefined,
+                      : roleIntent === 'attendee'
+                        ? 'ATTENDEE'
+                        : undefined,
                 },
               });
             }}
