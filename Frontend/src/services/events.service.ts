@@ -11,6 +11,44 @@ export interface EventLocation {
   meetingUrl?: string;
 }
 
+/** Public, aggregate-only networking impact report (shareable with sponsors). */
+export interface EventImpactReport {
+  event: {
+    id: string;
+    title: string;
+    startDate: string;
+    endDate: string;
+    city: string | null;
+    locationType: string;
+    coverImage: string | null;
+    theme: string | null;
+    organizer: {
+      id: string;
+      username: string | null;
+      profile: {
+        firstName: string | null;
+        lastName: string | null;
+        avatar: string | null;
+        company: string | null;
+      } | null;
+    };
+  };
+  metrics: {
+    registered: number;
+    checkedIn: number;
+    connections: number;
+    taps: number;
+    madeOneConnection: number;
+    madeThreeConnections: number;
+    avgConnectionsPerAttendee: number;
+    checkInRate: number;
+    networkedRate: number;
+    superConnectorRate: number;
+    scanToConnectionRate: number | null;
+  };
+  generatedAt: string;
+}
+
 export interface EventOrganizer {
   id: string;
   username?: string | null;
@@ -220,6 +258,11 @@ export const eventsService = {
 
   async getEvent(id: string) {
     return apiFetch<EventResponse>(`/events/${id}`);
+  },
+
+  /** Public aggregate networking impact report — no auth required. */
+  async getEventImpactReport(id: string) {
+    return apiFetch<{ data: EventImpactReport }>(`/events/${id}/impact`);
   },
 
   async registerForEvent(

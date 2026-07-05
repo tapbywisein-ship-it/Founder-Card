@@ -46,6 +46,28 @@ export const leadsService = {
 
   async exportLeads(eventId?: string) {
     const query = eventId ? `?eventId=${eventId}` : '';
-    return apiFetch<{ data: unknown[] }>(`/organizer/leads/export${query}`);
+    return apiFetch<{ data: ExportedLead[] }>(`/organizer/leads/export${query}`);
   },
 };
+
+/** Flat, CSV-ready lead row with networking context (from /organizer/leads/export). */
+export interface ExportedLead {
+  name: string;
+  email: string;
+  company: string;
+  position: string;
+  phone: string;
+  linkedin: string;
+  twitter: string;
+  website: string;
+  interests: string;
+  skills: string;
+  lookingFor: string;
+  connectionsAtEvent: number;
+  checkedIn: string;
+  status: string;
+  notes: string;
+  eventTitle: string;
+  eventDate: string;
+  addedAt: string;
+}

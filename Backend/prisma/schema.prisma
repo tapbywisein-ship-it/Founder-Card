@@ -199,6 +199,8 @@ model User {
   blocksMade          BlockedUser[]       @relation("BlocksMade")
   blocksReceived      BlockedUser[]       @relation("BlocksReceived")
   membership          Membership?
+  ownedCommunities    Community[]         @relation("CommunityOwner")
+  communityMemberships CommunityMember[]
 
   @@index([email])
   @@index([supabaseId])
@@ -360,7 +362,10 @@ model Event {
   updatedAt        DateTime        @updatedAt
   deletedAt        DateTime?
 
+  communityId      String?
+
   organizer     User                @relation("Organizer", fields: [organizerId], references: [id])
+  community     Community?          @relation(fields: [communityId], references: [id])
   registrations EventRegistration[]
   leads         Lead[]
   messages      EventMessage[]
@@ -379,7 +384,53 @@ model Event {
   @@index([status])
   @@index([startDate])
   @@index([category])
+  @@index([communityId])
   @@map("events")
+}
+
+// A recurring community an organizer runs — persistent member network across
+// events. Events optionally belong to a community (Event.communityId).
+model Community {
+  id          String   @id @default(uuid())
+  organizerId String
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  avatar      String?
+  coverImage  String?
+  category    String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  organizer User              @relation("CommunityOwner", fields: [organizerId], references: [id], onDelete: Cascade)
+  members   CommunityMember[]
+  events    Event[]
+
+  @@index([organizerId])
+  @@index([slug])
+  @@map("communities")
+}
+
+model CommunityMember {
+  id          String              @id @default(uuid())
+  communityId String
+  userId      String
+  role        CommunityMemberRole @default(MEMBER)
+  createdAt   DateTime            @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([userId])
+  @@map("community_members")
+}
+
+enum CommunityMemberRole {
+  MEMBER
+  MODERATOR
 }
 
 model EventPageView {

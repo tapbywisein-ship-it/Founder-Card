@@ -34,6 +34,7 @@ const TABS = [
   { label: 'Registration', to: 'manage',   end: false },
   { label: 'Blasts',       to: 'blasts',   end: false },
   { label: 'Insights',     to: 'analytics',end: false },
+  { label: 'Matchmaking',  to: 'matchmaking', end: false },
   { label: 'Check-in',     to: 'checkin',  end: false },
   { label: 'More',         to: 'more',     end: false },
 ] as const;

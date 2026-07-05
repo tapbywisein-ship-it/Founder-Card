@@ -77,6 +77,9 @@ router.get('/:id/questions', eventsController.listQuestions.bind(eventsControlle
 router.get('/:id/speakers', eventsController.listSpeakers.bind(eventsController));
 router.get('/:id/agenda', eventsController.listAgenda.bind(eventsController));
 
+// Public, aggregate-only networking impact report (shareable with sponsors)
+router.get('/:id/impact', eventsController.getImpactReport.bind(eventsController));
+
 // Attendee routes
 router.post(
   '/:id/register',

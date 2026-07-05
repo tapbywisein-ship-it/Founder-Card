@@ -149,6 +149,13 @@ export class OrganizerController {
     sendSuccess(res, data, 'Networking analytics retrieved');
   }
 
+  async getMatchmaking(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const data = await organizerService.getEventMatchmaking(id, organizerId);
+    sendSuccess(res, data, 'Matchmaking suggestions retrieved');
+  }
+
   async importAttendees(req: Request, res: Response): Promise<void> {
     const organizerId = req.user!.userId;
     const { id } = req.params as Record<string, string>;

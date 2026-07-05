@@ -1,5 +1,7 @@
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Surface } from '@/components/Surface';
+import { Button } from '@/components/ui/button';
 import { useEventAnalytics, useNetworkingAnalytics } from '@/hooks/useOrganizer';
 import {
   Users,
@@ -11,6 +13,8 @@ import {
   Zap,
   Trophy,
   AlertCircle,
+  Share2,
+  ExternalLink,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -58,8 +62,42 @@ const AnalyticsPage = () => {
   const totalSeniority = (quality?.seniorityMix ?? []).reduce((s, x) => s + x.value, 0);
   const repeatTotal = (quality?.repeatAttendees ?? 0) + (quality?.firstTimeAttendees ?? 0);
 
+  const reportUrl = `${window.location.origin}/e/${id}/impact`;
+
   return (
     <div className="space-y-6">
+        {/* Shareable impact report — sponsor-facing networking-ROI summary */}
+        <Surface className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between bg-primary/5 border-primary/20">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <Share2 className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Share your networking impact</p>
+              <p className="text-xs text-muted-foreground">
+                A public, aggregate report of connections made — great for sponsors & recaps.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(reportUrl);
+                toast.success('Report link copied');
+              }}
+            >
+              <Share2 className="w-3.5 h-3.5 mr-1.5" /> Copy link
+            </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <Link to={`/e/${id}/impact`} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> View
+              </Link>
+            </Button>
+          </div>
+        </Surface>
+
         {/* Key metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[

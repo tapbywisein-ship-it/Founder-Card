@@ -83,6 +83,15 @@ export class EventsService {
   }
 
   async createEvent(organizerId: string, dto: CreateEventDto) {
+    // Only allow linking an event to a community the organizer actually owns.
+    if (dto.communityId) {
+      const owned = await prisma.community.findFirst({
+        where: { id: dto.communityId, organizerId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!owned) throw new BadRequestError('Community not found or not owned by you');
+    }
+
     // Auto-generate slug if not provided. Date.now() alone collides when two
     // events are created in the same millisecond; the DB has a UNIQUE index on
     // slug, so on P2002 we retry with a random 4-char suffix.
@@ -138,6 +147,7 @@ export class EventsService {
         visibility: dto.visibility ?? 'PUBLIC',
         timezone: dto.timezone ?? 'UTC',
         ticketTypes: dto.ticketTypes ? JSON.parse(JSON.stringify(dto.ticketTypes)) : undefined,
+        communityId: dto.communityId ?? null,
         status: 'DRAFT',
       },
       include: { organizer: { select: PUBLIC_ORGANIZER_SELECT } },
@@ -1013,6 +1023,79 @@ export class EventsService {
       },
       orderBy: { startsAt: 'asc' },
     });
+  }
+
+  /**
+   * Public, aggregate-only "impact report" for an event — the shareable
+   * networking-ROI summary an organizer can send to sponsors. Exposes NO
+   * attendee PII (only counts + rates), so it's safe on an unauthenticated
+   * route. Only available for published (non-draft) events.
+   */
+  async getEventImpactReport(eventId: string) {
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, deletedAt: null, status: { not: 'DRAFT' } },
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        endDate: true,
+        city: true,
+        locationType: true,
+        coverImage: true,
+        theme: true,
+        organizer: { select: PUBLIC_ORGANIZER_SELECT },
+      },
+    });
+    if (!event) throw new NotFoundError('Event');
+
+    const [connections, taps, registrations, connectionRows] = await Promise.all([
+      prisma.connection.count({ where: { eventId } }),
+      prisma.eventTap.count({ where: { eventId } }),
+      prisma.eventRegistration.findMany({
+        where: { eventId, status: { not: 'CANCELLED' } },
+        select: { userId: true, checkedIn: true },
+      }),
+      prisma.connection.findMany({
+        where: { eventId },
+        select: { requesterId: true, receiverId: true },
+      }),
+    ]);
+
+    // Per-attendee connection tally (drives the "% who networked" funnel).
+    const tally = new Map<string, number>();
+    for (const c of connectionRows) {
+      tally.set(c.requesterId, (tally.get(c.requesterId) ?? 0) + 1);
+      tally.set(c.receiverId, (tally.get(c.receiverId) ?? 0) + 1);
+    }
+    const registered = registrations.length;
+    const checkedIn = registrations.filter((r) => r.checkedIn).length;
+    const networkedBase = checkedIn || registered; // % of people actually present
+    const madeAtLeast = (n: number) =>
+      registrations.filter((r) => (tally.get(r.userId) ?? 0) >= n).length;
+    const madeOne = madeAtLeast(1);
+    const madeThree = madeAtLeast(3);
+    const avgConnectionsPerAttendee =
+      registered === 0 ? 0 : Math.round((connections / registered) * 10) / 10;
+
+    const pct = (num: number, den: number) => (den === 0 ? 0 : Math.round((num / den) * 100));
+
+    return {
+      event,
+      metrics: {
+        registered,
+        checkedIn,
+        connections,
+        taps,
+        madeOneConnection: madeOne,
+        madeThreeConnections: madeThree,
+        avgConnectionsPerAttendee,
+        checkInRate: pct(checkedIn, registered),
+        networkedRate: pct(madeOne, networkedBase),
+        superConnectorRate: pct(madeThree, networkedBase),
+        scanToConnectionRate: taps === 0 ? null : Math.round((connections / taps) * 100),
+      },
+      generatedAt: new Date().toISOString(),
+    };
   }
 
   /** Toggle a saved-event bookmark for the user. Idempotent. */

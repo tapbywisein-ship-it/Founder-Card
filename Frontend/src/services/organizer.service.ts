@@ -40,6 +40,7 @@ export interface CreateEventPayload {
   visibility?: 'PUBLIC' | 'PRIVATE' | 'UNLISTED';
   timezone?: string;
   ticketTypes?: TicketTypePayload[];
+  communityId?: string;
 }
 
 export interface AttendeeItem {
@@ -317,7 +318,31 @@ export const organizerService = {
       `/organizer/events/${eventId}/networking-analytics`
     );
   },
+
+  async getMatchmaking(eventId: string) {
+    return apiFetch<{ data: Matchmaking }>(`/organizer/events/${eventId}/matchmaking`);
+  },
 };
+
+export interface MatchAttendee {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  avatar: string | null;
+  company: string | null;
+  position: string | null;
+}
+
+export interface Matchmaking {
+  attendeeCount: number;
+  pairs: Array<{
+    score: number;
+    reasons: string[];
+    alreadyConnected: boolean;
+    a: MatchAttendee;
+    b: MatchAttendee;
+  }>;
+}
 
 export interface NetworkingAnalytics {
   event: { id: string; title: string };

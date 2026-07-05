@@ -1,0 +1,59 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { communitiesService, type CreateCommunityPayload } from '@/services/communities.service';
+
+const keys = {
+  mine: () => ['communities', 'mine'] as const,
+  following: () => ['communities', 'following'] as const,
+  bySlug: (slug: string) => ['communities', 'slug', slug] as const,
+};
+
+export function useMyCommunities() {
+  return useQuery({
+    queryKey: keys.mine(),
+    queryFn: () => communitiesService.listMine(),
+    select: (res) => res.data,
+  });
+}
+
+export function useFollowedCommunities() {
+  return useQuery({
+    queryKey: keys.following(),
+    queryFn: () => communitiesService.listFollowing(),
+    select: (res) => res.data,
+  });
+}
+
+export function useCommunity(slug: string) {
+  return useQuery({
+    queryKey: keys.bySlug(slug),
+    queryFn: () => communitiesService.getBySlug(slug),
+    select: (res) => res.data,
+    enabled: !!slug,
+  });
+}
+
+export function useCreateCommunity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateCommunityPayload) => communitiesService.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.mine() });
+      toast.success('Community created');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useToggleCommunityMembership(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, join }: { id: string; join: boolean }) =>
+      join ? communitiesService.join(id) : communitiesService.leave(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.bySlug(slug) });
+      qc.invalidateQueries({ queryKey: keys.following() });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}

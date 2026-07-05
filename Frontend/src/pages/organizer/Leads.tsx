@@ -5,26 +5,38 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Download, Search, Users } from 'lucide-react';
 import { useLeads, useUpdateLeadStatus } from '@/hooks/useLeads';
-import type { Lead } from '@/services/leads.service';
+import type { ExportedLead } from '@/services/leads.service';
 import { leadsService } from '@/services/leads.service';
 import { toast } from 'sonner';
 
-function downloadCsv(leads: Lead[]) {
-  const header = ['Name', 'Email', 'Company', 'Position', 'LinkedIn', 'Event', 'Status', 'Date'];
-  const rows = leads.map((l) => {
-    const p = l.attendee?.profile;
-    return [
-      p ? `${p.firstName} ${p.lastName}` : '',
-      l.attendee?.email ?? '',
-      p?.company ?? '',
-      p?.position ?? '',
-      p?.linkedin ?? '',
-      l.event?.title ?? '',
-      l.status,
-      new Date(l.createdAt).toLocaleDateString(),
-    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',');
-  });
-  const csv = [header.join(','), ...rows].join('\n');
+// Enriched lead export — includes networking context (connections made, what
+// each lead is looking for) so the CSV is genuinely useful for follow-up / sponsors.
+function downloadLeadsCsv(rows: ExportedLead[]) {
+  const columns: { header: string; get: (r: ExportedLead) => string | number }[] = [
+    { header: 'Name', get: (r) => r.name },
+    { header: 'Email', get: (r) => r.email },
+    { header: 'Company', get: (r) => r.company },
+    { header: 'Position', get: (r) => r.position },
+    { header: 'Phone', get: (r) => r.phone },
+    { header: 'LinkedIn', get: (r) => r.linkedin },
+    { header: 'Twitter', get: (r) => r.twitter },
+    { header: 'Website', get: (r) => r.website },
+    { header: 'Looking for', get: (r) => r.lookingFor },
+    { header: 'Interests', get: (r) => r.interests },
+    { header: 'Skills', get: (r) => r.skills },
+    { header: 'Connections at event', get: (r) => r.connectionsAtEvent },
+    { header: 'Checked in', get: (r) => r.checkedIn },
+    { header: 'Status', get: (r) => r.status },
+    { header: 'Notes', get: (r) => r.notes },
+    { header: 'Event', get: (r) => r.eventTitle },
+    { header: 'Event date', get: (r) => new Date(r.eventDate).toLocaleDateString() },
+    { header: 'Added', get: (r) => new Date(r.addedAt).toLocaleDateString() },
+  ];
+  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const csv = [
+    columns.map((c) => c.header).join(','),
+    ...rows.map((r) => columns.map((c) => esc(c.get(r))).join(',')),
+  ].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -69,8 +81,12 @@ const LeadsPage = () => {
               setExporting(true);
               try {
                 const res = await leadsService.exportLeads();
-                downloadCsv(res.data as Lead[]);
-                toast.success('CSV downloaded');
+                if (res.data.length === 0) {
+                  toast.info('No leads to export yet');
+                } else {
+                  downloadLeadsCsv(res.data);
+                  toast.success(`Exported ${res.data.length} lead${res.data.length === 1 ? '' : 's'}`);
+                }
               } catch {
                 toast.error('Export failed');
               } finally {

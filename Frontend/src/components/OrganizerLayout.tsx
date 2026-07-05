@@ -4,12 +4,13 @@ import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
-  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode,
+  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode, Boxes,
 } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard',    icon: LayoutDashboard, path: '/organizer/dashboard' },
   { label: 'Create Event', icon: Calendar,         path: '/organizer/events/create' },
+  { label: 'Communities',  icon: Boxes,            path: '/organizer/communities' },
   { label: 'Attendees',    icon: Users,            path: '/organizer/attendees' },
   { label: 'Leads',        icon: Download,         path: '/organizer/leads' },
   { label: 'Payouts',      icon: Wallet,           path: '/organizer/payouts' },
