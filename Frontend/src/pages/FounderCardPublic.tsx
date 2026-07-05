@@ -32,6 +32,7 @@ import { useAppStore } from '@/store/appStore';
 import { useActiveEventId } from '@/lib/useActiveEvent';
 import { founderCardService, type PublicCard } from '@/services/founderCard.service';
 import { useJsonLd } from '@/lib/useJsonLd';
+import { useSeo } from '@/lib/useSeo';
 import { WhatIsTapByWisein } from '@/components/WhatIsTapByWisein';
 import { connectionsService } from '@/services/connections.service';
 import { useStartConversation } from '@/hooks/useMessages';
@@ -162,6 +163,23 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
           url: typeof window !== 'undefined' ? window.location.href : undefined,
         }
       : null
+  );
+
+  // Per-route SEO meta for the public tap card.
+  useSeo(
+    card && profile
+      ? {
+          title: `${fullName}${profile.company ? ` · ${profile.company}` : ''}`,
+          description:
+            (profile.bio ?? '').replace(/\s+/g, ' ').trim().slice(0, 160) ||
+            `${fullName}${profile.position ? `, ${profile.position}` : ''}${
+              profile.company ? ` at ${profile.company}` : ''
+            } — connect on TapByWisein.`,
+          canonical: card.slug ? `/c/${card.slug}` : undefined,
+          image: profile.avatar ?? undefined,
+          type: 'profile',
+        }
+      : {}
   );
 
   const body = (
