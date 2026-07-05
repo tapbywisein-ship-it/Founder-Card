@@ -2,3 +2,6 @@
 # Holds live runtime secrets — never commit
 docker-compose.yml
 .vercel
+
+# macOS
+.DS_Store
