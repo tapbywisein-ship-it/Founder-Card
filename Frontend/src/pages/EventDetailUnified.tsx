@@ -22,6 +22,7 @@ import {
 import { Logo } from '@/components/Logo';
 import { EventSpeakersAgenda } from '@/components/EventSpeakersAgenda';
 import { ReportButton } from '@/components/ReportButton';
+import { AddToCalendar } from '@/components/AddToCalendar';
 import { requireVerifiedEmail } from '@/components/VerifyEmailBanner';
 import { eventsService } from '@/services/events.service';
 import { useAppStore } from '@/store/appStore';
@@ -651,6 +652,19 @@ const EventDetailUnified = () => {
             >
               <Share2 className="w-3.5 h-3.5" /> Share event
             </Button>
+            <AddToCalendar
+              event={{
+                title: event.title,
+                description: event.description ?? undefined,
+                start: event.startDate,
+                end: event.endDate,
+                location:
+                  event.locationType === 'VIRTUAL'
+                    ? event.meetingUrl ?? 'Online'
+                    : [event.address, event.city, event.country].filter(Boolean).join(', ') || undefined,
+                url: `${window.location.origin}/e/${event.id}`,
+              }}
+            />
             {isAuthenticated && (
               <ReportButton
                 targetType="EVENT"

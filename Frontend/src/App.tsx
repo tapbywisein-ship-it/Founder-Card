@@ -32,6 +32,9 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const PublicEventPage = lazy(() => import("./pages/PublicEventPage"));
+const ImpactReportPage = lazy(() => import("./pages/ImpactReport"));
+const CommunityPublicPage = lazy(() => import("./pages/CommunityPublic"));
+const CommunitiesPage = lazy(() => import("./pages/organizer/Communities"));
 const FounderCardPublic = lazy(() => import("./pages/FounderCardPublic"));
 
 const AttendeeDashboard = lazy(() => import("./pages/attendee/Dashboard"));
@@ -67,6 +70,7 @@ const GuestsTab = lazy(() => import("./pages/organizer/event/GuestsTab"));
 const BlastsTab = lazy(() => import("./pages/organizer/event/BlastsTab"));
 const MoreTab = lazy(() => import("./pages/organizer/event/MoreTab"));
 const VisitorsTab = lazy(() => import("./pages/organizer/event/VisitorsTab"));
+const MatchmakingTab = lazy(() => import("./pages/organizer/event/MatchmakingTab"));
 
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminUsersPage = lazy(() => import("./pages/admin/Users"));
@@ -195,6 +199,10 @@ const App = () => (
           <Route path="/auth/callback" element={<AuthCallback />} />
           {/* Public shareable event page — no auth required */}
           <Route path="/e/:id" element={<PublicEventPage />} />
+          {/* Public shareable networking impact report — no auth required */}
+          <Route path="/e/:id/impact" element={<ImpactReportPage />} />
+          {/* Public community page — no auth required */}
+          <Route path="/community/:slug" element={<CommunityPublicPage />} />
           {/* Public shareable Founder Card — no auth required */}
           <Route path="/c/:slug" element={<FounderCardPublic mode="public" />} />
           {/* Card view — accepts user id OR username. In-app chrome when signed in,
@@ -236,6 +244,7 @@ const App = () => (
               the user isn't authenticated, and the form submit is gated. */}
           <Route path="/organizer/events/create" element={<CreateEventPage />} />
           <Route path="/organizer/attendees" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><AttendeeDirectoryPage /></ProtectedRoute>} />
+          <Route path="/organizer/communities" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><CommunitiesPage /></ProtectedRoute>} />
           <Route path="/organizer/leads" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><LeadsPage /></ProtectedRoute>} />
           <Route path="/organizer/payouts" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><PayoutsPage /></ProtectedRoute>} />
           <Route path="/organizer/events/:id" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><OrganizerEventLayout /></ProtectedRoute>}>
@@ -244,6 +253,7 @@ const App = () => (
             <Route path="manage" element={<EventManagePage />} />
             <Route path="blasts" element={<BlastsTab />} />
             <Route path="analytics" element={<OrgAnalyticsPage />} />
+            <Route path="matchmaking" element={<MatchmakingTab />} />
             <Route path="checkin" element={<CheckInPage />} />
             <Route path="visitors" element={<VisitorsTab />} />
             <Route path="more" element={<MoreTab />} />

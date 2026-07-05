@@ -189,20 +189,59 @@ export class OrganizerService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return leads.map((lead) => ({
-      id: lead.id,
-      status: lead.status,
-      notes: lead.notes,
-      firstName: lead.attendee.profile?.firstName ?? '',
-      lastName: lead.attendee.profile?.lastName ?? '',
-      email: lead.attendee.email,
-      company: lead.attendee.profile?.company ?? '',
-      position: lead.attendee.profile?.position ?? '',
-      linkedin: lead.attendee.profile?.linkedin ?? '',
-      eventTitle: lead.event.title,
-      eventDate: lead.event.startDate.toISOString(),
-      registeredAt: lead.createdAt.toISOString(),
-    }));
+    // Enrich with networking context — the whole point of a TapByWisein lead vs
+    // a plain contact: how engaged the lead was and what they're after.
+    const eventIds = [...new Set(leads.map((l) => l.eventId))];
+    const attendeeIds = [...new Set(leads.map((l) => l.attendeeId))];
+    const [connections, regs] = await Promise.all([
+      prisma.connection.findMany({
+        where: { eventId: { in: eventIds } },
+        select: { eventId: true, requesterId: true, receiverId: true },
+      }),
+      prisma.eventRegistration.findMany({
+        where: { eventId: { in: eventIds }, userId: { in: attendeeIds } },
+        select: { eventId: true, userId: true, checkedIn: true },
+      }),
+    ]);
+
+    // Connections each attendee made, keyed per event they were a lead in.
+    const connTally = new Map<string, number>();
+    for (const c of connections) {
+      if (!c.eventId) continue;
+      const bump = (uid: string) => {
+        const k = `${c.eventId}:${uid}`;
+        connTally.set(k, (connTally.get(k) ?? 0) + 1);
+      };
+      bump(c.requesterId);
+      bump(c.receiverId);
+    }
+    const checkedInMap = new Map<string, boolean>();
+    for (const r of regs) checkedInMap.set(`${r.eventId}:${r.userId}`, r.checkedIn);
+
+    return leads.map((lead) => {
+      const p = lead.attendee.profile;
+      const key = `${lead.eventId}:${lead.attendeeId}`;
+      return {
+        name: [p?.firstName, p?.lastName].filter(Boolean).join(' '),
+        email: lead.attendee.email,
+        company: p?.company ?? '',
+        position: p?.position ?? '',
+        phone: p?.phone ?? '',
+        linkedin: p?.linkedin ?? '',
+        twitter: p?.twitter ?? '',
+        website: p?.website ?? '',
+        interests: (p?.interests ?? []).join('; '),
+        skills: (p?.skills ?? []).join('; '),
+        lookingFor: (p?.lookingFor ?? []).join('; '),
+        connectionsAtEvent: connTally.get(key) ?? 0,
+        checkedIn: (checkedInMap.get(key) ?? false) ? 'Yes' : 'No',
+        status: lead.status,
+        notes: lead.notes ?? '',
+        eventTitle: lead.event.title,
+        eventDate: lead.event.startDate.toISOString(),
+        addedAt: lead.createdAt.toISOString(),
+      };
+    });
   }
 
   async getAttendeeDirectory(
@@ -989,6 +1028,101 @@ export class OrganizerService {
       },
       topConnectors,
     };
+  }
+
+  /**
+   * Organizer-facing "curated intros" — ranks the best attendee PAIRS to
+   * introduce, by mutual skill/interest overlap + complementary looking-for.
+   * Same scoring model as attendee suggestions, made symmetric. O(n²) over
+   * attendees (capped) — fine for realistic event sizes.
+   */
+  async getEventMatchmaking(eventId: string, organizerId: string, limit = 20) {
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, organizerId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!event) throw new NotFoundError('Event');
+
+    const [regs, connectionRows] = await Promise.all([
+      prisma.eventRegistration.findMany({
+        where: { eventId, status: { not: 'CANCELLED' } },
+        select: {
+          userId: true,
+          user: {
+            select: {
+              profile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                  company: true,
+                  position: true,
+                  skills: true,
+                  interests: true,
+                  lookingFor: true,
+                },
+              },
+            },
+          },
+        },
+        take: 150,
+      }),
+      prisma.connection.findMany({
+        where: { eventId },
+        select: { requesterId: true, receiverId: true },
+      }),
+    ]);
+
+    // Pairs already connected at this event — surfaced but de-prioritized.
+    const connected = new Set(connectionRows.map((c) => [c.requesterId, c.receiverId].sort().join(':')));
+
+    const inter = (a: string[], b: string[]) => a.filter((x) => b.includes(x));
+    const attendees = regs
+      .map((r) => ({
+        userId: r.userId,
+        profile: r.user.profile,
+        skills: r.user.profile?.skills ?? [],
+        interests: r.user.profile?.interests ?? [],
+        lookingFor: r.user.profile?.lookingFor ?? [],
+      }))
+      .filter((a) => a.profile);
+
+    type Pair = { score: number; reasons: string[]; a: (typeof attendees)[number]; b: (typeof attendees)[number]; alreadyConnected: boolean };
+    const pairs: Pair[] = [];
+    for (let i = 0; i < attendees.length; i++) {
+      for (let j = i + 1; j < attendees.length; j++) {
+        const A = attendees[i];
+        const B = attendees[j];
+        const sharedSkills = inter(A.skills, B.skills);
+        const sharedInterests = inter(A.interests, B.interests);
+        const aWantsB = inter(A.lookingFor, B.skills);
+        const bWantsA = inter(B.lookingFor, A.skills);
+        const score =
+          2 * sharedSkills.length + 1.5 * sharedInterests.length + 3 * (aWantsB.length + bWantsA.length);
+        if (score <= 0) continue;
+        const reasons = [...new Set([...aWantsB, ...bWantsA, ...sharedSkills, ...sharedInterests])].slice(0, 4);
+        pairs.push({
+          score,
+          reasons,
+          a: A,
+          b: B,
+          alreadyConnected: connected.has([A.userId, B.userId].sort().join(':')),
+        });
+      }
+    }
+
+    const ranked = pairs
+      .sort((x, y) => Number(x.alreadyConnected) - Number(y.alreadyConnected) || y.score - x.score)
+      .slice(0, limit)
+      .map((p) => ({
+        score: Math.round(p.score * 10) / 10,
+        reasons: p.reasons,
+        alreadyConnected: p.alreadyConnected,
+        a: { userId: p.a.userId, ...p.a.profile },
+        b: { userId: p.b.userId, ...p.b.profile },
+      }));
+
+    return { attendeeCount: attendees.length, pairs: ranked };
   }
 
   /**

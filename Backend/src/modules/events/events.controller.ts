@@ -72,6 +72,12 @@ export class EventsController {
     sendSuccess(res, data, 'Agenda retrieved');
   }
 
+  async getImpactReport(req: Request, res: Response): Promise<void> {
+    const { id } = req.params as Record<string, string>;
+    const data = await eventsService.getEventImpactReport(id);
+    sendSuccess(res, data, 'Impact report retrieved');
+  }
+
   async rsvpGuest(req: Request, res: Response): Promise<void> {
     const { id } = req.params as Record<string, string>;
     const dto = req.body as RsvpGuestDto;

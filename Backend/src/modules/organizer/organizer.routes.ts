@@ -106,6 +106,12 @@ router.get(
   organizerController.getNetworkingAnalytics.bind(organizerController)
 );
 
+// Curated intros — best attendee pairs to introduce
+router.get(
+  '/events/:id/matchmaking',
+  organizerController.getMatchmaking.bind(organizerController)
+);
+
 // Duplicate event + export attendees CSV
 router.post('/events/:id/duplicate', organizerController.duplicateEvent.bind(organizerController));
 router.get(

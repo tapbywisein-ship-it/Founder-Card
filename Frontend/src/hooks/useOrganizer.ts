@@ -30,6 +30,7 @@ export const orgKeys = {
   guests: (id: string, params?: object) => ['organizer', 'guests', id, params] as const,
   analytics: (id: string) => ['organizer', 'analytics', id] as const,
   networking: (id: string) => ['organizer', 'networking', id] as const,
+  matchmaking: (id: string) => ['organizer', 'matchmaking', id] as const,
   leads: (params?: object) => ['organizer', 'leads', params] as const,
   attendees: (params?: object) => ['organizer', 'attendees', params] as const,
 };
@@ -42,6 +43,16 @@ export function useNetworkingAnalytics(eventId: string) {
     enabled: !!eventId,
     staleTime: 60_000,
     refetchInterval: 60_000,
+  });
+}
+
+export function useMatchmaking(eventId: string) {
+  return useQuery({
+    queryKey: orgKeys.matchmaking(eventId),
+    queryFn: () => organizerService.getMatchmaking(eventId),
+    select: (res) => res.data,
+    enabled: !!eventId,
+    staleTime: 60_000,
   });
 }
 

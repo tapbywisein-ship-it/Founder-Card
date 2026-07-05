@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useCreateEvent, useRequestOrganizer } from '@/hooks/useOrganizer';
+import { useMyCommunities } from '@/hooks/useCommunities';
 import { useAppStore } from '@/store/appStore';
 import { EVENT_THEMES, THEME_IDS } from '@/lib/eventThemes';
 import { getCountryOptions, getStateOptions, getCityOptions, getCountryName, getStateName } from '@/lib/geo';
@@ -115,6 +116,7 @@ interface FormState {
   visibility: 'PUBLIC' | 'PRIVATE' | 'UNLISTED';
   tags: string;
   slug: string;
+  communityId: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -130,6 +132,7 @@ const CreateEventPage = () => {
   const navigate = useNavigate();
   const createMutation = useCreateEvent();
   const requestOrgMutation = useRequestOrganizer();
+  const { data: myCommunities } = useMyCommunities();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Luma pattern: render the form for signed-out visitors too. The modal
@@ -208,6 +211,7 @@ const CreateEventPage = () => {
     visibility: 'PUBLIC',
     tags: '',
     slug: '',
+    communityId: '',
   });
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
@@ -484,6 +488,7 @@ const CreateEventPage = () => {
       visibility: form.visibility,
       tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       slug: form.slug || undefined,
+      communityId: form.communityId || undefined,
     };
 
     try {
@@ -666,6 +671,24 @@ const CreateEventPage = () => {
                 className="text-lg font-semibold h-11"
               />
             </div>
+
+            {/* Optional: host this event under a community */}
+            {(myCommunities?.length ?? 0) > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="event-community">Community (optional)</Label>
+                <select
+                  id="event-community"
+                  value={form.communityId}
+                  onChange={(e) => set('communityId', e.target.value)}
+                  className="w-full h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">No community</option>
+                  {myCommunities!.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Date + time rows */}
             <Surface>
