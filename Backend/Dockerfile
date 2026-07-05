@@ -29,10 +29,14 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install production system dependencies
+# Install production system dependencies.
+# `openssl` (libssl.so.3) is REQUIRED for the Prisma query engine to load on
+# Alpine/musl — without it the engine fails at runtime (PrismaClientInitializationError).
 RUN apk add --no-cache \
     dumb-init \
     curl \
+    openssl \
+    libstdc++ \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user

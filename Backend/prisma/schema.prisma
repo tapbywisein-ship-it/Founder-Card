@@ -1,5 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Explicit targets so the query engine loads on Alpine/musl (Render Docker)
+  // as well as local dev — otherwise the engine fails to load at runtime.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
