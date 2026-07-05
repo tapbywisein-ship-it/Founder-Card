@@ -4,6 +4,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://founder-card.onrender.com/api/v1/seo/sitemap.xml" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

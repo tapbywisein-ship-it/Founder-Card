@@ -1,7 +1,9 @@
 import prisma from '@config/database';
 import { env } from '@config/env';
 
-const STATIC_ROUTES = ['/', '/discover', '/login', '/register'];
+// Public marketing pages only — auth-gated (/discover) and auth (/login,
+// /register) pages don't belong in the sitemap.
+const STATIC_ROUTES = ['/', '/pricing', '/terms', '/privacy'];
 
 const escapeXml = (s: string): string =>
   s.replace(/[<>&'"]/g, (c) =>
@@ -13,18 +15,31 @@ export class SeoService {
   async generateSitemap(): Promise<string> {
     const base = env.FRONTEND_URL.replace(/\/$/, '');
 
-    const events = await prisma.event.findMany({
-      where: { status: 'PUBLISHED', deletedAt: null, visibility: 'PUBLIC' },
-      select: { id: true, slug: true, updatedAt: true },
-      orderBy: { startDate: 'desc' },
-      take: 5000,
-    });
+    const [events, cards] = await Promise.all([
+      prisma.event.findMany({
+        where: { status: 'PUBLISHED', deletedAt: null, visibility: 'PUBLIC' },
+        select: { id: true, slug: true, updatedAt: true },
+        orderBy: { startDate: 'desc' },
+        take: 5000,
+      }),
+      // Public Tap Cards: live (ACTIVE) cards that have a shareable slug.
+      prisma.founderCard.findMany({
+        where: { status: 'ACTIVE', publicSlug: { not: null } },
+        select: { publicSlug: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 5000,
+      }),
+    ]);
 
     const urls: { loc: string; lastmod?: string }[] = [
       ...STATIC_ROUTES.map((r) => ({ loc: `${base}${r}` })),
       ...events.map((e) => ({
         loc: `${base}/e/${escapeXml(e.slug ?? e.id)}`,
         lastmod: e.updatedAt.toISOString(),
+      })),
+      ...cards.map((c) => ({
+        loc: `${base}/c/${escapeXml(c.publicSlug as string)}`,
+        lastmod: c.updatedAt.toISOString(),
       })),
     ];
 

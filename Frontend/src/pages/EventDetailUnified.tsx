@@ -32,6 +32,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { injectThemeVars } from '@/lib/eventThemes';
 import { useJsonLd } from '@/lib/useJsonLd';
+import { useSeo } from '@/lib/useSeo';
 import { getRegistrationPricing } from '@/lib/ticketPricing';
 import { formatINR } from '@/lib/currency';
 import { paymentsService, loadRazorpayScript, openRazorpayCheckout } from '@/services/payments.service';
@@ -129,6 +130,21 @@ const EventDetailUnified = () => {
           },
         }
       : null
+  );
+
+  // Per-route SEO meta (title / description / canonical / OG).
+  useSeo(
+    event
+      ? {
+          title: event.title,
+          description:
+            (event.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 160) ||
+            `${event.title} — a networking event on TapByWisein.`,
+          canonical: `/e/${event.slug ?? event.id}`,
+          image: event.coverImage ?? undefined,
+          type: 'article',
+        }
+      : {}
   );
 
   const wrap = (children: ReactNode) =>

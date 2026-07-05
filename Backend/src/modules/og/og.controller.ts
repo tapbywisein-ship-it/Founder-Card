@@ -48,7 +48,7 @@ export class OgController {
           title: meta.title,
           description: meta.description,
           imgUrl,
-          redirectUrl: spaUrl,
+          canonicalUrl: spaUrl,
         })
       );
     } catch {
@@ -58,7 +58,7 @@ export class OgController {
           title: 'Card not found · TapByWisein',
           description: 'This TapByWisein card link is no longer valid.',
           imgUrl: `${env.FRONTEND_URL}/og-default.png`,
-          redirectUrl: env.FRONTEND_URL,
+          canonicalUrl: env.FRONTEND_URL,
         })
       );
     }
@@ -78,7 +78,7 @@ export class OgController {
           title: meta.title,
           description: meta.description,
           imgUrl,
-          redirectUrl: spaUrl,
+          canonicalUrl: spaUrl,
           jsonLd: jsonLd ?? undefined,
         })
       );
@@ -89,7 +89,7 @@ export class OgController {
           title: 'Event not found · TapByWisein',
           description: 'This TapByWisein event link is no longer valid.',
           imgUrl: `${env.FRONTEND_URL}/og-default.png`,
-          redirectUrl: env.FRONTEND_URL,
+          canonicalUrl: env.FRONTEND_URL,
         })
       );
     }
@@ -116,17 +116,21 @@ function renderCrawlerHtml(opts: {
   title: string;
   description: string;
   imgUrl: string;
-  redirectUrl: string;
+  /** Clean SPA URL — used as canonical + og:url + the "view" link. */
+  canonicalUrl: string;
   jsonLd?: string;
 }) {
   const t = escapeHtml(opts.title);
   const d = escapeHtml(opts.description);
   const img = escapeHtml(opts.imgUrl);
-  const url = escapeHtml(opts.redirectUrl);
+  const url = escapeHtml(opts.canonicalUrl);
   // JSON-LD is embedded raw inside a script tag; guard against </script> breakout.
   const ld = opts.jsonLd
     ? `<script type="application/ld+json">${opts.jsonLd.replace(/<\//g, '<\\/')}</script>`
     : '';
+  // NOTE: no auto-redirect. This HTML is served to crawlers/unfurlers via the
+  // Vercel edge middleware; a meta-refresh would make Google follow it to the
+  // empty SPA shell instead of indexing this content. Humans get the SPA.
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -144,10 +148,13 @@ function renderCrawlerHtml(opts: {
 <meta name="twitter:image" content="${img}"/>
 <link rel="canonical" href="${url}"/>
 ${ld}
-<meta http-equiv="refresh" content="0; url=${url}"/>
 </head><body>
-<p>Redirecting to <a href="${url}">${url}</a>…</p>
-<script>window.location.replace(${JSON.stringify(opts.redirectUrl)});</script>
+<main>
+<h1>${t}</h1>
+<p>${d}</p>
+<p><img src="${img}" alt="${t}" width="600" height="315"/></p>
+<p><a href="${url}">View on TapByWisein →</a></p>
+</main>
 </body></html>`;
 }
 
