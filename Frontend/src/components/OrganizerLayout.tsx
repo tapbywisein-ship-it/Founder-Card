@@ -4,7 +4,7 @@ import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
-  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode, Boxes,
+  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode, Boxes, Scan,
 } from 'lucide-react';
 
 const navItems = [
@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Attendees',    icon: Users,            path: '/organizer/attendees' },
   { label: 'Leads',        icon: Download,         path: '/organizer/leads' },
   { label: 'Payouts',      icon: Wallet,           path: '/organizer/payouts' },
+  { label: 'Connect',      icon: Scan,             path: '/connect' },
   { label: 'My Tickets',   icon: Ticket,           path: '/my-tickets' },
   { label: 'Tap Card',     icon: QrCode,           path: '/apply-card' },
   { label: 'Profile',      icon: UserCircle,       path: '/profile' },
@@ -22,8 +23,8 @@ const navItems = [
 const mobileNav = [
   { label: 'Home',      icon: LayoutDashboard, path: '/organizer/dashboard' },
   { label: 'Attendees', icon: Users,            path: '/organizer/attendees' },
+  { label: 'Connect',   icon: Scan,             path: '/connect' },
   { label: 'New',       icon: Plus,             path: '/organizer/events/create' },
-  { label: 'Leads',     icon: Download,         path: '/organizer/leads' },
   { label: 'Profile',   icon: UserCircle,       path: '/profile' },
 ];
 
