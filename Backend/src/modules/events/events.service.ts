@@ -550,8 +550,9 @@ export class EventsService {
     amountPaid: number;
     ticketTierId?: string;
     ticketTierName?: string;
+    couponCode?: string;
   }) {
-    const { eventId, userId, amountPaid, ticketTierId, ticketTierName } = args;
+    const { eventId, userId, amountPaid, ticketTierId, ticketTierName, couponCode } = args;
     const event = await prisma.event.findFirst({ where: { id: eventId, deletedAt: null } });
     if (!event) throw new NotFoundError('Event');
 
@@ -565,6 +566,7 @@ export class EventsService {
       paymentStatus: 'PAID' as const,
       ticketTierId: ticketTierId ?? null,
       ticketTierName: ticketTierName ?? null,
+      couponCode: couponCode ?? null,
     };
 
     const registration = existing

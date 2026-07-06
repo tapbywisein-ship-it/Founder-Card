@@ -55,11 +55,18 @@ export const paymentsService = {
     return apiFetch<{ data: { configured: boolean; cardPrice: number } }>('/payments/config');
   },
 
-  async createOrder(eventId: string, ticketTierId: string) {
+  async createOrder(eventId: string, ticketTierId: string, couponCode?: string) {
     return apiFetch<{ data: PaymentOrder }>('/payments/orders', {
       method: 'POST',
-      body: JSON.stringify({ eventId, ticketTierId }),
+      body: JSON.stringify({ eventId, ticketTierId, ...(couponCode ? { couponCode } : {}) }),
     });
+  },
+
+  /** Validate a coupon for an event; returns the discount % (throws if invalid). */
+  async validateCoupon(eventId: string, code: string) {
+    return apiFetch<{ data: { discountPct: number; code: string } }>(
+      `/events/${eventId}/coupons/${encodeURIComponent(code.trim())}/validate`
+    );
   },
 
   async verify(input: {

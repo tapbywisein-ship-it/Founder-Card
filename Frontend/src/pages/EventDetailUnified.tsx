@@ -81,6 +81,10 @@ const EventDetailUnified = () => {
   const [guestRsvpOpen, setGuestRsvpOpen] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState('');
   const [paying, setPaying] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponApplied, setCouponApplied] = useState<{ code: string; discountPct: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
 
   // Fire a page-view beacon once per mount. Idempotent server-side per session.
   const viewedRef = useRef<string | null>(null);
@@ -261,6 +265,35 @@ const EventDetailUnified = () => {
     registerMutation.mutate({ eventId: event.id });
   };
 
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code || !effectiveTier) return;
+    setCouponChecking(true);
+    setCouponError(null);
+    try {
+      const { data } = await paymentsService.validateCoupon(event.id, code);
+      setCouponApplied({ code: data.code, discountPct: data.discountPct });
+      toast.success(`${data.discountPct}% off applied`);
+    } catch (err) {
+      setCouponApplied(null);
+      setCouponError(err instanceof Error ? err.message : 'Invalid coupon');
+    } finally {
+      setCouponChecking(false);
+    }
+  };
+
+  const clearCoupon = () => {
+    setCouponApplied(null);
+    setCouponInput('');
+    setCouponError(null);
+  };
+
+  // Discounted price for display; the backend re-validates + recomputes the charge.
+  const discountedPrice =
+    effectiveTier && couponApplied
+      ? Math.round(effectiveTier.price * (1 - couponApplied.discountPct / 100) * 100) / 100
+      : effectiveTier?.price;
+
   const handleBuyTicket = async () => {
     if (!effectiveTier) return;
     setPaying(true);
@@ -270,7 +303,11 @@ const EventDetailUnified = () => {
         toast.error('Could not load the payment window. Check your connection.');
         return;
       }
-      const { data: order } = await paymentsService.createOrder(event.id, effectiveTier.id);
+      const { data: order } = await paymentsService.createOrder(
+        event.id,
+        effectiveTier.id,
+        couponApplied?.code
+      );
       openRazorpayCheckout({
         key: order.keyId,
         amount: order.amount,
@@ -614,20 +651,54 @@ const EventDetailUnified = () => {
               Sign in as an Attendee to register for events.
             </p>
           ) : requiresPayment ? (
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleRegister}
-              disabled={paying || isFull || allTiersSoldOut}
-            >
-              {paying
-                ? 'Processing…'
-                : allTiersSoldOut
-                  ? 'Sold out'
-                  : isFull
-                    ? 'Event full'
-                    : `Buy ticket - ${effectiveTier?.priceLabel ?? price}`}
-            </Button>
+            <div className="space-y-2">
+              {/* Coupon */}
+              {couponApplied ? (
+                <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm">
+                  <span className="text-emerald-600">
+                    Coupon <span className="font-semibold">{couponApplied.code}</span> — {couponApplied.discountPct}% off
+                  </span>
+                  <button type="button" onClick={clearCoupon} className="text-xs text-muted-foreground hover:text-foreground underline">
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    value={couponInput}
+                    onChange={(e) => { setCouponInput(e.target.value); setCouponError(null); }}
+                    placeholder="Coupon code"
+                    className="h-10 uppercase"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={applyCoupon}
+                    disabled={couponChecking || !couponInput.trim()}
+                  >
+                    {couponChecking ? '…' : 'Apply'}
+                  </Button>
+                </div>
+              )}
+              {couponError && <p className="text-xs text-destructive">{couponError}</p>}
+
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleRegister}
+                disabled={paying || isFull || allTiersSoldOut}
+              >
+                {paying
+                  ? 'Processing…'
+                  : allTiersSoldOut
+                    ? 'Sold out'
+                    : isFull
+                      ? 'Event full'
+                      : couponApplied && discountedPrice !== undefined
+                        ? `Buy ticket - ${formatINR(discountedPrice)}`
+                        : `Buy ticket - ${effectiveTier?.priceLabel ?? price}`}
+              </Button>
+            </div>
           ) : (
             <Button
               className="w-full"

@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const createOrderSchema = z.object({
   eventId: z.string().uuid(),
   ticketTierId: z.string().min(1),
+  couponCode: z.string().trim().min(1).max(40).optional(),
 });
 
 export const verifyPaymentSchema = z.object({
