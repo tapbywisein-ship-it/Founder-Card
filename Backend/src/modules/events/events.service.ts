@@ -361,11 +361,24 @@ export class EventsService {
       prisma.event.count({ where }),
     ]);
 
+    // Attach the signed-in viewer's registration status per event so browse/list
+    // UIs render "Registered"/"Waitlisted" immediately (no separate lookup, and
+    // it refreshes when the list query is invalidated after registering).
+    const regByEvent = new Map<string, string>();
+    if (dto.viewerId && events.length > 0) {
+      const regs = await prisma.eventRegistration.findMany({
+        where: { userId: dto.viewerId, eventId: { in: events.map((e) => e.id) } },
+        select: { eventId: true, status: true },
+      });
+      for (const r of regs) regByEvent.set(r.eventId, r.status);
+    }
+
     return {
       events: events.map((e) => ({
         ...e,
         registeredCount: e._count.registrations,
         spotsLeft: Math.max(0, e.capacity - e._count.registrations),
+        registrationStatus: regByEvent.get(e.id) ?? null,
       })),
       pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
     };
