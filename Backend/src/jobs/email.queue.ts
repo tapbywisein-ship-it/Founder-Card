@@ -53,8 +53,20 @@ const hasRedis = !!REDIS_URL && REDIS_URL !== 'redis://localhost:6379';
 // ─── No-op queue stub (used when Redis is not available) ──────────────────────
 const noopQueue = {
   add: async (data: EmailJobData) => {
-    // Process inline when no Redis queue available
-    void processEmailJob(data);
+    // Process inline when no Redis queue is available. CRITICAL: attach a catch
+    // here. Without it, a failed send (Resend 403, rate limit, bad address…)
+    // becomes an unhandledRejection — the caller's `addEmailJob(...).catch()`
+    // only guards the `add()` call, which resolves immediately, so the detached
+    // job promise would reject with no handler and take the whole server down
+    // via the global unhandledRejection → graceful-shutdown path. Emails are
+    // best-effort; log and swallow so a bad email never crashes the API.
+    processEmailJob(data).catch((err) => {
+      logger.error('Inline email job failed', {
+        type: data.type,
+        to: data.to,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
     return { id: 'inline', data } as unknown as import('bull').Job<EmailJobData>;
   },
   close: async () => {},
