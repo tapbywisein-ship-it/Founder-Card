@@ -11,8 +11,7 @@ import { useMyScore, useScoreHistory } from '@/hooks/useGamification';
 import { useMyRegistrations } from '@/hooks/useEvents';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useConnectionSuggestions, useSendConnectionRequest } from '@/hooks/useConnections';
-import { useSocket } from '@/lib/socket';
+import { useConnectionSuggestions, useSendConnectionRequest, useConnections } from '@/hooks/useConnections';
 import { profileNeedsOnboarding, profileCompletion, hasUploadedAvatar } from '@/lib/profileCompletion';
 import { useMyCard } from '@/hooks/useFounderCard';
 import { toast } from 'sonner';
@@ -124,13 +123,14 @@ const ACTION_LABELS: Record<string, { label: string; icon: React.ElementType; co
 /* ─── main page ─────────────────────────────────────────────────────── */
 const AttendeeDashboard = () => {
   const user = useAppStore((s) => s.user);
-  useSocket();
+  // Realtime socket is mounted once in AppLayout (the shell this page renders in).
 
   const { data: gamification } = useMyScore();
   const { data: registrations } = useMyRegistrations();
   const { data: profileData } = useMyProfile();
   const { data: notifData } = useNotifications(1, 5);
   const { data: suggestions } = useConnectionSuggestions(4);
+  const { data: connData } = useConnections();
   const { data: historyData } = useScoreHistory(1, 6);
   const { data: card } = useMyCard();
   const sendRequest = useSendConnectionRequest();
@@ -156,6 +156,13 @@ const AttendeeDashboard = () => {
 
   const profile = profileData?.profile;
   const pct = profileCompletion(profile);
+
+  // Accepted connections — total count (exact, from the paginated meta) + the
+  // most recent few for the Dashboard widget.
+  const connections = connData?.connections ?? [];
+  const connectionCount =
+    (connData?.pagination as { total?: number } | undefined)?.total ?? connections.length;
+  const recentConnections = connections.slice(0, 4);
 
   const cardUrl = card?.publicSlug
     ? `${window.location.origin}/c/${card.publicSlug}`
@@ -226,10 +233,11 @@ const AttendeeDashboard = () => {
         </motion.div>
 
         {/* Stats row */}
-        <motion.div {...fade(0.06)} className="grid grid-cols-3 gap-3">
+        <motion.div {...fade(0.06)} className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: 'Registered', value: myEvents.length, sub: 'Events', icon: Calendar },
             { label: 'FK Score', value: score, sub: `Level ${level}`, icon: Trophy, gold: true },
+            { label: 'Connections', value: connectionCount, sub: 'People', icon: Users },
             { label: 'Upcoming', value: upcomingEvents.length, sub: 'Events', icon: Sparkles },
           ].map(({ label, value, sub, icon: Icon, gold }) => (
             <Surface key={label} padding="md" className="text-center">
@@ -445,6 +453,58 @@ const AttendeeDashboard = () => {
               )}
             </Surface>
           </motion.div>
+
+          {/* ── Recent Connections ── */}
+          {recentConnections.length > 0 && (
+            <motion.div {...fade(0.15)} className="md:col-span-2 lg:col-span-3">
+              <Surface>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="section-label">Recent Connections</span>
+                    <span className="text-[11px] text-muted-foreground">({connectionCount})</span>
+                  </div>
+                  <Link to="/connections" className="flex items-center gap-0.5 text-[11px] text-primary font-medium hover:underline">
+                    View all <ArrowUpRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {recentConnections.map((c) => {
+                    const p = c.user?.profile;
+                    const name = p ? `${p.firstName} ${p.lastName}`.trim() : c.user?.email ?? 'User';
+                    return (
+                      <Link
+                        key={c.id}
+                        to={c.user?.id ? `/card/${c.user.id}` : '/connections'}
+                        className="flex flex-col items-center text-center p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 transition-colors"
+                      >
+                        {p?.avatar ? (
+                          <img src={p.avatar} alt={name} loading="lazy" className="w-12 h-12 rounded-full object-cover mb-2" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold mb-2">
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <p className="text-sm font-semibold text-foreground leading-tight mb-0.5 truncate w-full">{name}</p>
+                        {(p?.position || p?.company) && (
+                          <p className="text-[11px] text-muted-foreground truncate w-full mb-1">
+                            {[p?.position, p?.company].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        {c.createdAt && (
+                          <p className="text-[10px] text-muted-foreground/70">
+                            Connected {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </p>
+                        )}
+                        <span className="mt-2 text-[11px] font-medium text-primary">View Profile</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </Surface>
+            </motion.div>
+          )}
 
           {/* ── People You May Know ── */}
           {suggestions && suggestions.length > 0 && (

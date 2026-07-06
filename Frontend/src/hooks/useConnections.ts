@@ -18,11 +18,16 @@ export function useConnections(page = 1, limit = 20) {
   });
 }
 
+/**
+ * Pending requests, both directions: `received` (incoming — accept/reject) and
+ * `sent` (outgoing — cancel). The backend returns them together so both lists
+ * stay consistent from one fetch.
+ */
 export function useConnectionRequests() {
   return useQuery({
     queryKey: connKeys.pending(),
     queryFn: () => connectionsService.getPendingRequests(),
-    select: (res) => res.data,
+    select: (res) => res.data ?? { received: [], sent: [] },
   });
 }
 
@@ -41,8 +46,23 @@ export function useSendConnectionRequest() {
   return useMutation({
     mutationFn: (receiverId: string) => connectionsService.sendRequest(receiverId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: connKeys.pending() });
+      // Refetch the whole connections family so the new outgoing request shows in
+      // the Sent list (and suggestions drop the person) without a reload.
+      qc.invalidateQueries({ queryKey: ['connections'] });
       toast.success('Connection request sent');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+/** Withdraw a pending request you sent. */
+export function useCancelRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (connectionId: string) => connectionsService.cancelRequest(connectionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: connKeys.pending() });
+      toast.success('Request cancelled');
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -53,8 +73,10 @@ export function useAcceptRequest() {
   return useMutation({
     mutationFn: (connectionId: string) => connectionsService.acceptRequest(connectionId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: connKeys.list() });
-      qc.invalidateQueries({ queryKey: connKeys.pending() });
+      // Refetch everything connection-related: the accepted row moves out of the
+      // requests list into My Connections, and the Dashboard count/recent widget
+      // must reflect it immediately.
+      qc.invalidateQueries({ queryKey: ['connections'] });
       toast.success('Connection accepted!');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -78,7 +100,7 @@ export function useRemoveConnection() {
   return useMutation({
     mutationFn: (connectionId: string) => connectionsService.removeConnection(connectionId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: connKeys.list() });
+      qc.invalidateQueries({ queryKey: ['connections'] });
       toast.success('Connection removed');
     },
     onError: (err: Error) => toast.error(err.message),

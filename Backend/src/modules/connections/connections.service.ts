@@ -8,6 +8,26 @@ import blocksService from '@modules/blocks/blocks.service';
 import { addEmailJob } from '@jobs/email.queue';
 import logger from '@utils/logger';
 
+/**
+ * Push a real-time connection event to a user's socket room so their
+ * Connections/Requests lists refetch without a page reload. Best-effort: the
+ * socket server may not be initialised (tests) or the user may be offline —
+ * never let a socket hiccup break the DB mutation.
+ */
+function emitToUser(userId: string, event: string, payload: Record<string, unknown>): void {
+  try {
+    // Lazy relative require avoids a load-time cycle AND any runtime path-alias
+    // resolution (prod runs plain `node dist/…` with no tsconfig-paths hook).
+
+    const { io } = require('../../sockets/index') as {
+      io?: { to: (room: string) => { emit: (event: string, data: unknown) => void } };
+    };
+    io?.to(`user:${userId}`).emit(event, payload);
+  } catch (err) {
+    logger.warn('Failed to emit connection socket event', { userId, event, err });
+  }
+}
+
 export class ConnectionsService {
   async sendRequest(requesterId: string, receiverId: string) {
     if (requesterId === receiverId) {
@@ -101,6 +121,9 @@ export class ConnectionsService {
       requesterCompany: requester?.profile?.company ?? undefined,
     }).catch(() => {});
 
+    // Real-time: the receiver's Requests tab refetches to show the new request.
+    emitToUser(receiverId, 'connection:request', { connectionId: connection.id, requesterId });
+
     return connection;
   }
 
@@ -156,6 +179,10 @@ export class ConnectionsService {
           { connectionId, userId }
         )
         .catch(() => {});
+
+      // Real-time: the requester's Connections list refetches to show the new
+      // accepted connection instantly.
+      emitToUser(connection.requesterId, 'connection:accepted', { connectionId });
     } else {
       // REJECT: notify the requester so the pending row's outcome isn't a
       // silent black hole. Neutral wording — don't name the rejecter.
@@ -168,6 +195,9 @@ export class ConnectionsService {
           { connectionId }
         )
         .catch(() => {});
+
+      // Real-time: clear the request from the requester's Sent list.
+      emitToUser(connection.requesterId, 'connection:rejected', { connectionId });
     }
 
     return updated;
@@ -184,6 +214,13 @@ export class ConnectionsService {
     }
 
     await prisma.connection.delete({ where: { id: connectionId } });
+
+    // Real-time: tell the *other* party so their Connections/Requests lists drop
+    // the row. Covers both "cancel a pending sent request" and "remove an
+    // accepted connection" — the event name the client refetches on is the same.
+    const otherUserId =
+      connection.requesterId === userId ? connection.receiverId : connection.requesterId;
+    emitToUser(otherUserId, 'connection:withdrawn', { connectionId });
   }
 
   async getConnections(userId: string, page?: number, limit?: number) {

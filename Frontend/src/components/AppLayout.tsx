@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
+import { useSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 
 // Left-sidebar nav (desktop). `badge` keys map to the live unread/pending counts.
@@ -65,6 +66,10 @@ interface SearchResult {
 }
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
+  // Mount the realtime socket once for the whole attendee shell so connection /
+  // message / notification events refetch their queries on every page, not just
+  // the Dashboard.
+  useSocket();
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAppStore((s) => s.user);
