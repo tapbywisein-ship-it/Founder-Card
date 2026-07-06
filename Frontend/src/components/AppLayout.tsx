@@ -37,11 +37,18 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
 
-const topLinks = [
-  { label: 'Discover', path: '/discover' },
-  { label: 'Events', path: '/events' },
-  { label: 'Connect', path: '/connect' },
-  { label: 'Tap Card', path: '/apply-card' },
+// Left-sidebar nav (desktop). `badge` keys map to the live unread/pending counts.
+const navItems = [
+  { label: 'Discover',      icon: Compass,       path: '/discover' },
+  { label: 'Events',        icon: Calendar,      path: '/events' },
+  { label: 'Connect',       icon: Scan,          path: '/connect',        badge: 'connect' as const },
+  { label: 'Messages',      icon: MessageCircle, path: '/messages',       badge: 'messages' as const },
+  { label: 'Connections',   icon: Users,         path: '/connections' },
+  { label: 'Notifications', icon: Bell,          path: '/notifications',  badge: 'notifications' as const },
+  { label: 'My Tickets',    icon: Ticket,        path: '/my-tickets' },
+  { label: 'FK Score',      icon: Trophy,        path: '/gamification' },
+  { label: 'Tap Card',      icon: QrCode,        path: '/apply-card' },
+  { label: 'Profile',       icon: UserIcon,      path: '/profile' },
 ];
 
 const bottomNav = [
@@ -125,7 +132,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const hasResults = (searchResults?.users?.length ?? 0) > 0 || (searchResults?.events?.length ?? 0) > 0;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex">
       {/* Skip to main content — keyboard/screen-reader bypass (WCAG 2.4.1) */}
       <a
         href="#main-content"
@@ -134,135 +141,173 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         Skip to content
       </a>
 
-      {/* ── Email verification banner (only when unverified) ─ */}
-      <VerifyEmailBanner />
-
-      {/* ── Top Nav (sticky, 64px) ────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-xwide mx-auto h-16 px-4 md:px-8 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-8">
-            <Logo size="md" />
-            <nav className="hidden md:flex items-center gap-1">
-              {topLinks.map((link) => {
-                const active = location.pathname.startsWith(link.path);
-                return (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      active
-                        ? 'text-foreground bg-muted'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-1">
+      {/* ── Desktop left sidebar ──────────────────────────── */}
+      <aside className="hidden md:flex flex-col w-60 border-r border-border p-4 fixed h-full z-40 bg-background">
+        <div className="mb-3 px-2"><Logo size="md" /></div>
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="flex items-center gap-3 px-3 py-2 mb-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <Search className="w-4 h-4" /> Search
+        </button>
+        <nav className="flex-1 space-y-0.5 overflow-y-auto" aria-label="Primary">
+          {navItems.map((item) => {
+            const active = location.pathname.startsWith(item.path);
+            const badge =
+              item.badge === 'connect'
+                ? pendingRequests ?? 0
+                : item.badge === 'messages'
+                ? unreadMessages
+                : item.badge === 'notifications'
+                ? unreadCount
+                : 0;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                  active
+                    ? 'bg-accent text-primary font-medium border-l-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span className="flex-1">{item.label}</span>
+                {badge > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+          {isOrganizer ? (
+            <Link
+              to="/organizer/dashboard"
+              className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Building2 className="w-4 h-4" /> Organizer portal
+            </Link>
+          ) : (
             <button
               type="button"
-              onClick={() => setSearchOpen((v) => !v)}
-              aria-label="Search"
-              className="hidden md:inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              onClick={() => setOrgDialogOpen(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <Search className="w-4 h-4" />
+              <Building2 className="w-4 h-4" /> Become an organizer
             </button>
-
-            <ThemeToggle />
-
-            <Link
-              to="/messages"
-              aria-label="Messages"
-              className="relative inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              {unreadMessages > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                  {unreadMessages > 9 ? '9+' : unreadMessages}
-                </span>
-              )}
-            </Link>
-
-            <Link
-              to="/notifications"
-              aria-label="Notifications"
-              className="relative inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </Link>
-
-            {isOrganizer && (
-              <Button size="sm" asChild className="hidden md:inline-flex ml-1">
-                <Link to="/organizer/events/create">
-                  <Plus className="w-4 h-4" />
-                  Create
-                </Link>
-              </Button>
-            )}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Account menu"
-                  className="ml-1 w-9 h-9 rounded-full overflow-hidden bg-muted flex items-center justify-center text-foreground text-sm font-semibold border border-border"
-                >
-                  {user?.photoUrl ? (
-                    <img src={user.photoUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    user?.name?.[0]?.toUpperCase() || 'U'
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="flex flex-col gap-0.5">
-                  <span className="text-sm font-semibold text-foreground">{user?.name || 'Member'}</span>
-                  <span className="text-xs text-muted-foreground font-normal">FK Score · {user?.fkScore ?? 0}</span>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/profile"><UserIcon className="w-4 h-4 mr-2" /> Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/connections"><Users className="w-4 h-4 mr-2" /> Connections</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/my-tickets"><Ticket className="w-4 h-4 mr-2" /> My Tickets</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/gamification"><Trophy className="w-4 h-4 mr-2" /> Achievements</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/apply-card"><QrCode className="w-4 h-4 mr-2" /> Tap Card</Link>
-                </DropdownMenuItem>
-                {!isOrganizer && (
-                  <DropdownMenuItem onSelect={() => setOrgDialogOpen(true)}>
-                    <Building2 className="w-4 h-4 mr-2" /> Become an organizer
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" /> Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          )}
+        </nav>
+        <div className="flex items-center gap-2 pt-3 border-t border-border">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex-1 flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <LogOut className="w-4 h-4" /> Sign out
+          </button>
         </div>
-      </header>
+      </aside>
 
-      {/* ── Main content ──────────────────────────────────── */}
-      <main id="main-content" className="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-xwide w-full mx-auto pb-24 md:pb-10">
-        {children}
-      </main>
+      {/* ── Main column ───────────────────────────────────── */}
+      <div className="flex-1 md:ml-60 min-h-screen flex flex-col">
+        <VerifyEmailBanner />
+
+        {/* ── Mobile top bar (md:hidden) ────────────────────── */}
+        <header className="md:hidden sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
+          <div className="h-14 px-4 flex items-center justify-between gap-3">
+            <Logo size="md" />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search"
+                className="inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+              <ThemeToggle />
+              <Link
+                to="/messages"
+                aria-label="Messages"
+                className="relative inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {unreadMessages > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </span>
+                )}
+              </Link>
+              <Link
+                to="/notifications"
+                aria-label="Notifications"
+                className="relative inline-flex w-9 h-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Account menu"
+                    className="ml-1 w-9 h-9 rounded-full overflow-hidden bg-muted flex items-center justify-center text-foreground text-sm font-semibold border border-border"
+                  >
+                    {user?.photoUrl ? (
+                      <img src={user.photoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      user?.name?.[0]?.toUpperCase() || 'U'
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-foreground">{user?.name || 'Member'}</span>
+                    <span className="text-xs text-muted-foreground font-normal">FK Score · {user?.fkScore ?? 0}</span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile"><UserIcon className="w-4 h-4 mr-2" /> Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/connections"><Users className="w-4 h-4 mr-2" /> Connections</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-tickets"><Ticket className="w-4 h-4 mr-2" /> My Tickets</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/gamification"><Trophy className="w-4 h-4 mr-2" /> Achievements</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/apply-card"><QrCode className="w-4 h-4 mr-2" /> Tap Card</Link>
+                  </DropdownMenuItem>
+                  {!isOrganizer && (
+                    <DropdownMenuItem onSelect={() => setOrgDialogOpen(true)}>
+                      <Building2 className="w-4 h-4 mr-2" /> Become an organizer
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                    <LogOut className="w-4 h-4 mr-2" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </header>
+
+        {/* ── Main content ──────────────────────────────────── */}
+        <main id="main-content" className="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-xwide w-full mx-auto pb-24 md:pb-10">
+          {children}
+        </main>
+      </div>
 
       {/* ── Quick-share own card (floating) ───────────────── */}
       <QuickShareButton />
