@@ -1,8 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Scanner, type IDetectedBarcode } from '@yudiel/react-qr-scanner';
+import { Scanner, setZXingModuleOverrides, type IDetectedBarcode } from '@yudiel/react-qr-scanner';
+// Bundle the ZXing decoder WASM from our own origin (Vite emits it as a hashed
+// asset) instead of the library's default runtime fetch from the jsDelivr CDN.
+import zxingWasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Camera, CameraOff, Keyboard } from 'lucide-react';
+
+// Point the decoder at the self-hosted WASM. On browsers without a native
+// BarcodeDetector (most desktops), the library MUST load this WASM to decode; a
+// slow/blocked CDN made the camera run but never decode, with no error surfaced.
+// Serving it same-origin makes scanning work reliably on every device/network.
+setZXingModuleOverrides({
+  locateFile: (path: string, prefix: string) => (path.endsWith('.wasm') ? zxingWasmUrl : prefix + path),
+});
 
 interface QrScannerProps {
   /**
@@ -73,6 +84,7 @@ export const QrScanner = ({ onResult, onError, manualOnly = false }: QrScannerPr
           <Scanner
             onScan={handleDetect}
             onError={handleError}
+            formats={['qr_code']}
             constraints={{ facingMode: 'environment' }}
             styles={{ container: { width: '100%', height: '100%' } }}
           />
