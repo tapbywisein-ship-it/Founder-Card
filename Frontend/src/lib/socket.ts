@@ -69,10 +69,13 @@ export function useSocket() {
         s.on('message:new', onMessage);
         s.on('message:sent', onMessage);
 
-        // Connections — update list when another user accepts or declines.
+        // Connections — refetch every connections query (requests, sent, list,
+        // suggestions) whenever the other party sends / accepts / declines /
+        // cancels, so both sides stay in sync with no manual refresh.
         const onConnection = () => {
           qc.refetchQueries({ queryKey: ['connections'], type: 'active' });
         };
+        s.on('connection:request', onConnection);
         s.on('connection:accepted', onConnection);
         s.on('connection:rejected', onConnection);
         s.on('connection:withdrawn', onConnection);
@@ -91,6 +94,7 @@ export function useSocket() {
         socketRef.current.off('notification:new');
         socketRef.current.off('message:new');
         socketRef.current.off('message:sent');
+        socketRef.current.off('connection:request');
         socketRef.current.off('connection:accepted');
         socketRef.current.off('connection:rejected');
         socketRef.current.off('connection:withdrawn');

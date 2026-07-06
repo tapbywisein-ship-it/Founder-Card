@@ -40,12 +40,21 @@ export class ConnectionsController {
   async getPendingRequests(req: Request, res: Response): Promise<void> {
     const userId = req.user!.userId;
     const { page, limit } = req.query as { page?: string; limit?: string };
-    const result = await connectionsService.getPendingRequests(
-      userId,
-      page ? Number(page) : undefined,
-      limit ? Number(limit) : undefined
+    const p = page ? Number(page) : undefined;
+    const l = limit ? Number(limit) : undefined;
+    // Return BOTH incoming (received) and outgoing (sent) pending requests in one
+    // payload — the client renders "Requests" (accept/reject) from `received` and
+    // "Sent" (cancel) from `sent`. Shipping them together keeps the two lists in
+    // sync from a single fetch/invalidation.
+    const [received, sent] = await Promise.all([
+      connectionsService.getPendingRequests(userId, p, l),
+      connectionsService.getSentRequests(userId, p, l),
+    ]);
+    sendSuccess(
+      res,
+      { received: received.requests, sent: sent.requests },
+      'Pending requests retrieved'
     );
-    sendPaginated(res, result.requests, result.pagination, 'Pending requests retrieved');
   }
 
   async getSentRequests(req: Request, res: Response): Promise<void> {

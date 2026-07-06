@@ -153,6 +153,15 @@ export const connectionsService = {
     return apiFetch<{ data: null }>(`/connections/${connectionId}`, { method: 'DELETE' });
   },
 
+  /**
+   * Withdraw a pending request you sent. Same DELETE endpoint as
+   * removeConnection (the backend lets the requester delete a PENDING row), but
+   * kept as its own method so the calling code + cache invalidation read clearly.
+   */
+  async cancelRequest(connectionId: string) {
+    return apiFetch<{ data: null }>(`/connections/${connectionId}`, { method: 'DELETE' });
+  },
+
   async searchUsers(q: string, page = 1, limit = 20) {
     return apiFetch<{ data: { users: UserSearchResult[]; pagination: unknown } }>(
       `/users/search?q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`
