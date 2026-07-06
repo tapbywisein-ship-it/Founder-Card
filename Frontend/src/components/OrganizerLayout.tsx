@@ -4,7 +4,7 @@ import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
-  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode, Boxes, Scan,
+  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode, Boxes, Scan, Compass,
 } from 'lucide-react';
 
 const navItems = [
@@ -15,6 +15,7 @@ const navItems = [
   { label: 'Leads',        icon: Download,         path: '/organizer/leads' },
   { label: 'Payouts',      icon: Wallet,           path: '/organizer/payouts' },
   { label: 'Connect',      icon: Scan,             path: '/connect' },
+  { label: 'Browse Events', icon: Compass,         path: '/events' },
   { label: 'My Tickets',   icon: Ticket,           path: '/my-tickets' },
   { label: 'Tap Card',     icon: QrCode,           path: '/apply-card' },
   { label: 'Profile',      icon: UserCircle,       path: '/profile' },
