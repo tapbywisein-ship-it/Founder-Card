@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
+import { PushOptIn } from '@/components/PushOptIn';
 import { Button } from '@/components/ui/button';
 import { Bell, UserPlus, Calendar, Trophy, Zap, Check, CheckCheck, AlertCircle } from 'lucide-react';
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/useNotifications';
@@ -61,6 +62,8 @@ const NotificationsPage = () => {
             </Button>
           )}
         </div>
+
+        <PushOptIn />
 
         {isError && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
