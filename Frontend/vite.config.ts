@@ -15,11 +15,19 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
-      // The precache service worker repeatedly served stale, app-breaking
-      // bundles. Self-destroying SW unregisters any installed worker and clears
-      // its caches on next load, rescuing every client onto the live bundle.
-      // (A hardened network-first SW can be reintroduced later if offline is needed.)
-      selfDestroying: true,
+      // Push-only service worker (src/sw.ts). injectManifest with NO injected
+      // precache manifest means the SW has no fetch handler and no caching — it
+      // can never serve the stale, app-breaking bundles the previous precache SW
+      // did. It exists solely to receive Web Push + show notifications.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      injectManifest: {
+        // Precache nothing — the SW references __WB_MANIFEST only to satisfy the
+        // injection point; it never calls precacheAndRoute, so there is no fetch
+        // handler and no stale-bundle risk.
+        globPatterns: [],
+      },
       registerType: "autoUpdate",
       manifestFilename: "manifest.json",
       includeAssets: [
@@ -42,27 +50,6 @@ export default defineConfig(({ mode }) => ({
           { src: "/icons/icon-192.png",          sizes: "192x192", type: "image/png" },
           { src: "/icons/icon-512.png",          sizes: "512x512", type: "image/png" },
           { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-        ],
-      },
-      workbox: {
-        navigateFallback: "/index.html",
-        // Don't precache the API or auth-bearing requests; runtime cache
-        // handles GETs that are safe to cache.
-        navigateFallbackDenylist: [/^\/api\//, /^\/og\//],
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
-            handler: "NetworkOnly",
-          },
-          {
-            urlPattern: ({ request }) => request.destination === "image",
-            handler: "CacheFirst",
-            options: {
-              cacheName: "img-cache",
-              expiration: { maxEntries: 64, maxAgeSeconds: 7 * 24 * 60 * 60 },
-            },
-          },
         ],
       },
       devOptions: {
