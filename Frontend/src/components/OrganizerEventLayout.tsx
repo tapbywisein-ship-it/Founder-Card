@@ -33,6 +33,7 @@ const TABS = [
   { label: 'Visitors',     to: 'visitors', end: false },
   { label: 'Registration', to: 'manage',   end: false },
   { label: 'Blasts',       to: 'blasts',   end: false },
+  { label: 'Coupons',      to: 'coupons',  end: false },
   { label: 'Insights',     to: 'analytics',end: false },
   { label: 'Matchmaking',  to: 'matchmaking', end: false },
   { label: 'Check-in',     to: 'checkin',  end: false },

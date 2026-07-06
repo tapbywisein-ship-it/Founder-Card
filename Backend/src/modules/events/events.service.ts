@@ -1031,6 +1031,19 @@ export class EventsService {
    * attendee PII (only counts + rates), so it's safe on an unauthenticated
    * route. Only available for published (non-draft) events.
    */
+  /** Validate a coupon code at checkout — returns the discount if usable. Public. */
+  async validateCoupon(eventId: string, code: string) {
+    const coupon = await prisma.coupon.findUnique({
+      where: { eventId_code: { eventId, code: code.trim().toUpperCase() } },
+    });
+    if (!coupon || !coupon.isActive) throw new NotFoundError('Coupon');
+    if (coupon.expiresAt && new Date() > coupon.expiresAt) throw new BadRequestError('Coupon has expired');
+    if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
+      throw new BadRequestError('Coupon usage limit reached');
+    }
+    return { discountPct: coupon.discountPct, code: coupon.code };
+  }
+
   async getEventImpactReport(eventId: string) {
     const event = await prisma.event.findFirst({
       where: { id: eventId, deletedAt: null, status: { not: 'DRAFT' } },

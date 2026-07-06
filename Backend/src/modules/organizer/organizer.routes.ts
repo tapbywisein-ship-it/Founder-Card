@@ -112,6 +112,17 @@ router.get(
   organizerController.getMatchmaking.bind(organizerController)
 );
 
+// Past email blasts for an event
+router.get(
+  '/events/:id/blasts',
+  organizerController.getEventBlasts.bind(organizerController)
+);
+
+// Coupon CRUD (per-event % discount codes)
+router.get('/events/:id/coupons', organizerController.listCoupons.bind(organizerController));
+router.post('/events/:id/coupons', organizerController.createCoupon.bind(organizerController));
+router.delete('/events/:id/coupons/:couponId', organizerController.deleteCoupon.bind(organizerController));
+
 // Duplicate event + export attendees CSV
 router.post('/events/:id/duplicate', organizerController.duplicateEvent.bind(organizerController));
 router.get(

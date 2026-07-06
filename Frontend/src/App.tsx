@@ -71,6 +71,7 @@ const BlastsTab = lazy(() => import("./pages/organizer/event/BlastsTab"));
 const MoreTab = lazy(() => import("./pages/organizer/event/MoreTab"));
 const VisitorsTab = lazy(() => import("./pages/organizer/event/VisitorsTab"));
 const MatchmakingTab = lazy(() => import("./pages/organizer/event/MatchmakingTab"));
+const CouponsTab = lazy(() => import("./pages/organizer/event/CouponsTab"));
 
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminUsersPage = lazy(() => import("./pages/admin/Users"));
@@ -254,6 +255,7 @@ const App = () => (
             <Route path="blasts" element={<BlastsTab />} />
             <Route path="analytics" element={<OrgAnalyticsPage />} />
             <Route path="matchmaking" element={<MatchmakingTab />} />
+            <Route path="coupons" element={<CouponsTab />} />
             <Route path="checkin" element={<CheckInPage />} />
             <Route path="visitors" element={<VisitorsTab />} />
             <Route path="more" element={<MoreTab />} />

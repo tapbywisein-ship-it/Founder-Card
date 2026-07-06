@@ -322,7 +322,22 @@ export const organizerService = {
   async getMatchmaking(eventId: string) {
     return apiFetch<{ data: Matchmaking }>(`/organizer/events/${eventId}/matchmaking`);
   },
+
+  async getEventBlasts(eventId: string) {
+    return apiFetch<{ data: EventBlastRecord[] }>(`/organizer/events/${eventId}/blasts`);
+  },
 };
+
+export interface EventBlastRecord {
+  id: string;
+  subject: string;
+  body: string;
+  audience: string;
+  sent: number;
+  status: string;
+  sentAt: string | null;
+  createdAt: string;
+}
 
 export interface MatchAttendee {
   userId: string;

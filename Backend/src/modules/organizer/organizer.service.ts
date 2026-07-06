@@ -507,7 +507,65 @@ export class OrganizerService {
         logger.warn('Failed to send blast email', { eventId, to: r.user.email, err });
       }
     }
+
+    // Persist the blast so organizers get a history in the Blasts tab.
+    await prisma.eventBlast
+      .create({
+        data: {
+          eventId,
+          organizerId,
+          subject,
+          body,
+          audience,
+          sent,
+          sentAt: new Date(),
+          status: failed > 0 && sent === 0 ? 'failed' : 'sent',
+        },
+      })
+      .catch((err) => logger.warn('Failed to record event blast', { eventId, err }));
+
     return { sent, failed, total: registrations.length, recipients: delivered };
+  }
+
+  /** Past blasts for an event, newest first — powers the Blasts tab history. */
+  async listEventBlasts(eventId: string, organizerId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+    return prisma.eventBlast.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  // ── Coupons ─────────────────────────────────────────────────────────────
+
+  async createCoupon(
+    eventId: string,
+    organizerId: string,
+    dto: { code: string; discountPct: number; maxUses?: number; expiresAt?: Date }
+  ) {
+    await this.assertEventOwner(eventId, organizerId);
+    if (!dto.code?.trim()) throw new BadRequestError('Coupon code is required');
+    if (dto.discountPct < 1 || dto.discountPct > 100) throw new BadRequestError('Discount must be 1–100%');
+    return prisma.coupon.create({
+      data: {
+        eventId,
+        code: dto.code.trim().toUpperCase(),
+        discountPct: dto.discountPct,
+        maxUses: dto.maxUses ?? null,
+        expiresAt: dto.expiresAt ?? null,
+      },
+    });
+  }
+
+  async listCoupons(eventId: string, organizerId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+    return prisma.coupon.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  async deleteCoupon(eventId: string, organizerId: string, couponId: string) {
+    await this.assertEventOwner(eventId, organizerId);
+    await prisma.coupon.delete({ where: { id: couponId } }).catch(() => {});
   }
 
   /**

@@ -78,6 +78,12 @@ export class EventsController {
     sendSuccess(res, data, 'Impact report retrieved');
   }
 
+  async validateCoupon(req: Request, res: Response): Promise<void> {
+    const { id, code } = req.params as Record<string, string>;
+    const data = await eventsService.validateCoupon(id, code);
+    sendSuccess(res, data, 'Coupon valid');
+  }
+
   async rsvpGuest(req: Request, res: Response): Promise<void> {
     const { id } = req.params as Record<string, string>;
     const dto = req.body as RsvpGuestDto;

@@ -4,7 +4,7 @@ import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useSendBlast } from '@/hooks/useOrganizer';
+import { useSendBlast, useEventBlasts } from '@/hooks/useOrganizer';
 import { useEventContext } from '@/components/OrganizerEventLayout';
 import { Mail, Send, Users } from 'lucide-react';
 
@@ -24,6 +24,7 @@ const BlastsTab = () => {
 
   const { isLoading: contextLoading } = useEventContext();
   const blastMutation = useSendBlast(id!);
+  const { data: pastBlasts } = useEventBlasts(id!);
 
   const handleSend = async () => {
     await blastMutation.mutateAsync({ subject, body, audience });
@@ -106,19 +107,40 @@ const BlastsTab = () => {
         </div>
       </Surface>
 
-      {/* Past blasts — empty state (backend does not return blast history yet) */}
+      {/* Past blasts */}
       <Surface>
         <div className="flex items-center gap-2 mb-4">
           <Users className="w-4 h-4 text-muted-foreground" />
           <h2 className="text-sm font-medium text-foreground">Past Blasts</h2>
         </div>
-        <div className="text-center py-8">
-          <Mail className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No blasts sent yet.</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
-            Blast history will appear here once the feature is available.
-          </p>
-        </div>
+        {(pastBlasts?.length ?? 0) === 0 ? (
+          <div className="text-center py-8">
+            <Mail className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No blasts sent yet.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {pastBlasts!.map((b) => (
+              <div key={b.id} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{b.subject}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                      {b.audience} · {new Date(b.sentAt ?? b.createdAt).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                    b.status === 'failed' ? 'bg-red-500/15 text-red-600' : 'bg-emerald-500/15 text-emerald-700'
+                  }`}>
+                    {b.status === 'failed' ? 'Failed' : `Sent to ${b.sent}`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Surface>
     </div>
   );
