@@ -97,12 +97,17 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
 process.on('SIGTERM', () => void gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => void gracefulShutdown('SIGINT'));
 
-// Handle unhandled rejections
+// Handle unhandled rejections. Deliberately does NOT shut the server down: a
+// stray rejection (usually from best-effort background work — emails, socket
+// emits, notifications) is not a reason to take the whole API offline for every
+// user (and on the free tier a restart means a ~50s cold start). Log it loudly
+// for monitoring and keep serving. Genuinely unrecoverable sync failures are
+// handled by uncaughtException below.
 process.on('unhandledRejection', (reason: unknown) => {
-  logger.error('Unhandled Promise Rejection', { reason });
-  if (env.NODE_ENV === 'production') {
-    void gracefulShutdown('unhandledRejection');
-  }
+  logger.error('Unhandled Promise Rejection', {
+    reason: reason instanceof Error ? reason.message : reason,
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
 });
 
 // Handle uncaught exceptions
