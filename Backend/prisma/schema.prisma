@@ -561,6 +561,7 @@ model Payment {
   currency          String        @default("INR")
   ticketTierId      String?
   ticketTierName    String?
+  couponCode        String?
   status            PaymentStatus @default(CREATED)
   notes             Json?
   // Razorpay Route transfer to organizer's linked account.

@@ -51,7 +51,7 @@ export class PaymentsService {
    * Create a Razorpay order for one paid ticket tier and persist a CREATED
    * Payment row. Returns the data the frontend Checkout widget needs.
    */
-  async createOrder(userId: string, eventId: string, ticketTierId: string) {
+  async createOrder(userId: string, eventId: string, ticketTierId: string, couponCode?: string) {
     if (!paymentsConfigured()) {
       throw new ServiceUnavailableError('Payments are not configured');
     }
@@ -65,6 +65,24 @@ export class PaymentsService {
     if (!tier) throw new BadRequestError('Invalid ticket tier');
     if (tier.price <= 0) {
       throw new BadRequestError('This ticket is free — register without payment');
+    }
+
+    // Apply a coupon if provided: validates (active / not expired / under
+    // maxUses) and discounts the charge. usedCount is only incremented later on
+    // successful payment (verifyAndConfirm), so abandoned checkouts don't burn a
+    // use. Normalise the stored code to the validated coupon's canonical form.
+    let price = tier.price;
+    let appliedCoupon: string | undefined;
+    if (couponCode && couponCode.trim()) {
+      const eventsService = (await import('@modules/events/events.service')).default;
+      const { discountPct, code } = await eventsService.validateCoupon(eventId, couponCode);
+      price = Math.round(tier.price * (1 - discountPct / 100) * 100) / 100;
+      if (price < 1) {
+        throw new BadRequestError(
+          'This coupon covers the full ticket — please register without payment.'
+        );
+      }
+      appliedCoupon = code;
     }
 
     // Per-tier capacity: reject if this tier is sold out.
@@ -82,7 +100,7 @@ export class PaymentsService {
       throw new ConflictError('You already have a paid ticket for this event');
     }
 
-    const amountPaise = Math.round(tier.price * 100);
+    const amountPaise = Math.round(price * 100);
     let order: { id: string; amount: number; currency: string };
     try {
       const res = await fetch(`${RAZORPAY_API}/orders`, {
@@ -112,10 +130,11 @@ export class PaymentsService {
         userId,
         eventId,
         razorpayOrderId: order.id,
-        amount: tier.price,
+        amount: price,
         currency: 'INR',
         ticketTierId,
         ticketTierName: tier.name,
+        couponCode: appliedCoupon ?? null,
         status: 'CREATED',
       },
     });
@@ -177,7 +196,19 @@ export class PaymentsService {
       amountPaid: Number(payment.amount),
       ticketTierId: payment.ticketTierId ?? undefined,
       ticketTierName: payment.ticketTierName ?? undefined,
+      couponCode: payment.couponCode ?? undefined,
     });
+
+    // Count the coupon use now that payment succeeded (best-effort — never fail
+    // a confirmed payment over bookkeeping).
+    if (payment.couponCode) {
+      await prisma.coupon
+        .update({
+          where: { eventId_code: { eventId: payment.eventId, code: payment.couponCode } },
+          data: { usedCount: { increment: 1 } },
+        })
+        .catch((err) => logger.warn('Coupon usedCount increment failed', { err }));
+    }
 
     // Revenue ledger: split the captured amount into platform fee + organizer earning.
     const feePercent = await getPlatformFeePercent();

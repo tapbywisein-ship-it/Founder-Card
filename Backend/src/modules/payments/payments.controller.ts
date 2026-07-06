@@ -41,8 +41,8 @@ export class PaymentsController {
 
   async createOrder(req: Request, res: Response): Promise<void> {
     const userId = req.user!.userId;
-    const { eventId, ticketTierId } = req.body as CreateOrderDto;
-    const result = await paymentsService.createOrder(userId, eventId, ticketTierId);
+    const { eventId, ticketTierId, couponCode } = req.body as CreateOrderDto;
+    const result = await paymentsService.createOrder(userId, eventId, ticketTierId, couponCode);
     sendSuccess(res, result, 'Payment order created');
   }
 
