@@ -26,6 +26,11 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
   EMAIL_FROM: z.string().default('onboarding@resend.dev'),
 
+  // Web Push (VAPID). Optional — when unset, browser push silently no-ops.
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:hello@tapbywisein.com'),
+
   // Supabase Storage buckets
   SUPABASE_STORAGE_AVATAR_BUCKET: z.string().default('avatars'),
   SUPABASE_STORAGE_COVER_BUCKET: z.string().default('covers'),

@@ -56,6 +56,15 @@ export function useMatchmaking(eventId: string) {
   });
 }
 
+export function useEventBlasts(eventId: string) {
+  return useQuery({
+    queryKey: ['organizer', 'blasts', eventId] as const,
+    queryFn: () => organizerService.getEventBlasts(eventId),
+    select: (res) => res.data,
+    enabled: !!eventId,
+  });
+}
+
 export function useOrgDashboard() {
   return useQuery({
     queryKey: orgKeys.dashboard(),
@@ -203,10 +212,14 @@ export function useSendAttendeeBlast() {
 }
 
 export function useSendBlast(eventId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) =>
       organizerService.sendEventBlast(eventId, payload),
-    onSuccess: (res) => reportBlastResult(res, 'recipients'),
+    onSuccess: (res) => {
+      reportBlastResult(res, 'recipients');
+      qc.invalidateQueries({ queryKey: ['organizer', 'blasts', eventId] });
+    },
     onError: (err: Error) => toast.error(err.message),
   });
 }
