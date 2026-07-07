@@ -15,7 +15,7 @@ export class SeoService {
   async generateSitemap(): Promise<string> {
     const base = env.FRONTEND_URL.replace(/\/$/, '');
 
-    const [events, cards] = await Promise.all([
+    const [events, cards, communities] = await Promise.all([
       prisma.event.findMany({
         where: { status: 'PUBLISHED', deletedAt: null, visibility: 'PUBLIC' },
         select: { id: true, slug: true, updatedAt: true },
@@ -29,6 +29,13 @@ export class SeoService {
         orderBy: { updatedAt: 'desc' },
         take: 5000,
       }),
+      // Public communities — their /community/:slug pages are indexable.
+      prisma.community.findMany({
+        where: { isPublic: true, deletedAt: null },
+        select: { slug: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 5000,
+      }),
     ]);
 
     const urls: { loc: string; lastmod?: string }[] = [
@@ -39,6 +46,10 @@ export class SeoService {
       })),
       ...cards.map((c) => ({
         loc: `${base}/c/${escapeXml(c.publicSlug as string)}`,
+        lastmod: c.updatedAt.toISOString(),
+      })),
+      ...communities.map((c) => ({
+        loc: `${base}/community/${escapeXml(c.slug)}`,
         lastmod: c.updatedAt.toISOString(),
       })),
     ];
