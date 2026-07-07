@@ -22,9 +22,13 @@ const envSchema = z.object({
   // Bcrypt (still used for claim-account password hashing)
   BCRYPT_ROUNDS: z.coerce.number().int().min(8).max(20).default(12),
 
-  // Resend — transactional emails
+  // Resend — transactional emails. Default to an address on our VERIFIED
+  // domain (tapbywisein.com) rather than Resend's `onboarding@resend.dev`
+  // sandbox sender — sending from the sandbox forces test mode (recipients
+  // other than the account owner get a 403), so a missing EMAIL_FROM env var
+  // must not silently drop us back into that. Override per-env as needed.
   RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
-  EMAIL_FROM: z.string().default('onboarding@resend.dev'),
+  EMAIL_FROM: z.string().default('no-reply@tapbywisein.com'),
 
   // Web Push (VAPID). Optional — when unset, browser push silently no-ops.
   VAPID_PUBLIC_KEY: z.string().default(''),
