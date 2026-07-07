@@ -146,17 +146,19 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         Skip to content
       </a>
 
-      {/* ── Desktop left sidebar ──────────────────────────── */}
-      <aside className="hidden md:flex flex-col w-60 border-r border-border p-4 fixed h-full z-40 bg-background">
-        <div className="mb-3 px-2"><Logo size="md" /></div>
+      {/* ── Desktop left sidebar — collapsed to icons, expands on hover ──── */}
+      <aside className="group hidden md:flex flex-col w-16 hover:w-60 transition-[width] duration-200 ease-out overflow-hidden border-r border-border px-2 py-4 fixed h-full z-40 bg-background">
+        <div className="mb-3 px-1"><Logo size="md" /></div>
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
+          title="Search"
           className="flex items-center gap-3 px-3 py-2 mb-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          <Search className="w-4 h-4" /> Search
+          <Search className="w-5 h-5 flex-shrink-0" />
+          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Search</span>
         </button>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto" aria-label="Primary">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Primary">
           {navItems.map((item) => {
             const active = location.pathname.startsWith(item.path);
             const badge =
@@ -171,16 +173,23 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               <Link
                 key={item.path}
                 to={item.path}
+                title={item.label}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   active
                     ? 'bg-accent text-primary font-medium border-l-2 border-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <item.icon className="w-4 h-4" />
-                <span className="flex-1">{item.label}</span>
+                <span className="relative flex-shrink-0">
+                  <item.icon className="w-5 h-5" />
+                  {/* Collapsed: show unread as a dot on the icon. Expanded: the pill below. */}
+                  {badge > 0 && (
+                    <span className="group-hover:hidden absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary ring-2 ring-background" />
+                  )}
+                </span>
+                <span className="flex-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">{item.label}</span>
                 {badge > 0 && (
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  <span className="hidden group-hover:flex min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold items-center justify-center">
                     {badge > 9 ? '9+' : badge}
                   </span>
                 )}
@@ -190,34 +199,40 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           {isOrganizer ? (
             <Link
               to="/organizer/dashboard"
+              title="Organizer portal"
               className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <Building2 className="w-4 h-4" /> Organizer portal
+              <Building2 className="w-5 h-5 flex-shrink-0" />
+              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Organizer portal</span>
             </Link>
           ) : (
             <button
               type="button"
               onClick={() => setOrgDialogOpen(true)}
+              title="Become an organizer"
               className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <Building2 className="w-4 h-4" /> Become an organizer
+              <Building2 className="w-5 h-5 flex-shrink-0" />
+              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Become an organizer</span>
             </button>
           )}
         </nav>
-        <div className="flex items-center gap-2 pt-3 border-t border-border">
-          <ThemeToggle />
+        <div className="flex flex-col gap-1 pt-3 border-t border-border">
+          <div className="px-1"><ThemeToggle /></div>
           <button
             type="button"
             onClick={handleLogout}
-            className="flex-1 flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Sign out"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            <LogOut className="w-4 h-4" /> Sign out
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Sign out</span>
           </button>
         </div>
       </aside>
 
       {/* ── Main column ───────────────────────────────────── */}
-      <div className="flex-1 md:ml-60 min-h-screen flex flex-col">
+      <div className="flex-1 md:ml-16 min-h-screen flex flex-col">
         <VerifyEmailBanner />
 
         {/* ── Mobile top bar (md:hidden) ────────────────────── */}

@@ -38,38 +38,42 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="hidden md:flex flex-col w-60 border-r border-border p-4 fixed h-full z-40 bg-background">
-        <div className="mb-1 px-2"><Logo /></div>
-        <p className="text-xs text-muted-foreground mb-6 px-2">Organizer</p>
-        <nav className="flex-1 space-y-0.5" aria-label="Organizer">
+      <aside className="group hidden md:flex flex-col w-16 hover:w-60 transition-[width] duration-200 ease-out overflow-hidden border-r border-border px-2 py-4 fixed h-full z-40 bg-background">
+        <div className="mb-1 px-1"><Logo /></div>
+        <p className="text-xs text-muted-foreground mb-6 px-3 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Organizer</p>
+        <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Organizer">
           {navItems.map((item) => {
             const active = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
+                title={item.label}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   active
                     ? 'bg-accent text-primary font-medium border-l-2 border-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <item.icon className="w-4 h-4" /> {item.label}
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">{item.label}</span>
               </Link>
             );
           })}
         </nav>
-        <div className="flex items-center gap-2 pt-3 border-t border-border">
-          <ThemeToggle />
+        <div className="flex flex-col gap-1 pt-3 border-t border-border">
+          <div className="px-1"><ThemeToggle /></div>
           <button
             onClick={handleLogout}
-            className="flex-1 flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Sign out"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            <LogOut className="w-4 h-4" /> Sign out
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Sign out</span>
           </button>
         </div>
       </aside>
-      <div className="flex-1 md:ml-60 min-h-screen">
+      <div className="flex-1 md:ml-16 min-h-screen">
         <main className="p-4 md:p-8 max-w-xwide mx-auto pb-24 md:pb-8">{children}</main>
       </div>
 
