@@ -4,6 +4,8 @@ import { authenticate, optionalAuthenticate } from '@middlewares/authenticate';
 
 const router = Router();
 
+// Public — browse/discover public communities (membership resolved if signed in)
+router.get('/', optionalAuthenticate, communitiesController.listPublic.bind(communitiesController));
 // Public — community page (viewer membership resolved if signed in)
 router.get('/slug/:slug', optionalAuthenticate, communitiesController.getBySlug.bind(communitiesController));
 

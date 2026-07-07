@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import {
   Bell, Compass, Calendar, Scan, User as UserIcon,
   LogOut, Plus, Search, Trophy, Users, QrCode, MessageCircle, Ticket,
-  Building2, X,
+  Building2, Boxes, X,
 } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
@@ -45,6 +45,7 @@ const navItems = [
   { label: 'Connect',       icon: Scan,          path: '/connect',        badge: 'connect' as const },
   { label: 'Messages',      icon: MessageCircle, path: '/messages',       badge: 'messages' as const },
   { label: 'Connections',   icon: Users,         path: '/connections' },
+  { label: 'Communities',   icon: Boxes,         path: '/communities' },
   { label: 'Notifications', icon: Bell,          path: '/notifications',  badge: 'notifications' as const },
   { label: 'My Tickets',    icon: Ticket,        path: '/my-tickets' },
   { label: 'FK Score',      icon: Trophy,        path: '/gamification' },
@@ -298,6 +299,9 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/connections"><Users className="w-4 h-4 mr-2" /> Connections</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/communities"><Boxes className="w-4 h-4 mr-2" /> Communities</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/my-tickets"><Ticket className="w-4 h-4 mr-2" /> My Tickets</Link>

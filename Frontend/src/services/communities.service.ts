@@ -20,6 +20,11 @@ export interface CommunitySummary {
   };
 }
 
+/** A public community in the browse/discover list, with the viewer's join state. */
+export interface PublicCommunity extends CommunitySummary {
+  isMember: boolean;
+}
+
 export interface CommunityEvent {
   id: string;
   title: string;
@@ -61,6 +66,14 @@ export const communitiesService = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+  },
+  /** Browse public communities (attendees). Optional search + category filter. */
+  async listPublic(params?: { q?: string; category?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.q) qs.set('q', params.q);
+    if (params?.category) qs.set('category', params.category);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<{ data: PublicCommunity[] }>(`/communities${suffix}`);
   },
   async listMine() {
     return apiFetch<{ data: CommunitySummary[] }>('/communities/mine');

@@ -6,7 +6,32 @@ const keys = {
   mine: () => ['communities', 'mine'] as const,
   following: () => ['communities', 'following'] as const,
   bySlug: (slug: string) => ['communities', 'slug', slug] as const,
+  public: (q: string, category: string) => ['communities', 'public', q, category] as const,
 };
+
+/** Browse public communities (attendee discover page). */
+export function usePublicCommunities(q = '', category = '') {
+  return useQuery({
+    queryKey: keys.public(q, category),
+    queryFn: () => communitiesService.listPublic({ q: q || undefined, category: category || undefined }),
+    select: (res) => res.data,
+    staleTime: 30_000,
+  });
+}
+
+/** Join/leave from the browse list — refreshes every communities query. */
+export function useJoinLeaveCommunity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, join }: { id: string; join: boolean }) =>
+      join ? communitiesService.join(id) : communitiesService.leave(id),
+    onSuccess: (_data, { join }) => {
+      qc.invalidateQueries({ queryKey: ['communities'] });
+      toast.success(join ? 'Joined community' : 'Left community');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
 
 export function useMyCommunities() {
   return useQuery({

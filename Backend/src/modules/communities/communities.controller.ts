@@ -19,6 +19,14 @@ export class CommunitiesController {
     sendSuccess(res, community, 'Community updated');
   }
 
+  /** Public browse/discover list — attendees find communities to join. */
+  async listPublic(req: Request, res: Response): Promise<void> {
+    const viewerId = req.user?.userId;
+    const { q, category } = req.query as { q?: string; category?: string };
+    const data = await communitiesService.listPublic(viewerId, q, category);
+    sendSuccess(res, data, 'Communities retrieved');
+  }
+
   async listMine(req: Request, res: Response): Promise<void> {
     const organizerId = req.user!.userId;
     const data = await communitiesService.listMine(organizerId);
