@@ -56,6 +56,7 @@ const navItems = [
 const bottomNav = [
   { label: 'Discover', icon: Compass, path: '/discover' },
   { label: 'Events', icon: Calendar, path: '/events' },
+  { label: 'Community', icon: Boxes, path: '/communities' },
   { label: 'Connect', icon: Scan, path: '/connect' },
   { label: 'Messages', icon: MessageCircle, path: '/messages' },
   { label: 'Profile', icon: UserIcon, path: '/profile' },

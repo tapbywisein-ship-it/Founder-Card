@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from '@config/database';
-import { NotFoundError } from '@utils/errors';
+import { NotFoundError, BadRequestError } from '@utils/errors';
+import notificationsService from '@modules/notifications/notifications.service';
 import type { CreateCommunityDto, UpdateCommunityDto } from './communities.validation';
 
 const PUBLIC_ORGANIZER_SELECT = {
@@ -197,6 +198,55 @@ class CommunitiesService {
   async leave(communityId: string, userId: string) {
     await prisma.communityMember.deleteMany({ where: { communityId, userId } });
     return { joined: false };
+  }
+
+  /**
+   * Invite users to a public community — sends each an in-app notification
+   * (deep-linking to the community page) rather than a DM. Silently skips
+   * anyone already a member. Capped to keep a single request cheap.
+   */
+  async invite(communityId: string, inviterId: string, userIds: string[]) {
+    const community = await prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: { id: true, name: true, slug: true, isPublic: true },
+    });
+    if (!community) throw new NotFoundError('Community');
+    if (!community.isPublic) throw new BadRequestError('This community is private');
+
+    const targets = [...new Set(userIds)].filter((id) => id && id !== inviterId).slice(0, 50);
+    if (targets.length === 0) return { invited: 0 };
+
+    // Don't notify people who already joined.
+    const members = await prisma.communityMember.findMany({
+      where: { communityId, userId: { in: targets } },
+      select: { userId: true },
+    });
+    const memberSet = new Set(members.map((m) => m.userId));
+    const toNotify = targets.filter((id) => !memberSet.has(id));
+
+    const inviter = await prisma.user.findUnique({
+      where: { id: inviterId },
+      select: { profile: { select: { firstName: true, lastName: true } } },
+    });
+    const inviterName = inviter?.profile
+      ? `${inviter.profile.firstName} ${inviter.profile.lastName}`.trim()
+      : 'Someone';
+
+    await Promise.all(
+      toNotify.map((userId) =>
+        notificationsService
+          .createNotification(
+            userId,
+            'SYSTEM',
+            'Community invite',
+            `${inviterName} invited you to join ${community.name}`,
+            { communityId: community.id, communitySlug: community.slug }
+          )
+          .catch(() => {})
+      )
+    );
+
+    return { invited: toNotify.length };
   }
 }
 

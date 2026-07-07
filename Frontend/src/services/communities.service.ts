@@ -90,4 +90,11 @@ export const communitiesService = {
   async leave(id: string) {
     return apiFetch<{ data: { joined: boolean } }>(`/communities/${id}/join`, { method: 'DELETE' });
   },
+  /** Invite connections to a community — each gets an in-app notification. */
+  async invite(id: string, userIds: string[]) {
+    return apiFetch<{ data: { invited: number } }>(`/communities/${id}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds }),
+    });
+  },
 };

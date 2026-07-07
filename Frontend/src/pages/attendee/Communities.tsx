@@ -8,9 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePublicCommunities, useJoinLeaveCommunity } from '@/hooks/useCommunities';
 import { useConnections } from '@/hooks/useConnections';
-import { messagesService } from '@/services/messages.service';
 import { getTheme } from '@/lib/eventThemes';
-import type { PublicCommunity } from '@/services/communities.service';
+import { communitiesService, type PublicCommunity } from '@/services/communities.service';
 import {
   Boxes, Users, Search, Share2, UserPlus, Check, Calendar, X, Send, Loader2, AlertCircle,
 } from 'lucide-react';
@@ -20,8 +19,14 @@ const communityUrl = (slug: string) => `${window.location.origin}/community/${sl
 const CommunitiesPage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
   const { data: communities, isLoading, isError, refetch } = usePublicCommunities(search);
   const joinLeave = useJoinLeaveCommunity();
+
+  // Category chips derived from the loaded set; filtering is client-side so
+  // switching categories is instant (no refetch).
+  const categories = [...new Set((communities ?? []).map((c) => c.category).filter(Boolean))] as string[];
+  const shown = category ? (communities ?? []).filter((c) => c.category === category) : (communities ?? []);
 
   // Invite-connections modal state
   const [inviteTarget, setInviteTarget] = useState<PublicCommunity | null>(null);
@@ -54,21 +59,16 @@ const CommunitiesPage = () => {
   const sendInvites = async () => {
     if (!inviteTarget || selected.size === 0) return;
     setSending(true);
-    const msg = `Join the "${inviteTarget.name}" community on TapByWisein 👉 ${communityUrl(inviteTarget.slug)}`;
-    let ok = 0;
-    for (const uid of selected) {
-      try {
-        const convo = await messagesService.startConversation(uid);
-        await messagesService.send(convo.data.id, msg);
-        ok += 1;
-      } catch {
-        /* skip a failed invite, keep going */
-      }
+    try {
+      const res = await communitiesService.invite(inviteTarget.id, [...selected]);
+      const n = res.data.invited;
+      toast.success(n > 0 ? `Invited ${n} connection${n !== 1 ? 's' : ''}` : 'Those connections were already invited or joined');
+    } catch {
+      toast.error('Could not send invites');
     }
     setSending(false);
     setInviteTarget(null);
     setSelected(new Set());
-    toast.success(ok > 0 ? `Invite sent to ${ok} connection${ok !== 1 ? 's' : ''}` : 'Could not send invites');
   };
 
   return (
@@ -92,6 +92,31 @@ const CommunitiesPage = () => {
           </div>
         </div>
 
+        {/* Category filter */}
+        {categories.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => setCategory('')}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                category === '' ? 'bg-primary text-primary-foreground' : 'bg-card border border-border shadow-card-xs text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                  category === cat ? 'bg-primary text-primary-foreground' : 'bg-card border border-border shadow-card-xs text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
         {isError && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <span className="flex items-center gap-2.5">
@@ -108,17 +133,17 @@ const CommunitiesPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => <Surface key={i} className="h-56 animate-pulse" />)}
           </div>
-        ) : (communities?.length ?? 0) === 0 ? (
+        ) : shown.length === 0 ? (
           <div className="text-center py-16">
             <Boxes className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-foreground font-medium">No communities yet</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              {search ? 'Try a different search.' : 'New communities will show up here as organizers create them.'}
+              {search || category ? 'Try a different search or category.' : 'New communities will show up here as organizers create them.'}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {communities!.map((c, i) => {
+            {shown.map((c, i) => {
               const theme = getTheme(undefined);
               const org = c.organizer;
               const orgName =
