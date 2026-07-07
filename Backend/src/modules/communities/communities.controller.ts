@@ -58,6 +58,14 @@ export class CommunitiesController {
     const data = await communitiesService.leave(id, userId);
     sendSuccess(res, data, 'Left community');
   }
+
+  async invite(req: Request, res: Response): Promise<void> {
+    const inviterId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const { userIds } = req.body as { userIds?: string[] };
+    const data = await communitiesService.invite(id, inviterId, Array.isArray(userIds) ? userIds : []);
+    sendSuccess(res, data, 'Invites sent');
+  }
 }
 
 export default new CommunitiesController();

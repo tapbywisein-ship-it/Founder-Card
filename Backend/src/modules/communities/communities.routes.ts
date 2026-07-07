@@ -16,5 +16,6 @@ router.get('/following', authenticate, communitiesController.listFollowing.bind(
 router.patch('/:id', authenticate, communitiesController.update.bind(communitiesController));
 router.post('/:id/join', authenticate, communitiesController.join.bind(communitiesController));
 router.delete('/:id/join', authenticate, communitiesController.leave.bind(communitiesController));
+router.post('/:id/invite', authenticate, communitiesController.invite.bind(communitiesController));
 
 export default router;
