@@ -131,6 +131,16 @@ export class FounderCardsController {
     sendSuccess(res, card, 'Public card retrieved');
   }
 
+  /** "Save contact" — serves the card as a downloadable .vcf file. */
+  async getVCardBySlug(req: Request, res: Response): Promise<void> {
+    const { slug } = req.params as Record<string, string>;
+    const vcf = await founderCardsService.getVCardBySlug(slug);
+    res.setHeader('Content-Type', 'text/vcard; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="contact.vcf"');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(vcf);
+  }
+
   async getPublicCardByUserId(req: Request, res: Response): Promise<void> {
     const { userId } = req.params as Record<string, string>;
     const card = await founderCardsService.getPublicCardByUserId(userId, req.user?.userId);

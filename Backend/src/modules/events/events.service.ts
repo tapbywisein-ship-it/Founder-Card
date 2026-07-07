@@ -11,6 +11,7 @@ import logger from '@utils/logger';
 import gamificationService from '@modules/gamification/gamification.service';
 import notificationsService from '@modules/notifications/notifications.service';
 import { hasFreeOption, resolveTiers } from '@utils/ticketPricing';
+import { buildEventIcs } from '@utils/calendar';
 import paymentsService, { paymentsConfigured } from '@modules/payments/payments.service';
 
 // Safe public shape for an event's organizer. Never `include` the full User
@@ -1627,6 +1628,49 @@ export class EventsService {
         registered: registeredSet.has(u.id),
       })),
     };
+  }
+
+  /**
+   * Event as an .ics (VCALENDAR) download — "Add to calendar". Any published
+   * (non-draft) event; the payload only contains what the public event page
+   * already shows.
+   */
+  async getEventCalendar(eventId: string): Promise<string> {
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, deletedAt: null, status: { not: 'DRAFT' } },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startDate: true,
+        endDate: true,
+        locationType: true,
+        address: true,
+        city: true,
+        state: true,
+        country: true,
+        meetingUrl: true,
+        slug: true,
+      },
+    });
+    if (!event) throw new NotFoundError('Event');
+
+    const location =
+      event.locationType === 'VIRTUAL'
+        ? event.meetingUrl || 'Online'
+        : [event.address, event.city, event.state, event.country].filter(Boolean).join(', ') ||
+          'Venue TBD';
+
+    return buildEventIcs({
+      uid: event.id,
+      title: event.title,
+      // Plain-text-ish trim: calendar clients render DESCRIPTION as text.
+      description: event.description?.slice(0, 1000),
+      location,
+      url: `${env.FRONTEND_URL}/e/${event.slug ?? event.id}`,
+      start: event.startDate,
+      end: event.endDate,
+    });
   }
 }
 

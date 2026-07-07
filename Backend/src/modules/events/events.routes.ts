@@ -80,6 +80,9 @@ router.get('/:id/agenda', eventsController.listAgenda.bind(eventsController));
 // Public, aggregate-only networking impact report (shareable with sponsors)
 router.get('/:id/impact', eventsController.getImpactReport.bind(eventsController));
 
+// Public — "Add to calendar" .ics download
+router.get('/:id/calendar.ics', eventsController.getEventCalendar.bind(eventsController));
+
 // Public — validate a coupon code at checkout
 router.get('/:id/coupons/:code/validate', eventsController.validateCoupon.bind(eventsController));
 

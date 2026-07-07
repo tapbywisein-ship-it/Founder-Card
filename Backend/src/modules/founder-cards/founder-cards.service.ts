@@ -8,6 +8,8 @@ import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import gamificationService from '@modules/gamification/gamification.service';
 import notificationsService from '@modules/notifications/notifications.service';
 import { ApplyCardDto } from './founder-cards.validation';
+import { buildVCard } from '@utils/calendar';
+import { env } from '@config/env';
 
 export class FounderCardsService {
   async applyForCard(userId: string, dto: ApplyCardDto) {
@@ -931,6 +933,36 @@ export class FounderCardsService {
       cards,
       pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
     };
+  }
+
+  /**
+   * The card as a downloadable .vcf contact ("Save contact"). Only includes
+   * fields the public card page already exposes, so there's no new data leak.
+   */
+  async getVCardBySlug(slug: string): Promise<string> {
+    const card = await prisma.founderCard.findUnique({
+      where: { publicSlug: slug },
+      include: { user: { include: { profile: true } } },
+    });
+    if (!card || !card.user || !card.user.isActive || card.user.deletedAt || !card.user.profile) {
+      throw new NotFoundError('Founder Card');
+    }
+    const p = card.user.profile;
+    return buildVCard({
+      firstName: p.firstName,
+      lastName: p.lastName,
+      company: p.company,
+      position: p.position,
+      phone: p.phone,
+      email: p.email,
+      website: p.website,
+      linkedin: p.linkedin,
+      twitter: p.twitter,
+      instagram: p.instagram,
+      bio: p.bio?.slice(0, 500),
+      avatarUrl: p.avatar,
+      cardUrl: `${env.FRONTEND_URL}/c/${slug}`,
+    });
   }
 }
 
