@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import prisma from '@config/database';
 import { NotFoundError } from '@utils/errors';
 import type { CreateCommunityDto, UpdateCommunityDto } from './communities.validation';
@@ -86,6 +87,45 @@ class CommunitiesService {
       include: COUNTS,
     });
     return rows.map(withCounts);
+  }
+
+  /**
+   * Browse/discover public communities (newest first) so attendees can find and
+   * join them. Includes counts + owner, and `isMember` for the viewer so the UI
+   * can show Join vs Joined. Anonymous callers get everything except membership.
+   */
+  async listPublic(viewerId?: string, q?: string, category?: string) {
+    const where: Prisma.CommunityWhereInput = {
+      isPublic: true,
+      deletedAt: null,
+      ...(category ? { category } : {}),
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { description: { contains: q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const rows = await prisma.community.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { ...COUNTS, organizer: { select: PUBLIC_ORGANIZER_SELECT } },
+    });
+
+    let memberSet = new Set<string>();
+    if (viewerId && rows.length > 0) {
+      const mships = await prisma.communityMember.findMany({
+        where: { userId: viewerId, communityId: { in: rows.map((r) => r.id) } },
+        select: { communityId: true },
+      });
+      memberSet = new Set(mships.map((m) => m.communityId));
+    }
+
+    return rows.map((r) => ({ ...withCounts(r), isMember: memberSet.has(r.id) }));
   }
 
   /** Communities the user follows. */

@@ -42,6 +42,7 @@ const ProfilePage = lazy(() => import("./pages/attendee/Profile"));
 const ConnectPage = lazy(() => import("./pages/attendee/Connect"));
 const ConnectionsPage = lazy(() => import("./pages/attendee/Connections"));
 const DiscoverPage = lazy(() => import("./pages/attendee/Discover"));
+const BrowseCommunitiesPage = lazy(() => import("./pages/attendee/Communities"));
 const GamificationPage = lazy(() => import("./pages/attendee/Gamification"));
 const NotificationsPage = lazy(() => import("./pages/attendee/Notifications"));
 const EventsPage = lazy(() => import("./pages/attendee/Events"));
@@ -222,6 +223,7 @@ const App = () => (
           <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/my-tickets" element={<ProtectedRoute><MyTicketsPage /></ProtectedRoute>} />
           <Route path="/discover" element={<ProtectedRoute><DiscoverPage /></ProtectedRoute>} />
+          <Route path="/communities" element={<ProtectedRoute><BrowseCommunitiesPage /></ProtectedRoute>} />
           <Route path="/gamification" element={<ProtectedRoute><GamificationPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
           <Route path="/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
