@@ -942,33 +942,48 @@ export class ConnectionsService {
       connectedIds.add(c.receiverId);
     }
 
-    const suggestions = await prisma.user.findMany({
-      where: {
-        id: { notIn: Array.from(connectedIds) },
-        deletedAt: null,
-        isActive: true,
-        ...(userProfile?.skills?.length
-          ? { profile: { skills: { hasSome: userProfile.skills } } }
-          : {}),
-      },
-      include: {
-        profile: {
-          select: {
-            firstName: true,
-            lastName: true,
-            avatar: true,
-            company: true,
-            position: true,
-            skills: true,
-          },
+    const include = {
+      profile: {
+        select: {
+          firstName: true,
+          lastName: true,
+          avatar: true,
+          company: true,
+          position: true,
+          skills: true,
         },
-        gamification: { select: { fkScore: true, level: true } },
       },
-      take: limit,
+      gamification: { select: { fkScore: true, level: true } },
+    } as const;
+
+    // Prefer people who share a skill with the viewer.
+    const matched = userProfile?.skills?.length
+      ? await prisma.user.findMany({
+          where: {
+            id: { notIn: Array.from(connectedIds) },
+            deletedAt: null,
+            isActive: true,
+            profile: { skills: { hasSome: userProfile.skills } },
+          },
+          include,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+        })
+      : [];
+
+    if (matched.length >= limit) return matched;
+
+    // Backfill with other recent members so "People You May Know" is never empty
+    // just because the viewer has niche or no skills listed.
+    const have = new Set<string>([...connectedIds, ...matched.map((u) => u.id)]);
+    const fill = await prisma.user.findMany({
+      where: { id: { notIn: Array.from(have) }, deletedAt: null, isActive: true },
+      include,
+      take: limit - matched.length,
       orderBy: { createdAt: 'desc' },
     });
 
-    return suggestions;
+    return [...matched, ...fill];
   }
 }
 

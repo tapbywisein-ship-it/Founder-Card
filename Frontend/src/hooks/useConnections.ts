@@ -46,9 +46,12 @@ export function useSendConnectionRequest() {
   return useMutation({
     mutationFn: (receiverId: string) => connectionsService.sendRequest(receiverId),
     onSuccess: () => {
-      // Refetch the whole connections family so the new outgoing request shows in
-      // the Sent list (and suggestions drop the person) without a reload.
-      qc.invalidateQueries({ queryKey: ['connections'] });
+      // Update the Sent/received lists, but deliberately NOT the suggestions
+      // query — refetching it would drop the just-requested person from
+      // "People You May Know" (the backend excludes anyone already requested),
+      // making the card vanish. The card instead flips to "Sent ✓" locally.
+      qc.invalidateQueries({ queryKey: connKeys.pending() });
+      qc.invalidateQueries({ queryKey: connKeys.list() });
       toast.success('Connection request sent');
     },
     onError: (err: Error) => toast.error(err.message),
