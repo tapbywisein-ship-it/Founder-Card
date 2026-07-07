@@ -82,3 +82,70 @@ export function useToggleCommunityMembership(slug: string) {
     onError: (err: Error) => toast.error(err.message),
   });
 }
+
+// ── Feed: posts, comments, announcements ──────────────────────────────────────
+
+const feedKeys = {
+  posts: (communityId: string) => ['communities', 'posts', communityId] as const,
+  comments: (postId: string) => ['communities', 'comments', postId] as const,
+};
+
+export function useCommunityPosts(communityId: string | undefined) {
+  return useQuery({
+    queryKey: feedKeys.posts(communityId ?? ''),
+    queryFn: () => communitiesService.listPosts(communityId as string),
+    select: (res) => res.data,
+    enabled: !!communityId,
+  });
+}
+
+/** Create a post or an announcement (announcement also notifies all members). */
+export function useCreateCommunityPost(communityId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ body, announce }: { body: string; announce?: boolean }) =>
+      announce
+        ? communitiesService.announce(communityId, body)
+        : communitiesService.createPost(communityId, { body }),
+    onSuccess: (_res, { announce }) => {
+      qc.invalidateQueries({ queryKey: feedKeys.posts(communityId) });
+      toast.success(announce ? 'Announcement posted — members notified' : 'Posted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteCommunityPost(communityId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => communitiesService.deletePost(communityId, postId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: feedKeys.posts(communityId) });
+      toast.success('Post deleted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function usePostComments(postId: string | null) {
+  return useQuery({
+    queryKey: feedKeys.comments(postId ?? ''),
+    queryFn: () => communitiesService.listComments(postId as string),
+    select: (res) => res.data,
+    enabled: !!postId,
+  });
+}
+
+export function useAddComment(communityId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ postId, body }: { postId: string; body: string }) =>
+      communitiesService.addComment(postId, body),
+    onSuccess: (_res, { postId }) => {
+      qc.invalidateQueries({ queryKey: feedKeys.comments(postId) });
+      // Refresh the feed too — the post's comment count changed.
+      qc.invalidateQueries({ queryKey: feedKeys.posts(communityId) });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}

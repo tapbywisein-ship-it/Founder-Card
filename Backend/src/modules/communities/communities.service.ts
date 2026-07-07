@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from '@config/database';
-import { NotFoundError, BadRequestError } from '@utils/errors';
+import { NotFoundError, BadRequestError, ForbiddenError } from '@utils/errors';
+import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import notificationsService from '@modules/notifications/notifications.service';
 import type { CreateCommunityDto, UpdateCommunityDto } from './communities.validation';
 
@@ -247,6 +248,212 @@ class CommunitiesService {
     );
 
     return { invited: toNotify.length };
+  }
+
+  // ── Community feed: posts, comments, announcements ──────────────────────────
+
+  private readonly AUTHOR_SELECT = {
+    id: true,
+    profile: { select: { firstName: true, lastName: true, avatar: true, company: true, position: true } },
+  } as const;
+
+  /**
+   * Viewer's standing in a community: 'owner' | 'moderator' | 'member' | null.
+   * Owners moderate implicitly (they're auto-added as MODERATOR on create, but
+   * legacy communities may predate that).
+   */
+  private async membershipRole(
+    communityId: string,
+    userId: string
+  ): Promise<'owner' | 'moderator' | 'member' | null> {
+    const community = await prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: { organizerId: true },
+    });
+    if (!community) throw new NotFoundError('Community');
+    if (community.organizerId === userId) return 'owner';
+    const m = await prisma.communityMember.findUnique({
+      where: { communityId_userId: { communityId, userId } },
+      select: { role: true },
+    });
+    if (!m) return null;
+    return m.role === 'MODERATOR' ? 'moderator' : 'member';
+  }
+
+  /** Feed: pinned posts first, then newest. Readable by anyone who can see the community. */
+  async listPosts(communityId: string, viewerId: string | undefined, page?: number, limit?: number) {
+    const community = await prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: { isPublic: true, organizerId: true },
+    });
+    if (!community) throw new NotFoundError('Community');
+    if (!community.isPublic) {
+      // Private community feeds are member/owner-only.
+      const role = viewerId ? await this.membershipRole(communityId, viewerId) : null;
+      if (!role) throw new NotFoundError('Community');
+    }
+
+    const pagination = parsePaginationQuery({ page, limit });
+    const where = { communityId, deletedAt: null };
+    const [posts, total] = await Promise.all([
+      prisma.communityPost.findMany({
+        where,
+        include: {
+          author: { select: this.AUTHOR_SELECT },
+          _count: { select: { comments: true } },
+        },
+        orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      prisma.communityPost.count({ where }),
+    ]);
+
+    return {
+      posts: posts.map(({ _count, ...p }) => ({ ...p, commentCount: _count.comments })),
+      pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
+    };
+  }
+
+  /** Members post to the feed; only the owner/moderators may pin. */
+  async createPost(
+    communityId: string,
+    authorId: string,
+    input: { body: string; imageUrl?: string; pinned?: boolean }
+  ) {
+    const body = input.body?.trim();
+    if (!body) throw new BadRequestError('Post cannot be empty');
+    if (body.length > 4000) throw new BadRequestError('Post is too long (max 4000 chars)');
+
+    const role = await this.membershipRole(communityId, authorId);
+    if (!role) throw new ForbiddenError('Join this community to post');
+    const canModerate = role === 'owner' || role === 'moderator';
+
+    return prisma.communityPost.create({
+      data: {
+        communityId,
+        authorId,
+        body,
+        imageUrl: input.imageUrl || null,
+        pinned: canModerate ? !!input.pinned : false,
+      },
+      include: { author: { select: this.AUTHOR_SELECT } },
+    });
+  }
+
+  /**
+   * Announcement: an owner/moderator post that is pinned and notifies every
+   * member (batched like invite). Returns the post.
+   */
+  async announce(communityId: string, authorId: string, body: string) {
+    const role = await this.membershipRole(communityId, authorId);
+    if (role !== 'owner' && role !== 'moderator') {
+      throw new ForbiddenError('Only the organizer or moderators can post announcements');
+    }
+
+    const community = await prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: { name: true, slug: true },
+    });
+    if (!community) throw new NotFoundError('Community');
+
+    const trimmed = body?.trim();
+    if (!trimmed) throw new BadRequestError('Announcement cannot be empty');
+
+    const post = await prisma.communityPost.create({
+      data: { communityId, authorId, body: trimmed, pinned: true, isAnnouncement: true },
+      include: { author: { select: this.AUTHOR_SELECT } },
+    });
+
+    // Fan out to members (excluding the author). Best-effort; capped batch.
+    const members = await prisma.communityMember.findMany({
+      where: { communityId, userId: { not: authorId } },
+      select: { userId: true },
+      take: 2000,
+    });
+    if (members.length > 0) {
+      await notificationsService
+        .sendBulkNotification(
+          members.map((m) => m.userId),
+          'SYSTEM',
+          `${community.name}: announcement`,
+          trimmed.length > 140 ? `${trimmed.slice(0, 140)}…` : trimmed,
+          { communityId, communitySlug: community.slug, postId: post.id }
+        )
+        .catch(() => {});
+    }
+
+    return post;
+  }
+
+  /** Author deletes their own post; owner/moderators delete any (soft delete). */
+  async deletePost(communityId: string, postId: string, userId: string): Promise<void> {
+    const post = await prisma.communityPost.findFirst({
+      where: { id: postId, communityId, deletedAt: null },
+      select: { authorId: true },
+    });
+    if (!post) throw new NotFoundError('Post');
+    if (post.authorId !== userId) {
+      const role = await this.membershipRole(communityId, userId);
+      if (role !== 'owner' && role !== 'moderator') {
+        throw new ForbiddenError('You can only delete your own posts');
+      }
+    }
+    await prisma.communityPost.update({ where: { id: postId }, data: { deletedAt: new Date() } });
+  }
+
+  async listComments(postId: string, page?: number, limit?: number) {
+    const post = await prisma.communityPost.findFirst({
+      where: { id: postId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!post) throw new NotFoundError('Post');
+    const pagination = parsePaginationQuery({ page, limit });
+    const [comments, total] = await Promise.all([
+      prisma.communityPostComment.findMany({
+        where: { postId },
+        include: { author: { select: this.AUTHOR_SELECT } },
+        orderBy: { createdAt: 'asc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      prisma.communityPostComment.count({ where: { postId } }),
+    ]);
+    return { comments, pagination: buildPaginationMeta(total, pagination.page, pagination.limit) };
+  }
+
+  async addComment(postId: string, authorId: string, body: string) {
+    const trimmed = body?.trim();
+    if (!trimmed) throw new BadRequestError('Comment cannot be empty');
+    if (trimmed.length > 2000) throw new BadRequestError('Comment is too long (max 2000 chars)');
+
+    const post = await prisma.communityPost.findFirst({
+      where: { id: postId, deletedAt: null },
+      select: { communityId: true },
+    });
+    if (!post) throw new NotFoundError('Post');
+    const role = await this.membershipRole(post.communityId, authorId);
+    if (!role) throw new ForbiddenError('Join this community to comment');
+
+    return prisma.communityPostComment.create({
+      data: { postId, authorId, body: trimmed },
+      include: { author: { select: this.AUTHOR_SELECT } },
+    });
+  }
+
+  async deleteComment(commentId: string, userId: string): Promise<void> {
+    const comment = await prisma.communityPostComment.findUnique({
+      where: { id: commentId },
+      select: { authorId: true, post: { select: { communityId: true } } },
+    });
+    if (!comment) throw new NotFoundError('Comment');
+    if (comment.authorId !== userId) {
+      const role = await this.membershipRole(comment.post.communityId, userId);
+      if (role !== 'owner' && role !== 'moderator') {
+        throw new ForbiddenError('You can only delete your own comments');
+      }
+    }
+    await prisma.communityPostComment.delete({ where: { id: commentId } });
   }
 }
 

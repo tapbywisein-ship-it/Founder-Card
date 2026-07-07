@@ -2,6 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { useCommunity, useToggleCommunityMembership } from '@/hooks/useCommunities';
+import { CommunityFeed } from '@/components/CommunityFeed';
 import { useAppStore } from '@/store/appStore';
 import { Boxes, Users, Calendar, MapPin, Check, Plus, Sparkles, AlertCircle } from 'lucide-react';
 
@@ -35,7 +36,7 @@ const CommunityPublicPage = () => {
     );
   }
 
-  const { community: c, events, isMember } = data;
+  const { community: c, events, isMember, isOwner } = data;
   const orgName = [c.organizer?.profile?.firstName, c.organizer?.profile?.lastName].filter(Boolean).join(' ');
 
   const onFollow = () => {
@@ -78,6 +79,9 @@ const CommunityPublicPage = () => {
             <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {c.eventCount} events</span>
           </div>
         </Surface>
+
+        {/* Feed — posts, comments, organizer announcements */}
+        <CommunityFeed communityId={c.id} isMember={isMember} isOwner={isOwner} />
 
         {/* Events */}
         <div>
