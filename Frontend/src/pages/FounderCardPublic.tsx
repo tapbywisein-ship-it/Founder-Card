@@ -15,6 +15,7 @@ import {
   Twitter,
   UserPlus,
   Zap,
+  ContactRound,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
@@ -30,6 +31,7 @@ import { CardActionRow } from '@/components/CardActionRow';
 import { CommonGroundPanel } from '@/components/CommonGroundPanel';
 import { useAppStore } from '@/store/appStore';
 import { useActiveEventId } from '@/lib/useActiveEvent';
+import { cardVcfUrl } from '@/lib/calendarLinks';
 import { founderCardService, type PublicCard } from '@/services/founderCard.service';
 import { useJsonLd } from '@/lib/useJsonLd';
 import { useSeo } from '@/lib/useSeo';
@@ -321,6 +323,14 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                     }}
                   >
                     Share
+                  </Button>
+                )}
+                {/* .vcf download — adds the person straight to the phone's contacts */}
+                {card.slug && (
+                  <Button variant="outline" asChild>
+                    <a href={cardVcfUrl(card.slug)} download>
+                      <ContactRound className="mr-2 h-4 w-4" /> Save contact
+                    </a>
                   </Button>
                 )}
               </div>

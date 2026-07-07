@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Calendar, MapPin, QrCode, Ticket as TicketIcon, FileText, AlertCircle } from 'lucide-react';
+import { Calendar, CalendarPlus, MapPin, QrCode, Ticket as TicketIcon, FileText, AlertCircle } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,7 @@ import {
 import { useMyRegistrations, useCancelRegistration } from '@/hooks/useEvents';
 import type { EventRegistration } from '@/services/events.service';
 import { formatINR } from '@/lib/currency';
+import { downloadIcs } from '@/lib/calendar';
 import { openInvoice } from '@/services/payments.service';
 import { toast } from 'sonner';
 
@@ -166,6 +167,30 @@ const MyTickets = () => {
                     {tab !== 'cancelled' && (
                       <Button size="sm" variant="outline" onClick={() => setQrFor(r)}>
                         <QrCode className="w-4 h-4 mr-1.5" /> Ticket
+                      </Button>
+                    )}
+                    {tab === 'upcoming' && ev && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          downloadIcs(
+                            {
+                              title: ev.title,
+                              description: ev.description ?? undefined,
+                              start: ev.startDate,
+                              end: ev.endDate,
+                              location:
+                                ev.locationType === 'VIRTUAL'
+                                  ? ev.meetingUrl ?? 'Online'
+                                  : [ev.address, ev.city, ev.country].filter(Boolean).join(', ') || undefined,
+                              url: `${window.location.origin}/e/${ev.id}`,
+                            },
+                            `${ev.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`
+                          )
+                        }
+                      >
+                        <CalendarPlus className="w-4 h-4 mr-1.5" /> Calendar
                       </Button>
                     )}
                     {paid && (

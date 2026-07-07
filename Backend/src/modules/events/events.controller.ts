@@ -33,6 +33,16 @@ export class EventsController {
     sendSuccess(res, event, 'Event retrieved successfully');
   }
 
+  /** "Add to calendar" — serves the event as a downloadable .ics file. */
+  async getEventCalendar(req: Request, res: Response): Promise<void> {
+    const { id } = req.params as Record<string, string>;
+    const ics = await eventsService.getEventCalendar(id);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="event.ics"');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(ics);
+  }
+
   async listEvents(req: Request, res: Response): Promise<void> {
     // Spread the validated query, then overwrite viewerId with the JWT-resolved
     // user. Prevents a caller from forging viewerId to peek at someone else's

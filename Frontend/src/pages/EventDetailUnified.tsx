@@ -621,6 +621,20 @@ const EventDetailUnified = () => {
                   You're registered
                 </span>
               </div>
+              <AddToCalendar
+                className="w-full [&>button]:w-full"
+                event={{
+                  title: event.title,
+                  description: event.description ?? undefined,
+                  start: event.startDate,
+                  end: event.endDate,
+                  location:
+                    event.locationType === 'VIRTUAL'
+                      ? event.meetingUrl ?? 'Online'
+                      : [event.address, event.city, event.country].filter(Boolean).join(', ') || undefined,
+                  url: `${window.location.origin}/e/${event.id}`,
+                }}
+              />
               <Button
                 variant="outline"
                 size="sm"

@@ -16,6 +16,11 @@ router.get(
   optionalAuthenticate,
   founderCardsController.getPublicCardBySlug.bind(founderCardsController)
 );
+// "Save contact" — downloadable .vcf built from the same public card data.
+router.get(
+  '/public/slug/:slug/vcard.vcf',
+  founderCardsController.getVCardBySlug.bind(founderCardsController)
+);
 router.get(
   '/public/user/:userId',
   optionalAuthenticate,
