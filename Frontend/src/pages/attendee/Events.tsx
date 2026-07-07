@@ -208,67 +208,108 @@ const EventsPage = () => {
               const { topLabel: price } = getRegistrationPricing(e);
               const isFull = e.registeredCount !== undefined && e.registeredCount >= e.capacity;
 
+              // "Posted by" — prefer the organizer's company, else their name.
+              const org = e.organizer;
+              const organizerName =
+                org?.profile?.company ||
+                (org?.profile ? `${org.profile.firstName} ${org.profile.lastName}`.trim() : org?.username) ||
+                null;
+
+              // Days left to register — no registrationDeadline in the list
+              // payload, so count down to the event start.
+              const daysLeft = Math.ceil((new Date(e.startDate).getTime() - Date.now()) / 86_400_000);
+              const registrationClosed = daysLeft < 0;
+              const daysLeftLabel =
+                daysLeft > 1 ? `${daysLeft} days left` :
+                daysLeft === 1 ? '1 day left' :
+                daysLeft === 0 ? 'Last day' :
+                'Ended';
+              const daysLeftUrgent = daysLeft >= 0 && daysLeft <= 3;
+
               return (
                 <motion.div key={e.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
                   <Surface hover className="h-full flex flex-col overflow-hidden p-0">
-                    {/* Theme banner */}
-                    <div className="h-2 w-full" style={{ background: theme.gradient }} />
+                    {/* Cover image (falls back to the event theme gradient) */}
+                    <Link to={`/event/${e.id}`} className="relative block">
+                      {e.coverImage ? (
+                        <img
+                          src={e.coverImage}
+                          alt={e.title}
+                          loading="lazy"
+                          className="w-full aspect-[16/9] object-cover"
+                        />
+                      ) : (
+                        <div className="w-full aspect-[16/9]" style={{ background: theme.gradient }} aria-hidden />
+                      )}
+                      {e.category && (
+                        <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-background/85 text-foreground backdrop-blur-sm border border-border">
+                          {e.category}
+                        </span>
+                      )}
+                      {isRegistered && (
+                        <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500 text-white flex items-center gap-1 shadow-sm">
+                          <CheckCircle2 className="w-3 h-3" /> Registered
+                        </span>
+                      )}
+                      {!isRegistered && isWaitlisted && (
+                        <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500 text-white flex items-center gap-1 shadow-sm">
+                          Waitlisted
+                        </span>
+                      )}
+                    </Link>
+
                     <div className="p-5 flex flex-col flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            {e.category && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border border-border text-muted-foreground">
-                                {e.category}
-                              </span>
-                            )}
-                            {isRegistered && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Registered
-                              </span>
-                            )}
-                            {isWaitlisted && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border border-amber-500/30 bg-amber-500/10 text-amber-400">
-                                Waitlisted
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="text-lg font-semibold text-foreground leading-tight">{e.title}</h3>
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <Calendar className="w-3 h-3 flex-shrink-0" />
-                            {new Date(e.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          {(e.city || e.address) && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              {e.locationType === 'VIRTUAL' ? 'Online' : (e.city || e.address)}
-                            </p>
-                          )}
-                        </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-lg font-semibold text-foreground leading-tight flex-1 min-w-0">
+                          <Link to={`/event/${e.id}`} className="hover:text-primary transition-colors line-clamp-2">
+                            {e.title}
+                          </Link>
+                        </h3>
                         <SaveEventButton eventId={e.id} />
                       </div>
 
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-3 flex-1 line-clamp-2">
-                        {e.description}
-                      </p>
+                      {organizerName && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">By {organizerName}</p>
+                      )}
 
-                      <div className="flex items-center justify-between pt-3 border-t border-border">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Users className="w-3 h-3" /> {e.registeredCount ?? 0}/{e.capacity}
-                          </span>
-                          <span className="text-xs font-medium text-primary flex items-center gap-1">
-                            <Tag className="w-3 h-3" /> {price}
-                          </span>
-                        </div>
+                      <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                        <Calendar className="w-3 h-3 flex-shrink-0" />
+                        {new Date(e.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      {(e.city || e.address) && (
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{e.locationType === 'VIRTUAL' ? 'Online' : (e.city || e.address)}</span>
+                        </p>
+                      )}
+
+                      {/* Guests + days left to register */}
+                      <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3" /> {e.registeredCount ?? 0}/{e.capacity} going
+                        </span>
+                        <span className={`flex items-center gap-1 ml-auto ${daysLeftUrgent ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>
+                          <Clock className="w-3 h-3" /> {daysLeftLabel}
+                        </span>
+                      </div>
+
+                      {/* Price + register / registered */}
+                      <div className="flex items-center justify-between pt-3 mt-3 border-t border-border">
+                        <span className="text-sm font-medium text-primary flex items-center gap-1">
+                          <Tag className="w-3 h-3" /> {price}
+                        </span>
                         {isRegistered ? (
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link to={`/event/${e.id}`}>View Ticket</Link>
+                          <Button variant="outline" size="sm" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:text-emerald-600" asChild>
+                            <Link to={`/event/${e.id}`}>
+                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Registered
+                            </Link>
                           </Button>
                         ) : isWaitlisted ? (
                           <Button variant="ghost" size="sm" disabled>
                             <Clock className="w-3 h-3 mr-1" /> Waitlisted
                           </Button>
+                        ) : registrationClosed ? (
+                          <Button variant="ghost" size="sm" disabled>Closed</Button>
                         ) : (
                           <Button
                             size="sm"
