@@ -90,6 +90,8 @@ export interface Event {
   slug?: string | null;
   requiresApproval: boolean;
   waitlistEnabled: boolean;
+  /** Optional "register by" deadline; when unset the UI counts down to startDate. */
+  registrationDeadline?: string | null;
   visibility: 'PUBLIC' | 'PRIVATE' | 'UNLISTED';
   createdAt: string;
   updatedAt: string;
