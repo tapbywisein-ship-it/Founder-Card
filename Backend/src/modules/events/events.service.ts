@@ -1628,6 +1628,169 @@ export class EventsService {
       })),
     };
   }
+
+  // ── Post-event feedback + NPS (roadmap #8) ──────────────────────────────────
+
+  /** Attendees only, once the event has started; upsert so feedback is editable. */
+  async submitFeedback(
+    eventId: string,
+    userId: string,
+    input: { rating: number; nps?: number; comment?: string }
+  ) {
+    const rating = Math.round(Number(input.rating));
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      throw new BadRequestError('Rating must be between 1 and 5');
+    }
+    let nps: number | null = null;
+    if (input.nps !== undefined && input.nps !== null) {
+      nps = Math.round(Number(input.nps));
+      if (!Number.isFinite(nps) || nps < 0 || nps > 10) {
+        throw new BadRequestError('NPS must be between 0 and 10');
+      }
+    }
+
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, deletedAt: null },
+      select: { startDate: true },
+    });
+    if (!event) throw new NotFoundError('Event');
+    if (event.startDate > new Date()) {
+      throw new BadRequestError('You can leave feedback once the event has started');
+    }
+
+    const reg = await prisma.eventRegistration.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+      select: { status: true, checkedIn: true },
+    });
+    if (!reg || reg.status === 'CANCELLED' || (!reg.checkedIn && reg.status !== 'ATTENDED')) {
+      throw new ForbiddenError('Only attendees who went to this event can leave feedback');
+    }
+
+    const comment = input.comment?.trim().slice(0, 2000) || null;
+    return prisma.eventFeedback.upsert({
+      where: { eventId_userId: { eventId, userId } },
+      create: { eventId, userId, rating, nps, comment },
+      update: { rating, nps, comment },
+    });
+  }
+
+  /** The viewer's own feedback for an event (or null). */
+  async getMyFeedback(eventId: string, userId: string) {
+    return prisma.eventFeedback.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+      select: { rating: true, nps: true, comment: true, updatedAt: true },
+    });
+  }
+
+  /** Organizer-only aggregate: response count, avg rating, NPS, recent comments. */
+  async getFeedbackSummary(eventId: string, organizerId: string) {
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, organizerId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!event) throw new NotFoundError('Event');
+
+    const rows = await prisma.eventFeedback.findMany({
+      where: { eventId },
+      select: {
+        rating: true,
+        nps: true,
+        comment: true,
+        createdAt: true,
+        user: { select: { profile: { select: { firstName: true, lastName: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+
+    const count = rows.length;
+    const avgRating = count > 0 ? rows.reduce((s, r) => s + r.rating, 0) / count : null;
+    const npsRows = rows.filter((r) => r.nps !== null) as Array<{ nps: number } & (typeof rows)[number]>;
+    // NPS = %promoters (9–10) − %detractors (0–6).
+    const npsScore =
+      npsRows.length > 0
+        ? Math.round(
+            ((npsRows.filter((r) => r.nps >= 9).length - npsRows.filter((r) => r.nps <= 6).length) /
+              npsRows.length) *
+              100
+          )
+        : null;
+
+    return {
+      count,
+      avgRating: avgRating !== null ? Math.round(avgRating * 10) / 10 : null,
+      npsScore,
+      npsResponses: npsRows.length,
+      comments: rows
+        .filter((r) => r.comment)
+        .slice(0, 50)
+        .map((r) => ({
+          rating: r.rating,
+          comment: r.comment,
+          createdAt: r.createdAt,
+          name: r.user.profile ? `${r.user.profile.firstName} ${r.user.profile.lastName}`.trim() : 'Attendee',
+        })),
+    };
+  }
+
+  // ── Duplicate event (roadmap #7 — run a meetup again) ───────────────────────
+
+  /**
+   * Clone an event into a fresh DRAFT the organizer can adjust and publish.
+   * Copies content/settings; never copies registrations, payments or stats.
+   */
+  async duplicateEvent(eventId: string, organizerId: string) {
+    const src = await prisma.event.findFirst({
+      where: { id: eventId, organizerId, deletedAt: null },
+    });
+    if (!src) throw new NotFoundError('Event');
+
+    const title = `${src.title} (copy)`;
+    let slug = `${this.slugify(title)}-${Date.now().toString(36)}`;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await prisma.event.create({
+          data: {
+            organizerId,
+            title,
+            slug,
+            description: src.description,
+            startDate: src.startDate,
+            endDate: src.endDate,
+            locationType: src.locationType,
+            address: src.address,
+            city: src.city,
+            state: src.state,
+            country: src.country,
+            pincode: src.pincode,
+            meetingUrl: src.meetingUrl,
+            capacity: src.capacity,
+            ticketPrice: src.ticketPrice,
+            ticketTypes: src.ticketTypes ?? undefined,
+            coverImage: src.coverImage,
+            tags: src.tags,
+            category: src.category,
+            theme: src.theme,
+            requiresApproval: src.requiresApproval,
+            waitlistEnabled: src.waitlistEnabled,
+            visibility: src.visibility,
+            timezone: src.timezone,
+            registrationDeadline: src.registrationDeadline,
+            communityId: src.communityId,
+            status: 'DRAFT',
+          },
+        });
+      } catch (err) {
+        if ((err as { code?: string }).code === 'P2002' && attempt < 4) {
+          slug = `${this.slugify(title)}-${Math.random().toString(36).slice(2, 6)}`;
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new ConflictError('Could not generate a unique slug for the copy');
+  }
 }
 
 export default new EventsService();

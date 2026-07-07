@@ -22,6 +22,7 @@ import {
 import { Logo } from '@/components/Logo';
 import { EventSpeakersAgenda } from '@/components/EventSpeakersAgenda';
 import { ReportButton } from '@/components/ReportButton';
+import { EventFeedbackCard } from '@/components/EventFeedbackCard';
 import { AddToCalendar } from '@/components/AddToCalendar';
 import { requireVerifiedEmail } from '@/components/VerifyEmailBanner';
 import { eventsService } from '@/services/events.service';
@@ -784,6 +785,15 @@ const EventDetailUnified = () => {
             </div>
           </Surface>
         )}
+
+        {/* Post-event feedback — attendees who went, once the event started */}
+        {isAuthenticated &&
+          new Date(event.startDate) <= new Date() &&
+          (myRegistration?.checkedIn ||
+            myRegistration?.status === 'ATTENDED' ||
+            event.registrationStatus === 'ATTENDED') && (
+            <EventFeedbackCard eventId={event.id} />
+          )}
 
         {/* About */}
         <Surface>

@@ -33,6 +33,38 @@ export class EventsController {
     sendSuccess(res, event, 'Event retrieved successfully');
   }
 
+  /** Attendee post-event feedback (rating 1–5, optional NPS 0–10 + comment). */
+  async submitFeedback(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const { rating, nps, comment } = req.body as { rating: number; nps?: number; comment?: string };
+    const feedback = await eventsService.submitFeedback(id, userId, { rating, nps, comment });
+    sendSuccess(res, feedback, 'Feedback saved');
+  }
+
+  async getMyFeedback(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const feedback = await eventsService.getMyFeedback(id, userId);
+    sendSuccess(res, feedback, 'Feedback retrieved');
+  }
+
+  /** Organizer-only aggregate: count, avg rating, NPS, comments. */
+  async getFeedbackSummary(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const summary = await eventsService.getFeedbackSummary(id, organizerId);
+    sendSuccess(res, summary, 'Feedback summary retrieved');
+  }
+
+  /** Clone an event into a fresh DRAFT (run a meetup again). */
+  async duplicateEvent(req: Request, res: Response): Promise<void> {
+    const organizerId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const copy = await eventsService.duplicateEvent(id, organizerId);
+    sendCreated(res, copy, 'Event duplicated as draft');
+  }
+
   async listEvents(req: Request, res: Response): Promise<void> {
     // Spread the validated query, then overwrite viewerId with the JWT-resolved
     // user. Prevents a caller from forging viewerId to peek at someone else's

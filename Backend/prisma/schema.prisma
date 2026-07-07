@@ -203,6 +203,7 @@ model User {
   communityMemberships CommunityMember[]
   pushSubscriptions   PushSubscription[]
   eventBlasts         EventBlast[]
+  eventFeedback       EventFeedback[]
 
   @@index([email])
   @@index([supabaseId])
@@ -384,6 +385,7 @@ model Event {
   pageViews     EventPageView[]
   payments      Payment[]
   payouts       Payout[]
+  feedback      EventFeedback[]
 
   @@index([organizerId])
   @@index([status])
@@ -436,6 +438,26 @@ model CommunityMember {
 enum CommunityMemberRole {
   MEMBER
   MODERATOR
+}
+
+// Post-event feedback: one row per (event, attendee). rating 1–5 stars;
+// nps 0–10 (optional) powers the organizer's NPS; comment free-text.
+model EventFeedback {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  rating    Int
+  nps       Int?
+  comment   String?  @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@map("event_feedback")
 }
 
 // Web-push subscription (browser Push API) for a user/device.

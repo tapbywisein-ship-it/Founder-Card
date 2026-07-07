@@ -83,6 +83,24 @@ router.get('/:id/impact', eventsController.getImpactReport.bind(eventsController
 // Public — validate a coupon code at checkout
 router.get('/:id/coupons/:code/validate', eventsController.validateCoupon.bind(eventsController));
 
+// Post-event feedback — attendees submit/read their own; organizer reads the summary
+router.post('/:id/feedback', authenticate, eventsController.submitFeedback.bind(eventsController));
+router.get('/:id/feedback/mine', authenticate, eventsController.getMyFeedback.bind(eventsController));
+router.get(
+  '/:id/feedback/summary',
+  authenticate,
+  authorize('ORGANIZER', 'ADMIN'),
+  eventsController.getFeedbackSummary.bind(eventsController)
+);
+
+// Duplicate an event into a fresh DRAFT (organizer)
+router.post(
+  '/:id/duplicate',
+  authenticate,
+  authorize('ORGANIZER', 'ADMIN'),
+  eventsController.duplicateEvent.bind(eventsController)
+);
+
 // Attendee routes
 router.post(
   '/:id/register',
