@@ -985,6 +985,109 @@ export class ConnectionsService {
 
     return [...matched, ...fill];
   }
+
+  // ── Intro requests: "ask a mutual to introduce you" ─────────────────────────
+
+  /** IDs of users the given user has an ACCEPTED connection with. */
+  private async acceptedPartnerIds(userId: string): Promise<Set<string>> {
+    const rows = await prisma.connection.findMany({
+      where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { receiverId: userId }] },
+      select: { requesterId: true, receiverId: true },
+    });
+    const ids = new Set<string>();
+    for (const r of rows) ids.add(r.requesterId === userId ? r.receiverId : r.requesterId);
+    return ids;
+  }
+
+  /** Mutual connections between the viewer and a target — the people who could introduce them. */
+  async listMutuals(userId: string, targetId: string) {
+    if (userId === targetId) return [];
+    const [mine, theirs] = await Promise.all([
+      this.acceptedPartnerIds(userId),
+      this.acceptedPartnerIds(targetId),
+    ]);
+    const mutualIds = [...mine].filter((id) => theirs.has(id)).slice(0, 20);
+    if (mutualIds.length === 0) return [];
+    return prisma.user.findMany({
+      where: { id: { in: mutualIds }, deletedAt: null, isActive: true },
+      select: {
+        id: true,
+        profile: {
+          select: { firstName: true, lastName: true, avatar: true, company: true, position: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Ask `via` (a mutual connection) for an intro to `target`. Records the
+   * request and notifies the mutual with enough context to act on it.
+   */
+  async requestIntro(
+    requesterId: string,
+    input: { targetId: string; viaId: string; eventId?: string; message?: string }
+  ) {
+    const { targetId, viaId } = input;
+    if (requesterId === targetId) throw new BadRequestError('You cannot request an intro to yourself');
+    if (viaId === requesterId || viaId === targetId) {
+      throw new BadRequestError('The introducer must be a third person');
+    }
+
+    // The introducer must actually be a mutual: connected to BOTH parties.
+    const [mine, theirs] = await Promise.all([
+      this.acceptedPartnerIds(requesterId),
+      this.acceptedPartnerIds(targetId),
+    ]);
+    if (!mine.has(viaId) || !theirs.has(viaId)) {
+      throw new BadRequestError('That person is not a mutual connection of you both');
+    }
+
+    // One open request per (requester, target) — don't nag the mutual.
+    const existing = await prisma.introRequest.findFirst({
+      where: { requesterId, targetId, status: 'PENDING' },
+      select: { id: true },
+    });
+    if (existing) throw new ConflictError('You already have a pending intro request to this person');
+
+    const intro = await prisma.introRequest.create({
+      data: {
+        requesterId,
+        targetId,
+        viaId,
+        eventId: input.eventId ?? null,
+        message: input.message?.trim().slice(0, 1000) || null,
+      },
+    });
+
+    const [requester, target] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: requesterId },
+        select: { profile: { select: { firstName: true, lastName: true } } },
+      }),
+      prisma.user.findUnique({
+        where: { id: targetId },
+        select: { profile: { select: { firstName: true, lastName: true } } },
+      }),
+    ]);
+    const rName = requester?.profile
+      ? `${requester.profile.firstName} ${requester.profile.lastName}`.trim()
+      : 'Someone';
+    const tName = target?.profile
+      ? `${target.profile.firstName} ${target.profile.lastName}`.trim()
+      : 'someone';
+
+    await notificationsService
+      .createNotification(
+        viaId,
+        'SYSTEM',
+        'Intro request',
+        `${rName} asked you to introduce them to ${tName}${input.message ? ` — “${input.message.trim().slice(0, 80)}”` : ''}`,
+        { introId: intro.id, requesterId, targetId, eventId: input.eventId ?? null }
+      )
+      .catch(() => {});
+
+    return intro;
+  }
 }
 
 export default new ConnectionsService();

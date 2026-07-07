@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Sparkles, Users, AlertCircle } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Sparkles, Users, AlertCircle, Handshake } from 'lucide-react';
+import { IntroRequestDialog } from '@/components/IntroRequestDialog';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
@@ -59,43 +61,89 @@ const AttendeeRow = ({ a }: { a: EventAttendee }) => {
   );
 };
 
-const SuggestionRow = ({ s }: { s: EventSuggestion }) => {
+/** Why this person surfaced — compact chips, strongest signal first. */
+const MatchReasons = ({ s }: { s: EventSuggestion }) => {
+  const chips: Array<{ label: string; strong?: boolean }> = [
+    ...(s.theyWantYourSkills ?? []).map((x) => ({ label: `Looking for: ${x} (you)`, strong: true })),
+    ...(s.youWantTheirSkills ?? []).map((x) => ({ label: `Has: ${x}`, strong: true })),
+    ...(s.commonSkills ?? []).map((x) => ({ label: x })),
+    ...(s.commonInterests ?? []).map((x) => ({ label: x })),
+  ].slice(0, 4);
+  if (chips.length === 0) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {chips.map((c) => (
+        <span
+          key={c.label}
+          className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+            c.strong ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+          }`}
+        >
+          {c.label}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const SuggestionRow = ({ s, eventId }: { s: EventSuggestion; eventId: string }) => {
   const navigate = useNavigate();
+  const [introOpen, setIntroOpen] = useState(false);
   const p = s.user.profile;
   const name = p ? `${p.firstName} ${p.lastName}`.trim() : '-';
   const initial = name.charAt(0).toUpperCase();
   return (
-    <button
-      onClick={() => navigate(`/card/${s.userId}`)}
-      className="flex w-full items-center gap-3 rounded-card border border-primary/30 bg-card p-3 text-left transition-colors hover:bg-primary/5"
-    >
-      {p?.avatar ? (
-        <img
-          src={p.avatar}
-          alt={name}
-          className="h-10 w-10 rounded-full object-cover"
-        />
-      ) : (
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-          {initial}
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-semibold text-foreground">{name}</p>
-          <RoleBadge role={s.eventRole} />
-        </div>
-        {(p?.position || p?.company) && (
-          <p className="truncate text-xs text-muted-foreground">
-            {[p?.position, p?.company].filter(Boolean).join(' · ')}
-          </p>
+    <div className="flex w-full items-start gap-3 rounded-card border border-primary/30 bg-card p-3">
+      <button onClick={() => navigate(`/card/${s.userId}`)} className="shrink-0">
+        {p?.avatar ? (
+          <img
+            src={p.avatar}
+            alt={name}
+            className="h-10 w-10 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+            {initial}
+          </div>
         )}
+      </button>
+      <div className="min-w-0 flex-1">
+        <button onClick={() => navigate(`/card/${s.userId}`)} className="block w-full text-left">
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-sm font-semibold text-foreground hover:text-primary transition-colors">{name}</p>
+            <RoleBadge role={s.eventRole} />
+          </div>
+          {(p?.position || p?.company) && (
+            <p className="truncate text-xs text-muted-foreground">
+              {[p?.position, p?.company].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </button>
+        <MatchReasons s={s} />
       </div>
-      <span className="chip-primary inline-flex items-center gap-1 text-[10px]">
-        <Sparkles className="h-3 w-3" />
-        Match
-      </span>
-    </button>
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <span className="chip-primary inline-flex items-center gap-1 text-[10px]">
+          <Sparkles className="h-3 w-3" />
+          Match
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => setIntroOpen(true)}
+          title="Ask a mutual connection for an intro"
+        >
+          <Handshake className="mr-1 h-3.5 w-3.5" /> Intro
+        </Button>
+      </div>
+      <IntroRequestDialog
+        targetId={s.userId}
+        targetName={name}
+        eventId={eventId}
+        open={introOpen}
+        onOpenChange={setIntroOpen}
+      />
+    </div>
   );
 };
 
@@ -135,11 +183,11 @@ const EventAttendeesPage = () => {
         {suggestions && suggestions.length > 0 && (
           <section className="space-y-2">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Suggested for you
+              Who to meet
             </h2>
             <div className="grid gap-2">
               {suggestions.map((s) => (
-                <SuggestionRow key={s.userId} s={s} />
+                <SuggestionRow key={s.userId} s={s} eventId={eventId} />
               ))}
             </div>
           </section>
