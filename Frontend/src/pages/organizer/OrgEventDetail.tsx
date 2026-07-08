@@ -1,21 +1,42 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { useEventGuests, usePublishEvent } from '@/hooks/useOrganizer';
 import { useEventContext } from '@/components/OrganizerEventLayout';
+import { eventsService } from '@/services/events.service';
 import { motion } from 'framer-motion';
 import {
   Calendar, MapPin, Video, Users, CheckCircle2,
-  Clock, Tag, Globe, Send, Copy, AlertCircle,
+  Clock, Tag, Globe, Send, Copy, AlertCircle, CopyPlus, Star, MessageSquareQuote,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const OrgEventDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const { event, isLoading: eventLoading } = useEventContext();
   const { data: guestsData, isLoading: guestsLoading, isError: guestsError } = useEventGuests(id!);
   const publishMutation = usePublishEvent();
+
+  const duplicate = useMutation({
+    mutationFn: () => eventsService.duplicateEvent(id!),
+    onSuccess: (res) => {
+      toast.success('Duplicated — opening the new draft');
+      navigate(`/organizer/events/${res.data.id}`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const eventEnded = !!event && new Date(event.endDate) < new Date();
+  const { data: feedback } = useQuery({
+    queryKey: ['organizer', 'feedback-summary', id],
+    queryFn: () => eventsService.getFeedbackSummary(id!),
+    select: (res) => res.data,
+    enabled: !!id && eventEnded,
+    staleTime: 60_000,
+  });
 
   const guests       = guestsData?.guests ?? [];
   const checkedIn    = guests.filter((g) => g.checkedIn).length;
@@ -89,13 +110,65 @@ const OrgEventDetail = () => {
               {event.category}
             </span>
           )}
-          {event.status === 'DRAFT' && (
-            <Button size="sm" onClick={handlePublish} disabled={publishMutation.isPending} className="ml-auto">
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              {publishMutation.isPending ? 'Publishing…' : 'Publish'}
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => duplicate.mutate()}
+              disabled={duplicate.isPending}
+              title="Clone this event into a new draft — run it again"
+            >
+              <CopyPlus className="w-3.5 h-3.5 mr-1.5" />
+              {duplicate.isPending ? 'Duplicating…' : 'Duplicate'}
             </Button>
-          )}
+            {event.status === 'DRAFT' && (
+              <Button size="sm" onClick={handlePublish} disabled={publishMutation.isPending}>
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                {publishMutation.isPending ? 'Publishing…' : 'Publish'}
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Post-event feedback summary */}
+        {eventEnded && feedback && feedback.count > 0 && (
+          <Surface>
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquareQuote className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-foreground">Attendee feedback</h2>
+              <span className="text-xs text-muted-foreground">({feedback.count} response{feedback.count !== 1 ? 's' : ''})</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="rounded-xl bg-muted/30 border border-border p-3 text-center">
+                <p className="text-2xl font-bold text-foreground flex items-center justify-center gap-1">
+                  {feedback.avgRating ?? '—'} <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Average rating</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 border border-border p-3 text-center">
+                <p className={`text-2xl font-bold ${feedback.npsScore !== null && feedback.npsScore >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {feedback.npsScore !== null ? feedback.npsScore : '—'}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  NPS {feedback.npsResponses > 0 ? `(${feedback.npsResponses} answers)` : ''}
+                </p>
+              </div>
+            </div>
+            {feedback.comments.length > 0 && (
+              <div className="space-y-2">
+                {feedback.comments.slice(0, 5).map((c, i) => (
+                  <div key={i} className="rounded-lg bg-muted/30 border border-border px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-foreground">{c.name}</span>
+                      <span className="text-[11px] text-amber-500">{'★'.repeat(c.rating)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{c.comment}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Surface>
+        )}
 
         {guestsError && (
           <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

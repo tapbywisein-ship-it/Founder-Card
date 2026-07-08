@@ -334,6 +334,34 @@ export const eventsService = {
     return apiFetch<{ data: null }>(`/events/${id}/register`, { method: 'DELETE' });
   },
 
+  // ── Post-event feedback ─────────────────────────────────────────────────────
+  async submitFeedback(id: string, input: { rating: number; nps?: number; comment?: string }) {
+    return apiFetch<{ data: { rating: number } }>(`/events/${id}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  async getMyFeedback(id: string) {
+    return apiFetch<{ data: { rating: number; nps: number | null; comment: string | null } | null }>(
+      `/events/${id}/feedback/mine`
+    );
+  },
+  /** Organizer-only aggregate. */
+  async getFeedbackSummary(id: string) {
+    return apiFetch<{ data: {
+      count: number;
+      avgRating: number | null;
+      npsScore: number | null;
+      npsResponses: number;
+      comments: Array<{ rating: number; comment: string; createdAt: string; name: string }>;
+    } }>(`/events/${id}/feedback/summary`);
+  },
+
+  /** Clone an event into a fresh DRAFT (organizer). */
+  async duplicateEvent(id: string) {
+    return apiFetch<{ data: Event }>(`/events/${id}/duplicate`, { method: 'POST' });
+  },
+
   async listEventAttendees(
     eventId: string,
     page = 1,
