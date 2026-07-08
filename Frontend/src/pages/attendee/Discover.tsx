@@ -8,7 +8,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEvents } from '@/hooks/useEvents';
 import { getTheme } from '@/lib/eventThemes';
 import { getRegistrationPricing } from '@/lib/ticketPricing';
-import { Calendar, MapPin, Users, Tag, Search, Sparkles, AlertCircle, Cpu, TrendingUp, Palette, Heart, PartyPopper, Music, Dumbbell, UtensilsCrossed } from 'lucide-react';
+import { registrationCountdown } from '@/lib/eventCountdown';
+import { Calendar, MapPin, Users, Tag, Search, Sparkles, AlertCircle, CheckCircle2, Clock, Cpu, TrendingUp, Palette, Heart, PartyPopper, Music, Dumbbell, UtensilsCrossed } from 'lucide-react';
 
 const CATEGORIES = [
   { id: 'tech',     label: 'Tech',     icon: Cpu,             color: 'from-blue-600/30 to-blue-800/10' },
@@ -166,50 +167,68 @@ const DiscoverPage = () => {
               {events.map((e, i) => {
                 const theme = getTheme(e.theme);
                 const { topLabel: price } = getRegistrationPricing(e);
+                const org = e.organizer;
+                const organizerName =
+                  org?.profile?.company ||
+                  (org?.profile ? `${org.profile.firstName ?? ''} ${org.profile.lastName ?? ''}`.trim() : org?.username) ||
+                  null;
+                const isRegistered = e.registrationStatus === 'REGISTERED' || e.registrationStatus === 'ATTENDED';
+                const isWaitlisted = e.registrationStatus === 'WAITLISTED';
+                const { label: daysLeftLabel, urgent: daysLeftUrgent } =
+                  registrationCountdown(e.startDate, e.registrationDeadline);
                 return (
                   <motion.div key={e.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <Link to={`/event/${e.id}`}>
+                    <Link to={`/event/${e.id}`} className="block group h-full">
                       <Surface hover className="h-full flex flex-col p-0 overflow-hidden">
-                        <div className="h-1.5 w-full" style={{ background: theme.gradient }} />
-                        <div className="p-4 flex flex-col flex-1">
+                        {/* Cover image (falls back to the event theme gradient) */}
+                        <div className="relative">
+                          {e.coverImage ? (
+                            <img src={e.coverImage} alt={e.title} loading="lazy" className="w-full aspect-[16/9] object-cover" />
+                          ) : (
+                            <div className="w-full aspect-[16/9]" style={{ background: theme.gradient }} aria-hidden />
+                          )}
                           {e.category && (
-                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">{e.category}</span>
-                          )}
-                          <h3 className="text-base font-semibold text-foreground leading-tight mb-2">{e.title}</h3>
-                          {e.organizer?.profile && (
-                            <p className="text-xs text-muted-foreground mb-2">
-                              by {[e.organizer.profile.firstName, e.organizer.profile.lastName].filter(Boolean).join(' ')}
-                              {e.organizer.profile.company ? ` · ${e.organizer.profile.company}` : ''}
-                            </p>
-                          )}
-                          <div className="space-y-1 mb-3 flex-1">
-                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              <Calendar className="w-3 h-3 flex-shrink-0" />
-                              {new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                            {(e.city || e.address) && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                <MapPin className="w-3 h-3 flex-shrink-0" />
-                                {e.locationType === 'VIRTUAL' ? 'Online' : (e.city || e.address)}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between pt-2 border-t border-border">
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Users className="w-3 h-3" /> {e.registeredCount ?? 0}
+                            <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-background/85 text-foreground backdrop-blur-sm border border-border">
+                              {e.category}
                             </span>
-                            {typeof e.spotsLeft === 'number' && (
-                              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                                e.spotsLeft === 0
-                                  ? 'bg-red-500/15 text-red-600'
-                                  : e.spotsLeft < 10
-                                  ? 'bg-amber-500/15 text-amber-700'
-                                  : 'bg-emerald-500/15 text-emerald-700'
-                              }`}>
-                                {e.spotsLeft === 0 ? 'Full' : `${e.spotsLeft} spots left`}
+                          )}
+                          {isRegistered && (
+                            <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500 text-white flex items-center gap-1 shadow-sm">
+                              <CheckCircle2 className="w-3 h-3" /> Registered
+                            </span>
+                          )}
+                          {!isRegistered && isWaitlisted && (
+                            <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500 text-white shadow-sm">
+                              Waitlisted
+                            </span>
+                          )}
+                        </div>
+                        <div className="p-4 flex flex-col flex-1">
+                          <h3 className="text-base font-semibold text-foreground leading-tight group-hover:text-primary transition-colors line-clamp-2">{e.title}</h3>
+                          {organizerName && <p className="text-xs text-muted-foreground mt-1 truncate">By {organizerName}</p>}
+                          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                            <Calendar className="w-3 h-3 flex-shrink-0" />
+                            {new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          {(e.city || e.address) && (
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">{e.locationType === 'VIRTUAL' ? 'Online' : (e.city || e.address)}</span>
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {e.registeredCount ?? 0}/{e.capacity} going</span>
+                            <span className={`flex items-center gap-1 ml-auto ${daysLeftUrgent ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>
+                              <Clock className="w-3 h-3" /> {daysLeftLabel}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between pt-3 mt-3 border-t border-border">
+                            <span className="text-sm font-medium text-primary flex items-center gap-1"><Tag className="w-3 h-3" /> {price}</span>
+                            {typeof e.spotsLeft === 'number' && e.spotsLeft <= 20 && (
+                              <span className={`text-[10px] font-medium ${e.spotsLeft === 0 ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'}`}>
+                                {e.spotsLeft === 0 ? 'Full' : `${e.spotsLeft} left`}
                               </span>
                             )}
-                            <span className="text-xs font-medium text-primary">{price}</span>
                           </div>
                         </div>
                       </Surface>

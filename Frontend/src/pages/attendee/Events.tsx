@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { getTheme } from '@/lib/eventThemes';
 import { getRegistrationPricing } from '@/lib/ticketPricing';
+import { registrationCountdown } from '@/lib/eventCountdown';
 import { QRCodeSVG } from 'qrcode.react';
 import type { Event } from '@/services/events.service';
 import {
@@ -215,16 +216,10 @@ const EventsPage = () => {
                 (org?.profile ? `${org.profile.firstName} ${org.profile.lastName}`.trim() : org?.username) ||
                 null;
 
-              // Days left to register — no registrationDeadline in the list
-              // payload, so count down to the event start.
-              const daysLeft = Math.ceil((new Date(e.startDate).getTime() - Date.now()) / 86_400_000);
-              const registrationClosed = daysLeft < 0;
-              const daysLeftLabel =
-                daysLeft > 1 ? `${daysLeft} days left` :
-                daysLeft === 1 ? '1 day left' :
-                daysLeft === 0 ? 'Last day' :
-                'Ended';
-              const daysLeftUrgent = daysLeft >= 0 && daysLeft <= 3;
+              // Days left to register — uses the explicit deadline when the
+              // organizer set one, else counts down to the event start.
+              const { closed: registrationClosed, label: daysLeftLabel, urgent: daysLeftUrgent } =
+                registrationCountdown(e.startDate, e.registrationDeadline);
 
               return (
                 <motion.div key={e.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
