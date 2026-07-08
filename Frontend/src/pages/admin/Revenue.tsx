@@ -22,7 +22,8 @@ interface ShippingAddress {
 interface RevenueItem {
   id: string;
   status: string;
-  amount: number;
+  /** Prisma Decimal — serialized as a STRING in JSON. Always Number() before math. */
+  amount: string | number;
   createdAt: string;
   razorpayOrderId: string | null;
   shippingAddress: ShippingAddress | null;
@@ -157,7 +158,7 @@ const AdminRevenuePage = () => {
           <Surface padding="md" className="text-center">
             <IndianRupee className="w-4 h-4 text-muted-foreground mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">
-              {formatINR(items.filter((i) => i.status === 'PAID').reduce((s, i) => s + i.amount, 0))}
+              {formatINR(items.filter((i) => i.status === 'PAID').reduce((s, i) => s + Number(i.amount), 0))}
             </p>
             <p className="text-[11px] text-muted-foreground">This page (PAID)</p>
           </Surface>
