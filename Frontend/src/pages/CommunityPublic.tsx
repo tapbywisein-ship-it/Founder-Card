@@ -1,6 +1,8 @@
+import { type ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
+import { PortalLayout } from '@/components/PortalLayout';
 import { useCommunity, useToggleCommunityMembership } from '@/hooks/useCommunities';
 import { CommunityFeed } from '@/components/CommunityFeed';
 import { useAppStore } from '@/store/appStore';
@@ -13,25 +15,42 @@ const CommunityPublicPage = () => {
   const { data, isLoading, isError } = useCommunity(slug!);
   const toggle = useToggleCommunityMembership(slug!);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-full max-w-2xl px-6 space-y-4 animate-pulse">
-          <div className="h-32 rounded-2xl bg-muted/50" />
-          <div className="h-24 rounded-xl bg-muted/50" />
+  // Signed-in visitors get their portal chrome (sidebar/nav per role, like the
+  // event page); anonymous visitors keep the minimal shareable shell.
+  const wrap = (children: ReactNode) =>
+    isAuthenticated ? (
+      <PortalLayout>
+        <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-8">{children}</div>
+      </PortalLayout>
+    ) : (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-2xl mx-auto px-5 py-8 md:py-12 space-y-6">
+          <Link to="/" className="flex items-center gap-2 text-foreground font-semibold">
+            <Sparkles className="w-4 h-4 text-primary" /> TapByWisein
+          </Link>
+          {children}
+          <p className="text-center text-[11px] text-muted-foreground/70">Powered by TapByWisein</p>
         </div>
+      </div>
+    );
+
+  if (isLoading) {
+    return wrap(
+      <div className="space-y-4 animate-pulse">
+        <div className="h-32 rounded-2xl bg-muted/50" />
+        <div className="h-24 rounded-xl bg-muted/50" />
       </div>
     );
   }
 
   if (isError || !data) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <div className="text-center max-w-sm">
-          <AlertCircle className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-          <h1 className="text-lg font-semibold text-foreground">Community not found</h1>
-          <Link to="/" className="mt-4 inline-block text-sm text-primary hover:underline">Go to TapByWisein →</Link>
-        </div>
+    return wrap(
+      <div className="text-center py-16">
+        <AlertCircle className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+        <h1 className="text-lg font-semibold text-foreground">Community not found</h1>
+        <Link to={isAuthenticated ? '/communities' : '/'} className="mt-4 inline-block text-sm text-primary hover:underline">
+          {isAuthenticated ? 'Browse communities →' : 'Go to TapByWisein →'}
+        </Link>
       </div>
     );
   }
@@ -47,13 +66,8 @@ const CommunityPublicPage = () => {
     toggle.mutate({ id: c.id, join: !isMember });
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-5 py-8 md:py-12 space-y-6">
-        <Link to="/" className="flex items-center gap-2 text-foreground font-semibold">
-          <Sparkles className="w-4 h-4 text-primary" /> TapByWisein
-        </Link>
-
+  return wrap(
+    <>
         {/* Community header */}
         <Surface elevated className="space-y-4">
           <div className="flex items-start gap-4">
@@ -124,10 +138,7 @@ const CommunityPublicPage = () => {
             </div>
           )}
         </div>
-
-        <p className="text-center text-[11px] text-muted-foreground/70">Powered by TapByWisein</p>
-      </div>
-    </div>
+    </>
   );
 };
 
