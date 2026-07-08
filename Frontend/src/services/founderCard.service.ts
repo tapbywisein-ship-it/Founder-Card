@@ -46,9 +46,26 @@ export interface PublicCard {
   slug: string | null;
   qrCodeUrl: string | null;
   blocks?: CardBlock[];
+  /** True for the owner and accepted connections — unlocks email/phone. */
+  contactUnlocked?: boolean;
+  /** Host trust signals — present only when the user has hosted events. */
+  organizerStats?: {
+    eventsHosted: number;
+    totalAttendees: number;
+    avgRating: number | null;
+    ratingCount: number;
+    upcomingEvents: Array<{
+      id: string;
+      title: string;
+      startDate: string;
+      city: string | null;
+      locationType: string;
+    }>;
+  } | null;
   user: {
     id: string;
-    email: string;
+    /** Null until the viewer connects with the card owner. */
+    email: string | null;
     profile: {
       firstName: string;
       lastName: string;
@@ -65,6 +82,14 @@ export interface PublicCard {
       skills: string[];
       interests: string[];
       lookingFor: string[];
+      openTo?: string[];
+      pitchName?: string | null;
+      pitchTagline?: string | null;
+      pitchStage?: string | null;
+      pitchUrl?: string | null;
+      /** Null until the viewer connects with the card owner. */
+      phone?: string | null;
+      email?: string | null;
     } | null;
     gamification: { fkScore: number; level: number } | null;
   };

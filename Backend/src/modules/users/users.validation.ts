@@ -24,6 +24,15 @@ export const updateProfileSchema = z.object({
     .array(z.string().max(50).trim())
     .max(10, 'You can add up to 10 looking-for items')
     .optional(),
+  openTo: z
+    .array(z.enum(['HIRING', 'INVESTING', 'COFOUNDER', 'MENTORING']))
+    .max(4)
+    .optional(),
+  // Pitch spotlight — empty string clears a field
+  pitchName: z.string().max(80).trim().optional(),
+  pitchTagline: z.string().max(140, 'Keep the one-liner under 140 characters').trim().optional(),
+  pitchStage: z.string().max(40).trim().optional(),
+  pitchUrl: z.string().url().optional().or(z.literal('')),
   // Flat social fields — sent directly by the profile editor
   twitter: z.string().url().optional().or(z.literal('')),
   linkedin: z.string().url().optional().or(z.literal('')),

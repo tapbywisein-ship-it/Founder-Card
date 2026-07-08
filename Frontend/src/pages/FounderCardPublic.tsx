@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -16,6 +16,8 @@ import {
   UserPlus,
   Zap,
   ContactRound,
+  Lock,
+  Star,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
@@ -31,13 +33,21 @@ import { CardActionRow } from '@/components/CardActionRow';
 import { CommonGroundPanel } from '@/components/CommonGroundPanel';
 import { useAppStore } from '@/store/appStore';
 import { useActiveEventId } from '@/lib/useActiveEvent';
-import { cardVcfUrl } from '@/lib/calendarLinks';
+import { apiDownload } from '@/services/api';
 import { founderCardService, type PublicCard } from '@/services/founderCard.service';
 import { useJsonLd } from '@/lib/useJsonLd';
 import { useSeo } from '@/lib/useSeo';
 import { WhatIsTapByWisein } from '@/components/WhatIsTapByWisein';
 import { connectionsService } from '@/services/connections.service';
 import { useStartConversation } from '@/hooks/useMessages';
+
+/** Display labels for the profile "openTo" badge tokens. */
+const OPEN_TO_LABELS: Record<string, string> = {
+  HIRING: 'Hiring',
+  INVESTING: 'Investing',
+  COFOUNDER: 'Looking for a co-founder',
+  MENTORING: 'Mentoring',
+};
 
 interface FounderCardPublicProps {
   /**
@@ -144,7 +154,40 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
   // Normalize page-content rendering (used by both modes)
   const card = data;
   const profile = card?.user.profile;
-  const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : card?.user.email;
+
+  // "View as visitor" — owners preview exactly what a stranger sees
+  // (contact locked, no owner shortcuts). Entered via ?preview=visitor.
+  const [searchParams] = useSearchParams();
+  const isOwner = !!card && card.userId === currentUser?.id;
+  const previewAsVisitor = isOwner && searchParams.get('preview') === 'visitor';
+  const contactUnlocked = previewAsVisitor ? false : !!card?.contactUnlocked;
+  const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : (card?.user.email ?? undefined);
+
+  // Save contact — must go through an authenticated fetch (a plain <a href>
+  // can't send the auth header, so the server would treat connections as
+  // strangers and strip phone/email from the vCard).
+  const [savingContact, setSavingContact] = useState(false);
+  const handleSaveContact = async () => {
+    if (!card?.slug) return;
+    setSavingContact(true);
+    try {
+      const blob = await apiDownload(
+        `/founder-cards/public/slug/${encodeURIComponent(card.slug)}/vcard.vcf`
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(fullName ?? 'contact').replace(/\s+/g, '-').toLowerCase()}.vcf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not download contact');
+    } finally {
+      setSavingContact(false);
+    }
+  };
   const initial = fullName?.charAt(0)?.toUpperCase() ?? '?';
 
   const cardUrl =
@@ -201,6 +244,23 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
 
       {card && (
         <>
+          {/* Visitor-preview banner — owner is seeing the stranger view */}
+          {previewAsVisitor && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+              <span className="flex items-center gap-2">
+                <Lock className="h-4 w-4 shrink-0" />
+                Viewing as a visitor — this is what people see before connecting.
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate(window.location.pathname, { replace: true })}
+                className="shrink-0 text-xs font-medium underline underline-offset-2 hover:opacity-80"
+              >
+                Exit preview
+              </button>
+            </div>
+          )}
+
           {/* Hero */}
           <Surface padding="lg" className="relative text-center">
             <div className="flex flex-col items-center gap-4">
@@ -325,15 +385,23 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                     Share
                   </Button>
                 )}
-                {/* .vcf download — adds the person straight to the phone's contacts */}
-                {card.slug && (
-                  <Button variant="outline" asChild>
-                    <a href={cardVcfUrl(card.slug)} download>
-                      <ContactRound className="mr-2 h-4 w-4" /> Save contact
-                    </a>
+                {/* .vcf download — contact details unlock by connecting */}
+                {card.slug && contactUnlocked && (
+                  <Button variant="outline" onClick={handleSaveContact} disabled={savingContact}>
+                    <ContactRound className="mr-2 h-4 w-4" />
+                    {savingContact ? 'Downloading…' : 'Save contact'}
                   </Button>
                 )}
               </div>
+
+              {/* Contact gate — the nudge that makes people hit Connect */}
+              {!contactUnlocked && (card.userId !== currentUser?.id || previewAsVisitor) && (
+                <p className="flex items-center gap-1.5 pt-2 text-xs text-muted-foreground">
+                  <Lock className="h-3.5 w-3.5 shrink-0" />
+                  Connect with {profile?.firstName || 'them'} to unlock contact details and save
+                  them to your phone.
+                </p>
+              )}
 
               {/* Lead capture — visitors (not the owner) can leave their details */}
               {currentUser?.id !== card.userId && (
@@ -344,17 +412,124 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
             </div>
           </Surface>
 
-          {/* Skills / interests / lookingFor */}
+          {/* Pitch spotlight — the memorable "what I'm building" block */}
+          {profile?.pitchName && (
+            <Surface className="border-primary/25" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)/0.08), transparent)' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">
+                    Building
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-bold text-foreground">{profile.pitchName}</h2>
+                    {profile.pitchStage && <span className="chip">{profile.pitchStage}</span>}
+                  </div>
+                  {profile.pitchTagline && (
+                    <p className="mt-1 text-sm text-muted-foreground">{profile.pitchTagline}</p>
+                  )}
+                </div>
+              </div>
+              {profile.pitchUrl && (
+                <Button variant="outline" size="sm" className="mt-3" asChild>
+                  <a href={profile.pitchUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> View demo / deck
+                  </a>
+                </Button>
+              )}
+            </Surface>
+          )}
+
+          {/* Organizer trust block — host history + ratings turn every card
+              share into event marketing */}
+          {card.organizerStats && (
+            <Surface>
+              <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <p className="text-sm font-semibold text-foreground">Hosts events</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  {card.organizerStats.avgRating != null && (
+                    <span className="flex items-center gap-1 font-medium text-foreground">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      {card.organizerStats.avgRating}
+                      <span className="font-normal text-muted-foreground">
+                        ({card.organizerStats.ratingCount})
+                      </span>
+                    </span>
+                  )}
+                  <span>{card.organizerStats.eventsHosted} events</span>
+                  <span>{card.organizerStats.totalAttendees} attendees</span>
+                </div>
+              </div>
+              {card.organizerStats.upcomingEvents.length > 0 && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Upcoming events
+                  </p>
+                  {card.organizerStats.upcomingEvents.map((e) => (
+                    <a
+                      key={e.id}
+                      href={`/e/${e.id}`}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:border-primary/40"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{e.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(e.startDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                          {e.locationType === 'VIRTUAL' ? ' · Online' : e.city ? ` · ${e.city}` : ''}
+                        </p>
+                      </div>
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </Surface>
+          )}
+
+          {/* Open to — the 5-second conversation starter */}
+          {profile && (profile.openTo?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Open to
+              </span>
+              {profile.openTo!.map((o) => (
+                <span
+                  key={o}
+                  className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                >
+                  {OPEN_TO_LABELS[o] ?? o}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* "Why we should talk" — help-with vs looking-for, then interests */}
           {profile && (profile.skills.length > 0 || profile.interests.length > 0 || profile.lookingFor.length > 0) && (
             <div className="grid gap-4 md:grid-cols-3">
               {profile.skills.length > 0 && (
                 <Surface>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Skills
+                    I can help with
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.skills.map((s) => (
                       <span key={s} className="chip">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </Surface>
+              )}
+              {profile.lookingFor.length > 0 && (
+                <Surface>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    I'm looking for
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.lookingFor.map((s) => (
+                      <span key={s} className="chip-primary">
                         {s}
                       </span>
                     ))}
@@ -368,20 +543,6 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.interests.map((s) => (
-                      <span key={s} className="chip">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </Surface>
-              )}
-              {profile.lookingFor.length > 0 && (
-                <Surface>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Looking for
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {profile.lookingFor.map((s) => (
                       <span key={s} className="chip">
                         {s}
                       </span>

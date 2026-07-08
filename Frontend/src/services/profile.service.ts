@@ -14,6 +14,13 @@ export interface Profile {
   skills: string[];
   interests: string[];
   lookingFor?: string[];
+  /** "Open to" card badges: HIRING / INVESTING / COFOUNDER / MENTORING */
+  openTo?: string[];
+  /** Pitch spotlight — featured "what I'm building" block on the card */
+  pitchName?: string | null;
+  pitchTagline?: string | null;
+  pitchStage?: string | null;
+  pitchUrl?: string | null;
   phone?: string | null;
   twitter?: string | null;
   linkedin?: string | null;
@@ -34,6 +41,11 @@ export interface UpdateProfilePayload {
   skills?: string[];
   interests?: string[];
   lookingFor?: string[];
+  openTo?: string[];
+  pitchName?: string;
+  pitchTagline?: string;
+  pitchStage?: string;
+  pitchUrl?: string;
   phone?: string;
   twitter?: string;
   linkedin?: string;

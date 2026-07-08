@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   MapPin, Linkedin, Twitter, Globe, Mail, Edit3, Check, X, Camera,
-  Calendar, BadgeCheck, Loader2, Phone, AtSign,
+  Calendar, BadgeCheck, Loader2, Phone, AtSign, Eye,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { CardBlocksEditor } from '@/components/CardBlocksEditor';
@@ -19,10 +19,21 @@ import { apiUpload } from '@/services/api';
 import { profileService } from '@/services/profile.service';
 
 /** Social/website link fields — validated as URLs (backend requires a full URL). */
-const LINK_KEYS = ['linkedin', 'twitter', 'website'] as const;
+const LINK_KEYS = ['linkedin', 'twitter', 'website', 'pitchUrl'] as const;
 
 /** Backend caps each skill/interest/looking-for tag at 50 chars (`z.string().max(50)`). */
 const MAX_TAG_LEN = 50;
+
+/** Pitch-stage options for the spotlight block. */
+const PITCH_STAGES = ['Idea', 'MVP', 'Pre-seed', 'Seed', 'Series A+', 'Revenue', 'Profitable'] as const;
+
+/** "Open to" badge options — tokens must match the backend enum. */
+const OPEN_TO_OPTIONS = [
+  { value: 'HIRING', label: 'Hiring' },
+  { value: 'INVESTING', label: 'Investing' },
+  { value: 'COFOUNDER', label: 'Looking for a co-founder' },
+  { value: 'MENTORING', label: 'Mentoring' },
+] as const;
 
 /** Prepend https:// when the user omits a scheme so "example.com" is treated as a URL. */
 function normalizeUrl(value: string): string {
@@ -145,6 +156,10 @@ const ProfilePage = () => {
       linkedin: profile.linkedin ?? '',
       twitter: profile.twitter ?? '',
       website: profile.website ?? '',
+      pitchName: profile.pitchName ?? '',
+      pitchTagline: profile.pitchTagline ?? '',
+      pitchStage: profile.pitchStage ?? '',
+      pitchUrl: profile.pitchUrl ?? '',
     });
     setLinkErrors({});
     setEditing(true);
@@ -356,6 +371,18 @@ const ProfilePage = () => {
                 <Button variant="outline" size="sm" onClick={startEdit}>
                   <Edit3 className="w-3.5 h-3.5" /> Edit
                 </Button>
+                {/* See the card exactly as a stranger does (contact locked) */}
+                {user?.id && (
+                  <Button variant="ghost" size="sm" asChild>
+                    <a
+                      href={`/card/${currentUsername ?? user.id}?preview=visitor`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> View as visitor
+                    </a>
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -562,6 +589,139 @@ const ProfilePage = () => {
           onChange={(next) => updateMutation.mutate({ lookingFor: next })}
           maxItems={10}
         />
+
+        {/* Pitch spotlight — the featured "what I'm building" block on the card */}
+        {(editing || profile?.pitchName || profile?.pitchTagline) && (
+          <Surface>
+            <h2 className="text-sm font-semibold text-foreground mb-1">Pitch spotlight</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Featured on your card — what you're building, in one glance.
+            </p>
+            {editing ? (
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pitch-name">Startup / product</Label>
+                    <Input
+                      id="pitch-name"
+                      value={form.pitchName ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, pitchName: e.target.value }))}
+                      placeholder="e.g. TapByWisein"
+                      maxLength={80}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pitch-stage">Stage</Label>
+                    <select
+                      id="pitch-stage"
+                      value={form.pitchStage ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, pitchStage: e.target.value }))}
+                      className="w-full h-9 px-2 text-sm bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Select stage…</option>
+                      {PITCH_STAGES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pitch-tagline">One-liner</Label>
+                  <Input
+                    id="pitch-tagline"
+                    value={form.pitchTagline ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, pitchTagline: e.target.value }))}
+                    placeholder="What it does, in one sentence"
+                    maxLength={140}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pitch-url">Demo / deck link</Label>
+                  <Input
+                    id="pitch-url"
+                    value={form.pitchUrl ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm((f) => ({ ...f, pitchUrl: val }));
+                      if (linkErrors.pitchUrl && isValidUrl(val)) {
+                        setLinkErrors((prev) => {
+                          const { pitchUrl: _, ...rest } = prev;
+                          return rest;
+                        });
+                      }
+                    }}
+                    placeholder="https://your-demo-or-deck.com"
+                    aria-invalid={Boolean(linkErrors.pitchUrl)}
+                    className={linkErrors.pitchUrl ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                  />
+                  {linkErrors.pitchUrl && (
+                    <p className="text-xs text-red-600">{linkErrors.pitchUrl}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">{profile?.pitchName}</p>
+                  {profile?.pitchStage && <span className="chip">{profile.pitchStage}</span>}
+                </div>
+                {profile?.pitchTagline && (
+                  <p className="text-sm text-muted-foreground">{profile.pitchTagline}</p>
+                )}
+                {profile?.pitchUrl && (
+                  <a
+                    href={profile.pitchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    View demo / deck →
+                  </a>
+                )}
+              </div>
+            )}
+          </Surface>
+        )}
+
+        {/* Open to — badge toggles shown prominently on the public card */}
+        {(editing || (profile?.openTo?.length ?? 0) > 0) && (
+          <Surface>
+            <h2 className="text-sm font-semibold text-foreground mb-1">Open to</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Shown as badges on your card — the 5-second read that starts conversations.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {OPEN_TO_OPTIONS.map(({ value, label }) => {
+                const active = (profile?.openTo ?? []).includes(value);
+                if (!editing) {
+                  return active ? (
+                    <span key={value} className="chip-primary">{label}</span>
+                  ) : null;
+                }
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      const current = profile?.openTo ?? [];
+                      const next = active
+                        ? current.filter((v) => v !== value)
+                        : [...current, value];
+                      updateMutation.mutate({ openTo: next });
+                    }}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      active
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </Surface>
+        )}
 
         {/* Save / Cancel — anchored at the bottom so the whole form can be
             reviewed before saving. Sticky so it stays reachable while scrolling. */}

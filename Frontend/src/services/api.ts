@@ -80,6 +80,20 @@ export async function apiFetch<T = unknown>(
   return res.json() as Promise<T>;
 }
 
+/**
+ * Fetch a file endpoint WITH the auth header and return its Blob. Plain
+ * `<a href>` downloads can't send Authorization, so viewer-dependent files
+ * (e.g. the contact-gated vCard) must go through this.
+ */
+export async function apiDownload(path: string): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const authHeader = await getAuthHeader();
+  if (authHeader) headers['Authorization'] = authHeader;
+  const res = await fetch(`${API_URL}${path}`, { headers });
+  if (!res.ok) throw new ApiError('Download failed', res.status);
+  return res.blob();
+}
+
 export async function apiUpload<T = { data: { url: string } }>(
   path: string,
   file: File,
