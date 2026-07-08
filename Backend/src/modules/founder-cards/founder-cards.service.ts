@@ -929,6 +929,10 @@ export class FounderCardsService {
           interests: p.interests,
           lookingFor: p.lookingFor,
           openTo: p.openTo,
+          pitchName: p.pitchName,
+          pitchTagline: p.pitchTagline,
+          pitchStage: p.pitchStage,
+          pitchUrl: p.pitchUrl,
           // Contact info unlocks by connecting — the growth loop.
           phone: contactUnlocked ? p.phone : null,
           email: contactUnlocked ? p.email : null,

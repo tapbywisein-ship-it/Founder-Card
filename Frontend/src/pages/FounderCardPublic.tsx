@@ -412,6 +412,33 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
             </div>
           </Surface>
 
+          {/* Pitch spotlight — the memorable "what I'm building" block */}
+          {profile?.pitchName && (
+            <Surface className="border-primary/25" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)/0.08), transparent)' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">
+                    Building
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-bold text-foreground">{profile.pitchName}</h2>
+                    {profile.pitchStage && <span className="chip">{profile.pitchStage}</span>}
+                  </div>
+                  {profile.pitchTagline && (
+                    <p className="mt-1 text-sm text-muted-foreground">{profile.pitchTagline}</p>
+                  )}
+                </div>
+              </div>
+              {profile.pitchUrl && (
+                <Button variant="outline" size="sm" className="mt-3" asChild>
+                  <a href={profile.pitchUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> View demo / deck
+                  </a>
+                </Button>
+              )}
+            </Surface>
+          )}
+
           {/* Organizer trust block — host history + ratings turn every card
               share into event marketing */}
           {card.organizerStats && (

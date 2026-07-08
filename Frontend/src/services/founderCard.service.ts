@@ -83,6 +83,10 @@ export interface PublicCard {
       interests: string[];
       lookingFor: string[];
       openTo?: string[];
+      pitchName?: string | null;
+      pitchTagline?: string | null;
+      pitchStage?: string | null;
+      pitchUrl?: string | null;
       /** Null until the viewer connects with the card owner. */
       phone?: string | null;
       email?: string | null;

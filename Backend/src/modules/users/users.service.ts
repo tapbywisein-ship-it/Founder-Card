@@ -124,6 +124,11 @@ export class UsersService {
     // Empty status clears the live status line.
     if (updateData.status === '') updateData.status = null;
 
+    // Empty pitch-spotlight fields clear their column.
+    for (const k of ['pitchName', 'pitchTagline', 'pitchStage', 'pitchUrl'] as const) {
+      if (updateData[k] === '') updateData[k] = null;
+    }
+
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
 
