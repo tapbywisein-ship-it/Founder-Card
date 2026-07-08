@@ -48,6 +48,20 @@ export interface PublicCard {
   blocks?: CardBlock[];
   /** True for the owner and accepted connections — unlocks email/phone. */
   contactUnlocked?: boolean;
+  /** Host trust signals — present only when the user has hosted events. */
+  organizerStats?: {
+    eventsHosted: number;
+    totalAttendees: number;
+    avgRating: number | null;
+    ratingCount: number;
+    upcomingEvents: Array<{
+      id: string;
+      title: string;
+      startDate: string;
+      city: string | null;
+      locationType: string;
+    }>;
+  } | null;
   user: {
     id: string;
     /** Null until the viewer connects with the card owner. */

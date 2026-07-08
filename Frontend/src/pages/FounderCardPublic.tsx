@@ -17,6 +17,7 @@ import {
   Zap,
   ContactRound,
   Lock,
+  Star,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
@@ -378,6 +379,55 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
               )}
             </div>
           </Surface>
+
+          {/* Organizer trust block — host history + ratings turn every card
+              share into event marketing */}
+          {card.organizerStats && (
+            <Surface>
+              <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <p className="text-sm font-semibold text-foreground">Hosts events</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  {card.organizerStats.avgRating != null && (
+                    <span className="flex items-center gap-1 font-medium text-foreground">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      {card.organizerStats.avgRating}
+                      <span className="font-normal text-muted-foreground">
+                        ({card.organizerStats.ratingCount})
+                      </span>
+                    </span>
+                  )}
+                  <span>{card.organizerStats.eventsHosted} events</span>
+                  <span>{card.organizerStats.totalAttendees} attendees</span>
+                </div>
+              </div>
+              {card.organizerStats.upcomingEvents.length > 0 && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Upcoming events
+                  </p>
+                  {card.organizerStats.upcomingEvents.map((e) => (
+                    <a
+                      key={e.id}
+                      href={`/e/${e.id}`}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:border-primary/40"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{e.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(e.startDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                          {e.locationType === 'VIRTUAL' ? ' · Online' : e.city ? ` · ${e.city}` : ''}
+                        </p>
+                      </div>
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </Surface>
+          )}
 
           {/* Skills / interests / lookingFor */}
           {profile && (profile.skills.length > 0 || profile.interests.length > 0 || profile.lookingFor.length > 0) && (

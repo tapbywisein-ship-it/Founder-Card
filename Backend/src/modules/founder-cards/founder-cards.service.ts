@@ -719,11 +719,12 @@ export class FounderCardsService {
 
     void this.notifyCardViewed(card.userId, viewerId);
     void this.recordCardView(card.userId, viewerId);
-    const [blocks, contactUnlocked] = await Promise.all([
+    const [blocks, contactUnlocked, organizerStats] = await Promise.all([
       this.listBlocks(card.userId),
       this.canSeeContact(card.userId, viewerId),
+      this.organizerStats(card.userId),
     ]);
-    return { ...this.publicCardShape(card, contactUnlocked), blocks };
+    return { ...this.publicCardShape(card, contactUnlocked), blocks, organizerStats };
   }
 
   async getPublicCardByUsername(rawUsername: string, viewerId?: string) {
@@ -790,11 +791,12 @@ export class FounderCardsService {
       });
     }
 
-    const [blocks, contactUnlocked] = await Promise.all([
+    const [blocks, contactUnlocked, organizerStats] = await Promise.all([
       this.listBlocks(user.id),
       this.canSeeContact(user.id, viewerId),
+      this.organizerStats(user.id),
     ]);
-    if (card) return { ...this.publicCardShape(card, contactUnlocked), blocks };
+    if (card) return { ...this.publicCardShape(card, contactUnlocked), blocks, organizerStats };
 
     // No FounderCard row — return a card-shaped envelope built from the user
     // alone so the public page can still render their profile. Goes through
@@ -818,6 +820,52 @@ export class FounderCardsService {
         contactUnlocked
       ),
       blocks,
+      organizerStats,
+    };
+  }
+
+  /**
+   * Host trust signals for the public card — ratings + history the platform
+   * already collects. Null when the user has never hosted a published event,
+   * so attendee cards are unaffected.
+   */
+  private async organizerStats(userId: string) {
+    const hostedWhere = {
+      organizerId: userId,
+      deletedAt: null,
+      status: { in: ['PUBLISHED', 'COMPLETED'] as ('PUBLISHED' | 'COMPLETED')[] },
+    };
+    const [eventsHosted, ratingAgg, totalAttendees, upcomingEvents] = await Promise.all([
+      prisma.event.count({ where: hostedWhere }),
+      prisma.eventFeedback.aggregate({
+        _avg: { rating: true },
+        _count: { rating: true },
+        where: { event: { organizerId: userId, deletedAt: null } },
+      }),
+      prisma.eventRegistration.count({
+        where: { status: { not: 'CANCELLED' }, event: hostedWhere },
+      }),
+      prisma.event.findMany({
+        where: {
+          organizerId: userId,
+          deletedAt: null,
+          status: 'PUBLISHED',
+          visibility: 'PUBLIC',
+          startDate: { gte: new Date() },
+        },
+        orderBy: { startDate: 'asc' },
+        take: 3,
+        select: { id: true, title: true, startDate: true, city: true, locationType: true },
+      }),
+    ]);
+    if (eventsHosted === 0) return null;
+    return {
+      eventsHosted,
+      totalAttendees,
+      avgRating:
+        ratingAgg._avg.rating != null ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
+      ratingCount: ratingAgg._count.rating,
+      upcomingEvents,
     };
   }
 
