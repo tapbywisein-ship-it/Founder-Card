@@ -12,16 +12,24 @@ const round = (n: number): number => Math.round(n * 100) / 100;
  */
 export class PayoutsService {
   async getOrganizerSummary(organizerId: string) {
-    const payments = await prisma.payment.findMany({
-      where: { status: 'PAID', event: { organizerId } },
-      select: {
-        eventId: true,
-        amount: true,
-        platformFee: true,
-        organizerEarning: true,
-        event: { select: { title: true } },
-      },
-    });
+    // Independent queries batched — each DB round trip costs real latency
+    // (Render and Supabase sit in different regions), so never serialize them.
+    const [payments, settledAgg] = await Promise.all([
+      prisma.payment.findMany({
+        where: { status: 'PAID', event: { organizerId } },
+        select: {
+          eventId: true,
+          amount: true,
+          platformFee: true,
+          organizerEarning: true,
+          event: { select: { title: true } },
+        },
+      }),
+      prisma.payout.aggregate({
+        where: { organizerId, status: 'PAID' },
+        _sum: { amount: true },
+      }),
+    ]);
 
     const byEvent = new Map<
       string,
@@ -52,10 +60,6 @@ export class PayoutsService {
       byEvent.set(p.eventId, e);
     }
 
-    const settledAgg = await prisma.payout.aggregate({
-      where: { organizerId, status: 'PAID' },
-      _sum: { amount: true },
-    });
     const settled = num(settledAgg._sum.amount);
     const pending = Math.max(0, round(earningTotal - settled));
 
@@ -77,21 +81,34 @@ export class PayoutsService {
   }
 
   async listAdminPayouts() {
-    const payments = await prisma.payment.findMany({
-      where: { status: 'PAID' },
-      select: { organizerEarning: true, event: { select: { organizerId: true } } },
-    });
+    // The three base reads are independent — run them in one round-trip wave.
+    const [payments, settlements, recentPayouts] = await Promise.all([
+      prisma.payment.findMany({
+        where: { status: 'PAID' },
+        select: { organizerEarning: true, event: { select: { organizerId: true } } },
+      }),
+      prisma.payout.groupBy({
+        by: ['organizerId'],
+        where: { status: 'PAID' },
+        _sum: { amount: true },
+      }),
+      prisma.payout.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          organizer: {
+            select: { email: true, profile: { select: { firstName: true, lastName: true } } },
+          },
+        },
+      }),
+    ]);
+
     const earnedByOrg = new Map<string, number>();
     for (const p of payments) {
       const org = p.event.organizerId;
       earnedByOrg.set(org, (earnedByOrg.get(org) ?? 0) + num(p.organizerEarning));
     }
 
-    const settlements = await prisma.payout.groupBy({
-      by: ['organizerId'],
-      where: { status: 'PAID' },
-      _sum: { amount: true },
-    });
     const settledByOrg = new Map(settlements.map((s) => [s.organizerId, num(s._sum.amount)]));
 
     const orgIds = [...earnedByOrg.keys()];
@@ -136,16 +153,6 @@ export class PayoutsService {
             }
           : null,
       };
-    });
-
-    const recentPayouts = await prisma.payout.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: {
-        organizer: {
-          select: { email: true, profile: { select: { firstName: true, lastName: true } } },
-        },
-      },
     });
 
     return { organizers, recentPayouts };

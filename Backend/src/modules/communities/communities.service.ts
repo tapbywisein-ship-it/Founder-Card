@@ -152,32 +152,33 @@ class CommunitiesService {
     const isOwner = viewerId === community.organizerId;
     if (!community.isPublic && !isOwner) throw new NotFoundError('Community');
 
-    const events = await prisma.event.findMany({
-      where: { communityId: community.id, deletedAt: null, status: { not: 'DRAFT' } },
-      orderBy: { startDate: 'desc' },
-      take: 50,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        startDate: true,
-        endDate: true,
-        city: true,
-        locationType: true,
-        coverImage: true,
-        theme: true,
-        status: true,
-      },
-    });
-
-    let isMember = false;
-    if (viewerId) {
-      const m = await prisma.communityMember.findUnique({
-        where: { communityId_userId: { communityId: community.id, userId: viewerId } },
-        select: { id: true },
-      });
-      isMember = !!m;
-    }
+    // Events + viewer membership only need community.id — fetch them together.
+    const [events, membership] = await Promise.all([
+      prisma.event.findMany({
+        where: { communityId: community.id, deletedAt: null, status: { not: 'DRAFT' } },
+        orderBy: { startDate: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          startDate: true,
+          endDate: true,
+          city: true,
+          locationType: true,
+          coverImage: true,
+          theme: true,
+          status: true,
+        },
+      }),
+      viewerId
+        ? prisma.communityMember.findUnique({
+            where: { communityId_userId: { communityId: community.id, userId: viewerId } },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    const isMember = !!membership;
 
     return { community: withCounts(community), events, isMember, isOwner };
   }

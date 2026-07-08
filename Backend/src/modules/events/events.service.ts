@@ -249,27 +249,29 @@ export class EventsService {
 
     if (!event) throw new NotFoundError('Event');
 
-    let registrationStatus = null;
-    if (userId) {
-      const registration = await prisma.eventRegistration.findUnique({
-        where: { eventId_userId: { eventId: event.id, userId } },
-      });
-      registrationStatus = registration?.status ?? null;
-    }
+    // The three follow-ups only need event.id — one round-trip wave, not three
+    // (each serialized query pays cross-region Render↔Supabase latency).
+    const [registration, tierCounts, connectionsCount] = await Promise.all([
+      userId
+        ? prisma.eventRegistration.findUnique({
+            where: { eventId_userId: { eventId: event.id, userId } },
+          })
+        : Promise.resolve(null),
+      // Per-tier sold counts (non-cancelled) so the public page can show "Sold out".
+      prisma.eventRegistration.groupBy({
+        by: ['ticketTierId'],
+        where: { eventId: event.id, status: { not: 'CANCELLED' }, ticketTierId: { not: null } },
+        _count: { _all: true },
+      }),
+      // Connections made at this event — social proof on the public page.
+      prisma.connection.count({
+        where: { eventId: event.id, status: 'ACCEPTED' },
+      }),
+    ]);
 
-    // Per-tier sold counts (non-cancelled) so the public page can show "Sold out".
-    const tierCounts = await prisma.eventRegistration.groupBy({
-      by: ['ticketTierId'],
-      where: { eventId: event.id, status: { not: 'CANCELLED' }, ticketTierId: { not: null } },
-      _count: { _all: true },
-    });
+    const registrationStatus = registration?.status ?? null;
     const soldByTier: Record<string, number> = {};
     for (const t of tierCounts) if (t.ticketTierId) soldByTier[t.ticketTierId] = t._count._all;
-
-    // Connections made at this event — social proof on the public page.
-    const connectionsCount = await prisma.connection.count({
-      where: { eventId: event.id, status: 'ACCEPTED' },
-    });
 
     return {
       ...event,
@@ -1338,34 +1340,39 @@ export class EventsService {
     });
     if (!event) throw new NotFoundError('Event');
 
-    const viewerReg = await prisma.eventRegistration.findUnique({
-      where: { eventId_userId: { eventId, userId: viewerId } },
-      select: { id: true, status: true },
-    });
+    // The viewer-scoped reads are independent — one round-trip wave. The
+    // registered-attendee gate is checked after; wasted work on a 403 is far
+    // cheaper than three extra serialized cross-region round trips per call.
+    const [viewerReg, viewerProfile, existing, blocks] = await Promise.all([
+      prisma.eventRegistration.findUnique({
+        where: { eventId_userId: { eventId, userId: viewerId } },
+        select: { id: true, status: true },
+      }),
+      prisma.profile.findUnique({
+        where: { userId: viewerId },
+        select: { skills: true, interests: true, lookingFor: true },
+      }),
+      prisma.connection.findMany({
+        where: {
+          OR: [{ requesterId: viewerId }, { receiverId: viewerId }],
+        },
+        select: { requesterId: true, receiverId: true },
+      }),
+      // Hide anyone the viewer has blocked, or who has blocked the viewer.
+      prisma.blockedUser.findMany({
+        where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] },
+        select: { blockerId: true, blockedId: true },
+      }),
+    ]);
+
     const isOrganizer = event.organizerId === viewerId;
     if ((!viewerReg || viewerReg.status === 'CANCELLED') && !isOrganizer) {
       throw new ForbiddenError('Suggestions are only available to registered attendees');
     }
 
-    const viewerProfile = await prisma.profile.findUnique({
-      where: { userId: viewerId },
-      select: { skills: true, interests: true, lookingFor: true },
-    });
     const skills = viewerProfile?.skills ?? [];
     const interests = viewerProfile?.interests ?? [];
     const lookingFor = viewerProfile?.lookingFor ?? [];
-
-    const existing = await prisma.connection.findMany({
-      where: {
-        OR: [{ requesterId: viewerId }, { receiverId: viewerId }],
-      },
-      select: { requesterId: true, receiverId: true },
-    });
-    // Hide anyone the viewer has blocked, or who has blocked the viewer.
-    const blocks = await prisma.blockedUser.findMany({
-      where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] },
-      select: { blockerId: true, blockedId: true },
-    });
     const exclude = new Set<string>([viewerId]);
     for (const c of existing) {
       exclude.add(c.requesterId);
