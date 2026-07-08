@@ -134,10 +134,11 @@ export class FounderCardsController {
   /** "Save contact" — serves the card as a downloadable .vcf file. */
   async getVCardBySlug(req: Request, res: Response): Promise<void> {
     const { slug } = req.params as Record<string, string>;
-    const vcf = await founderCardsService.getVCardBySlug(slug);
+    const vcf = await founderCardsService.getVCardBySlug(slug, req.user?.userId);
     res.setHeader('Content-Type', 'text/vcard; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="contact.vcf"');
-    res.setHeader('Cache-Control', 'public, max-age=300');
+    // Content now varies by viewer (contact gate) — must not be shared-cached.
+    res.setHeader('Cache-Control', 'private, max-age=300');
     res.send(vcf);
   }
 

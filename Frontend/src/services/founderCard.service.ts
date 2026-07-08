@@ -46,9 +46,12 @@ export interface PublicCard {
   slug: string | null;
   qrCodeUrl: string | null;
   blocks?: CardBlock[];
+  /** True for the owner and accepted connections — unlocks email/phone. */
+  contactUnlocked?: boolean;
   user: {
     id: string;
-    email: string;
+    /** Null until the viewer connects with the card owner. */
+    email: string | null;
     profile: {
       firstName: string;
       lastName: string;
@@ -65,6 +68,9 @@ export interface PublicCard {
       skills: string[];
       interests: string[];
       lookingFor: string[];
+      /** Null until the viewer connects with the card owner. */
+      phone?: string | null;
+      email?: string | null;
     } | null;
     gamification: { fkScore: number; level: number } | null;
   };

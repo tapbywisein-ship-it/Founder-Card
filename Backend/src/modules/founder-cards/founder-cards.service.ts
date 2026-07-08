@@ -719,8 +719,11 @@ export class FounderCardsService {
 
     void this.notifyCardViewed(card.userId, viewerId);
     void this.recordCardView(card.userId, viewerId);
-    const blocks = await this.listBlocks(card.userId);
-    return { ...this.publicCardShape(card), blocks };
+    const [blocks, contactUnlocked] = await Promise.all([
+      this.listBlocks(card.userId),
+      this.canSeeContact(card.userId, viewerId),
+    ]);
+    return { ...this.publicCardShape(card, contactUnlocked), blocks };
   }
 
   async getPublicCardByUsername(rawUsername: string, viewerId?: string) {
@@ -787,58 +790,101 @@ export class FounderCardsService {
       });
     }
 
-    const blocks = await this.listBlocks(user.id);
-    if (card) return { ...this.publicCardShape(card), blocks };
+    const [blocks, contactUnlocked] = await Promise.all([
+      this.listBlocks(user.id),
+      this.canSeeContact(user.id, viewerId),
+    ]);
+    if (card) return { ...this.publicCardShape(card, contactUnlocked), blocks };
 
     // No FounderCard row — return a card-shaped envelope built from the user
-    // alone so the public page can still render their profile.
+    // alone so the public page can still render their profile. Goes through
+    // publicCardShape so the same field whitelist + contact gate apply.
     return {
-      id: '',
-      userId: user.id,
-      status: 'NO_CARD',
-      memberId: null,
-      slug: null,
-      qrCodeUrl: null,
-      user: {
-        id: user.id,
-        email: user.email,
-        profile: user.profile,
-        gamification: user.gamification,
-      },
+      ...this.publicCardShape(
+        {
+          id: '',
+          userId: user.id,
+          status: 'NO_CARD',
+          memberId: null,
+          publicSlug: null,
+          qrCodeUrl: null,
+          user: {
+            id: user.id,
+            email: user.email,
+            profile: user.profile as Record<string, unknown> | null,
+            gamification: user.gamification,
+          },
+        },
+        contactUnlocked
+      ),
       blocks,
     };
   }
 
-  private publicCardShape(card: {
-    id: string;
-    userId: string;
-    status: string;
-    memberId: string | null;
-    publicSlug: string | null;
-    qrCodeUrl: string | null;
-    user: {
+  /** True when the two users share an ACCEPTED connection. */
+  private async isAcceptedConnection(a: string, b: string): Promise<boolean> {
+    const row = await prisma.connection.findFirst({
+      where: {
+        status: 'ACCEPTED',
+        OR: [
+          { requesterId: a, receiverId: b },
+          { requesterId: b, receiverId: a },
+        ],
+      },
+      select: { id: true },
+    });
+    return !!row;
+  }
+
+  /** Contact details are visible only to the owner and accepted connections. */
+  private async canSeeContact(ownerId: string, viewerId?: string): Promise<boolean> {
+    if (!viewerId) return false;
+    if (viewerId === ownerId) return true;
+    return this.isAcceptedConnection(viewerId, ownerId);
+  }
+
+  private publicCardShape(
+    card: {
       id: string;
-      email: string;
-      profile: {
-        firstName: string;
-        lastName: string;
-        avatar: string | null;
-        company: string | null;
-        position: string | null;
-        bio: string | null;
-        status: string | null;
-        location: string | null;
-        twitter: string | null;
-        linkedin: string | null;
-        website: string | null;
-        instagram: string | null;
-        skills: string[];
-        interests: string[];
-        lookingFor: string[];
-      } | null;
-      gamification: { fkScore: number; level: number } | null;
-    };
-  }) {
+      userId: string;
+      status: string;
+      memberId: string | null;
+      publicSlug: string | null;
+      qrCodeUrl: string | null;
+      user: {
+        id: string;
+        email: string;
+        profile: Record<string, unknown> | null;
+        gamification: { fkScore: number; level: number } | null;
+      };
+    },
+    contactUnlocked: boolean
+  ) {
+    // Whitelist explicitly — the Prisma profile row also carries phone and
+    // payout/bank fields that must NEVER reach this public endpoint.
+    const p = card.user.profile;
+    const profile = p
+      ? {
+          firstName: p.firstName,
+          lastName: p.lastName,
+          avatar: p.avatar,
+          company: p.company,
+          position: p.position,
+          bio: p.bio,
+          status: p.status,
+          location: p.location,
+          twitter: p.twitter,
+          linkedin: p.linkedin,
+          website: p.website,
+          instagram: p.instagram,
+          skills: p.skills,
+          interests: p.interests,
+          lookingFor: p.lookingFor,
+          // Contact info unlocks by connecting — the growth loop.
+          phone: contactUnlocked ? p.phone : null,
+          email: contactUnlocked ? p.email : null,
+        }
+      : null;
     return {
       id: card.id,
       userId: card.userId,
@@ -846,10 +892,11 @@ export class FounderCardsService {
       memberId: card.memberId,
       slug: card.publicSlug,
       qrCodeUrl: card.qrCodeUrl,
+      contactUnlocked,
       user: {
         id: card.user.id,
-        email: card.user.email,
-        profile: card.user.profile,
+        email: contactUnlocked ? card.user.email : null,
+        profile,
         gamification: card.user.gamification,
       },
     };
@@ -936,10 +983,11 @@ export class FounderCardsService {
   }
 
   /**
-   * The card as a downloadable .vcf contact ("Save contact"). Only includes
-   * fields the public card page already exposes, so there's no new data leak.
+   * The card as a downloadable .vcf contact ("Save contact"). Phone/email are
+   * included only for the owner and accepted connections — everyone else gets
+   * a contact card without direct-reach details (same gate as the card page).
    */
-  async getVCardBySlug(slug: string): Promise<string> {
+  async getVCardBySlug(slug: string, viewerId?: string): Promise<string> {
     const card = await prisma.founderCard.findUnique({
       where: { publicSlug: slug },
       include: { user: { include: { profile: true } } },
@@ -947,14 +995,15 @@ export class FounderCardsService {
     if (!card || !card.user || !card.user.isActive || card.user.deletedAt || !card.user.profile) {
       throw new NotFoundError('Founder Card');
     }
+    const contactUnlocked = await this.canSeeContact(card.userId, viewerId);
     const p = card.user.profile;
     return buildVCard({
       firstName: p.firstName,
       lastName: p.lastName,
       company: p.company,
       position: p.position,
-      phone: p.phone,
-      email: p.email,
+      phone: contactUnlocked ? p.phone : null,
+      email: contactUnlocked ? p.email : null,
       website: p.website,
       linkedin: p.linkedin,
       twitter: p.twitter,

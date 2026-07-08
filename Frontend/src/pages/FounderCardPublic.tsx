@@ -16,6 +16,7 @@ import {
   UserPlus,
   Zap,
   ContactRound,
+  Lock,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
@@ -31,7 +32,7 @@ import { CardActionRow } from '@/components/CardActionRow';
 import { CommonGroundPanel } from '@/components/CommonGroundPanel';
 import { useAppStore } from '@/store/appStore';
 import { useActiveEventId } from '@/lib/useActiveEvent';
-import { cardVcfUrl } from '@/lib/calendarLinks';
+import { apiDownload } from '@/services/api';
 import { founderCardService, type PublicCard } from '@/services/founderCard.service';
 import { useJsonLd } from '@/lib/useJsonLd';
 import { useSeo } from '@/lib/useSeo';
@@ -144,7 +145,33 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
   // Normalize page-content rendering (used by both modes)
   const card = data;
   const profile = card?.user.profile;
-  const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : card?.user.email;
+  const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : (card?.user.email ?? undefined);
+
+  // Save contact — must go through an authenticated fetch (a plain <a href>
+  // can't send the auth header, so the server would treat connections as
+  // strangers and strip phone/email from the vCard).
+  const [savingContact, setSavingContact] = useState(false);
+  const handleSaveContact = async () => {
+    if (!card?.slug) return;
+    setSavingContact(true);
+    try {
+      const blob = await apiDownload(
+        `/founder-cards/public/slug/${encodeURIComponent(card.slug)}/vcard.vcf`
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(fullName ?? 'contact').replace(/\s+/g, '-').toLowerCase()}.vcf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not download contact');
+    } finally {
+      setSavingContact(false);
+    }
+  };
   const initial = fullName?.charAt(0)?.toUpperCase() ?? '?';
 
   const cardUrl =
@@ -325,15 +352,23 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                     Share
                   </Button>
                 )}
-                {/* .vcf download — adds the person straight to the phone's contacts */}
-                {card.slug && (
-                  <Button variant="outline" asChild>
-                    <a href={cardVcfUrl(card.slug)} download>
-                      <ContactRound className="mr-2 h-4 w-4" /> Save contact
-                    </a>
+                {/* .vcf download — contact details unlock by connecting */}
+                {card.slug && card.contactUnlocked && (
+                  <Button variant="outline" onClick={handleSaveContact} disabled={savingContact}>
+                    <ContactRound className="mr-2 h-4 w-4" />
+                    {savingContact ? 'Downloading…' : 'Save contact'}
                   </Button>
                 )}
               </div>
+
+              {/* Contact gate — the nudge that makes people hit Connect */}
+              {!card.contactUnlocked && card.userId !== currentUser?.id && (
+                <p className="flex items-center gap-1.5 pt-2 text-xs text-muted-foreground">
+                  <Lock className="h-3.5 w-3.5 shrink-0" />
+                  Connect with {profile?.firstName || 'them'} to unlock contact details and save
+                  them to your phone.
+                </p>
+              )}
 
               {/* Lead capture — visitors (not the owner) can leave their details */}
               {currentUser?.id !== card.userId && (
