@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import communitiesService from './communities.service';
-import { sendSuccess } from '@utils/response';
+import { sendSuccess, sendCreated, sendPaginated } from '@utils/response';
 import { createCommunitySchema, updateCommunitySchema } from './communities.validation';
 
 export class CommunitiesController {
@@ -65,6 +65,69 @@ export class CommunitiesController {
     const { userIds } = req.body as { userIds?: string[] };
     const data = await communitiesService.invite(id, inviterId, Array.isArray(userIds) ? userIds : []);
     sendSuccess(res, data, 'Invites sent');
+  }
+
+  // ── Feed: posts, comments, announcements ────────────────────────────────────
+
+  async listPosts(req: Request, res: Response): Promise<void> {
+    const { id } = req.params as Record<string, string>;
+    const { page, limit } = req.query as { page?: string; limit?: string };
+    const result = await communitiesService.listPosts(
+      id,
+      req.user?.userId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined
+    );
+    sendPaginated(res, result.posts, result.pagination, 'Posts retrieved');
+  }
+
+  async createPost(req: Request, res: Response): Promise<void> {
+    const authorId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const { body, imageUrl, pinned } = req.body as { body: string; imageUrl?: string; pinned?: boolean };
+    const post = await communitiesService.createPost(id, authorId, { body, imageUrl, pinned });
+    sendCreated(res, post, 'Post created');
+  }
+
+  async announce(req: Request, res: Response): Promise<void> {
+    const authorId = req.user!.userId;
+    const { id } = req.params as Record<string, string>;
+    const { body } = req.body as { body: string };
+    const post = await communitiesService.announce(id, authorId, body);
+    sendCreated(res, post, 'Announcement posted');
+  }
+
+  async deletePost(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { id, postId } = req.params as Record<string, string>;
+    await communitiesService.deletePost(id, postId, userId);
+    sendSuccess(res, null, 'Post deleted');
+  }
+
+  async listComments(req: Request, res: Response): Promise<void> {
+    const { postId } = req.params as Record<string, string>;
+    const { page, limit } = req.query as { page?: string; limit?: string };
+    const result = await communitiesService.listComments(
+      postId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined
+    );
+    sendPaginated(res, result.comments, result.pagination, 'Comments retrieved');
+  }
+
+  async addComment(req: Request, res: Response): Promise<void> {
+    const authorId = req.user!.userId;
+    const { postId } = req.params as Record<string, string>;
+    const { body } = req.body as { body: string };
+    const comment = await communitiesService.addComment(postId, authorId, body);
+    sendCreated(res, comment, 'Comment added');
+  }
+
+  async deleteComment(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { commentId } = req.params as Record<string, string>;
+    await communitiesService.deleteComment(commentId, userId);
+    sendSuccess(res, null, 'Comment deleted');
   }
 }
 

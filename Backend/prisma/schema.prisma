@@ -201,6 +201,8 @@ model User {
   membership          Membership?
   ownedCommunities    Community[]         @relation("CommunityOwner")
   communityMemberships CommunityMember[]
+  communityPosts      CommunityPost[]
+  communityPostComments CommunityPostComment[]
   pushSubscriptions   PushSubscription[]
   eventBlasts         EventBlast[]
 
@@ -412,10 +414,50 @@ model Community {
   organizer User              @relation("CommunityOwner", fields: [organizerId], references: [id], onDelete: Cascade)
   members   CommunityMember[]
   events    Event[]
+  posts     CommunityPost[]
 
   @@index([organizerId])
   @@index([slug])
   @@map("communities")
+}
+
+// A post in a community's feed. Announcements are organizer/moderator posts
+// that are pinned and fan out a notification to every member.
+model CommunityPost {
+  id             String    @id @default(uuid())
+  communityId    String
+  authorId       String
+  body           String    @db.VarChar(4000)
+  imageUrl       String?
+  pinned         Boolean   @default(false)
+  isAnnouncement Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  community Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author    User                   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  CommunityPostComment[]
+
+  // Feed query: one community's posts, pinned first then newest.
+  @@index([communityId, pinned, createdAt])
+  @@index([authorId])
+  @@map("community_posts")
+}
+
+model CommunityPostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+  @@map("community_post_comments")
 }
 
 model CommunityMember {

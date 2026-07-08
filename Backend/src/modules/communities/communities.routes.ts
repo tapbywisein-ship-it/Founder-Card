@@ -18,4 +18,14 @@ router.post('/:id/join', authenticate, communitiesController.join.bind(communiti
 router.delete('/:id/join', authenticate, communitiesController.leave.bind(communitiesController));
 router.post('/:id/invite', authenticate, communitiesController.invite.bind(communitiesController));
 
+// Feed — reads are public for public communities (viewer resolved when signed
+// in, which private communities require); writes are member-gated in the service.
+router.get('/:id/posts', optionalAuthenticate, communitiesController.listPosts.bind(communitiesController));
+router.post('/:id/posts', authenticate, communitiesController.createPost.bind(communitiesController));
+router.post('/:id/announce', authenticate, communitiesController.announce.bind(communitiesController));
+router.delete('/:id/posts/:postId', authenticate, communitiesController.deletePost.bind(communitiesController));
+router.get('/posts/:postId/comments', optionalAuthenticate, communitiesController.listComments.bind(communitiesController));
+router.post('/posts/:postId/comments', authenticate, communitiesController.addComment.bind(communitiesController));
+router.delete('/comments/:commentId', authenticate, communitiesController.deleteComment.bind(communitiesController));
+
 export default router;
