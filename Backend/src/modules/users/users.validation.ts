@@ -24,6 +24,10 @@ export const updateProfileSchema = z.object({
     .array(z.string().max(50).trim())
     .max(10, 'You can add up to 10 looking-for items')
     .optional(),
+  openTo: z
+    .array(z.enum(['HIRING', 'INVESTING', 'COFOUNDER', 'MENTORING']))
+    .max(4)
+    .optional(),
   // Flat social fields — sent directly by the profile editor
   twitter: z.string().url().optional().or(z.literal('')),
   linkedin: z.string().url().optional().or(z.literal('')),

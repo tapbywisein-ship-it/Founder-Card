@@ -41,6 +41,14 @@ import { WhatIsTapByWisein } from '@/components/WhatIsTapByWisein';
 import { connectionsService } from '@/services/connections.service';
 import { useStartConversation } from '@/hooks/useMessages';
 
+/** Display labels for the profile "openTo" badge tokens. */
+const OPEN_TO_LABELS: Record<string, string> = {
+  HIRING: 'Hiring',
+  INVESTING: 'Investing',
+  COFOUNDER: 'Looking for a co-founder',
+  MENTORING: 'Mentoring',
+};
+
 interface FounderCardPublicProps {
   /**
    * 'app' — full chrome (top nav), assumes signed-in user.
@@ -429,17 +437,48 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
             </Surface>
           )}
 
-          {/* Skills / interests / lookingFor */}
+          {/* Open to — the 5-second conversation starter */}
+          {profile && (profile.openTo?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Open to
+              </span>
+              {profile.openTo!.map((o) => (
+                <span
+                  key={o}
+                  className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                >
+                  {OPEN_TO_LABELS[o] ?? o}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* "Why we should talk" — help-with vs looking-for, then interests */}
           {profile && (profile.skills.length > 0 || profile.interests.length > 0 || profile.lookingFor.length > 0) && (
             <div className="grid gap-4 md:grid-cols-3">
               {profile.skills.length > 0 && (
                 <Surface>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Skills
+                    I can help with
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.skills.map((s) => (
                       <span key={s} className="chip">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </Surface>
+              )}
+              {profile.lookingFor.length > 0 && (
+                <Surface>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    I'm looking for
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.lookingFor.map((s) => (
+                      <span key={s} className="chip-primary">
                         {s}
                       </span>
                     ))}
@@ -453,20 +492,6 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.interests.map((s) => (
-                      <span key={s} className="chip">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </Surface>
-              )}
-              {profile.lookingFor.length > 0 && (
-                <Surface>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Looking for
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {profile.lookingFor.map((s) => (
                       <span key={s} className="chip">
                         {s}
                       </span>

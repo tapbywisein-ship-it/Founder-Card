@@ -928,6 +928,7 @@ export class FounderCardsService {
           skills: p.skills,
           interests: p.interests,
           lookingFor: p.lookingFor,
+          openTo: p.openTo,
           // Contact info unlocks by connecting — the growth loop.
           phone: contactUnlocked ? p.phone : null,
           email: contactUnlocked ? p.email : null,

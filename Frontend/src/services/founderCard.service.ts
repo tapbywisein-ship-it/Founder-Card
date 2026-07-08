@@ -82,6 +82,7 @@ export interface PublicCard {
       skills: string[];
       interests: string[];
       lookingFor: string[];
+      openTo?: string[];
       /** Null until the viewer connects with the card owner. */
       phone?: string | null;
       email?: string | null;

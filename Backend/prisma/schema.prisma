@@ -233,6 +233,8 @@ model Profile {
   skills     String[]
   interests  String[]
   lookingFor String[]
+  /// "Open to" badges shown on the public card: HIRING / INVESTING / COFOUNDER / MENTORING
+  openTo     String[] @default([])
   phone      String?
   twitter    String?
   linkedin   String?

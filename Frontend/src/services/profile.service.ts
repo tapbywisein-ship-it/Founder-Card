@@ -14,6 +14,8 @@ export interface Profile {
   skills: string[];
   interests: string[];
   lookingFor?: string[];
+  /** "Open to" card badges: HIRING / INVESTING / COFOUNDER / MENTORING */
+  openTo?: string[];
   phone?: string | null;
   twitter?: string | null;
   linkedin?: string | null;
@@ -34,6 +36,7 @@ export interface UpdateProfilePayload {
   skills?: string[];
   interests?: string[];
   lookingFor?: string[];
+  openTo?: string[];
   phone?: string;
   twitter?: string;
   linkedin?: string;

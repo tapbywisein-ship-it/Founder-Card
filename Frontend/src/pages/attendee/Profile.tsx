@@ -24,6 +24,14 @@ const LINK_KEYS = ['linkedin', 'twitter', 'website'] as const;
 /** Backend caps each skill/interest/looking-for tag at 50 chars (`z.string().max(50)`). */
 const MAX_TAG_LEN = 50;
 
+/** "Open to" badge options — tokens must match the backend enum. */
+const OPEN_TO_OPTIONS = [
+  { value: 'HIRING', label: 'Hiring' },
+  { value: 'INVESTING', label: 'Investing' },
+  { value: 'COFOUNDER', label: 'Looking for a co-founder' },
+  { value: 'MENTORING', label: 'Mentoring' },
+] as const;
+
 /** Prepend https:// when the user omits a scheme so "example.com" is treated as a URL. */
 function normalizeUrl(value: string): string {
   const v = value.trim();
@@ -562,6 +570,46 @@ const ProfilePage = () => {
           onChange={(next) => updateMutation.mutate({ lookingFor: next })}
           maxItems={10}
         />
+
+        {/* Open to — badge toggles shown prominently on the public card */}
+        {(editing || (profile?.openTo?.length ?? 0) > 0) && (
+          <Surface>
+            <h2 className="text-sm font-semibold text-foreground mb-1">Open to</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Shown as badges on your card — the 5-second read that starts conversations.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {OPEN_TO_OPTIONS.map(({ value, label }) => {
+                const active = (profile?.openTo ?? []).includes(value);
+                if (!editing) {
+                  return active ? (
+                    <span key={value} className="chip-primary">{label}</span>
+                  ) : null;
+                }
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      const current = profile?.openTo ?? [];
+                      const next = active
+                        ? current.filter((v) => v !== value)
+                        : [...current, value];
+                      updateMutation.mutate({ openTo: next });
+                    }}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      active
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </Surface>
+        )}
 
         {/* Save / Cancel — anchored at the bottom so the whole form can be
             reviewed before saving. Sticky so it stays reachable while scrolling. */}
