@@ -229,6 +229,13 @@ export interface EventSuggestion {
   userId: string;
   eventRole: EventRole;
   score: number;
+  /** Why this person surfaced — rendered as match chips. */
+  commonSkills?: string[];
+  commonInterests?: string[];
+  /** Skills they have that you said you're looking for. */
+  youWantTheirSkills?: string[];
+  /** Skills you have that they said they're looking for. */
+  theyWantYourSkills?: string[];
   user: {
     id: string;
     profile: {
@@ -325,6 +332,34 @@ export const eventsService = {
 
   async cancelRegistration(id: string) {
     return apiFetch<{ data: null }>(`/events/${id}/register`, { method: 'DELETE' });
+  },
+
+  // ── Post-event feedback ─────────────────────────────────────────────────────
+  async submitFeedback(id: string, input: { rating: number; nps?: number; comment?: string }) {
+    return apiFetch<{ data: { rating: number } }>(`/events/${id}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  async getMyFeedback(id: string) {
+    return apiFetch<{ data: { rating: number; nps: number | null; comment: string | null } | null }>(
+      `/events/${id}/feedback/mine`
+    );
+  },
+  /** Organizer-only aggregate. */
+  async getFeedbackSummary(id: string) {
+    return apiFetch<{ data: {
+      count: number;
+      avgRating: number | null;
+      npsScore: number | null;
+      npsResponses: number;
+      comments: Array<{ rating: number; comment: string; createdAt: string; name: string }>;
+    } }>(`/events/${id}/feedback/summary`);
+  },
+
+  /** Clone an event into a fresh DRAFT (organizer). */
+  async duplicateEvent(id: string) {
+    return apiFetch<{ data: Event }>(`/events/${id}/duplicate`, { method: 'POST' });
   },
 
   async listEventAttendees(

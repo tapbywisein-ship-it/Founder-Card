@@ -205,6 +205,10 @@ model User {
   communityPostComments CommunityPostComment[]
   pushSubscriptions   PushSubscription[]
   eventBlasts         EventBlast[]
+  introRequestsMade   IntroRequest[]      @relation("IntroRequester")
+  introRequestsAbout  IntroRequest[]      @relation("IntroTarget")
+  introRequestsVia    IntroRequest[]      @relation("IntroVia")
+  eventFeedback       EventFeedback[]
 
   @@index([email])
   @@index([supabaseId])
@@ -332,6 +336,28 @@ model Connection {
   @@map("connections")
 }
 
+// "Ask a mutual to introduce you": requester asks `via` (a mutual connection)
+// to introduce them to `target`, optionally in the context of an event.
+// Status is a plain string (PENDING | DONE | DECLINED) — no PG enum needed.
+model IntroRequest {
+  id          String   @id @default(uuid())
+  requesterId String
+  targetId    String
+  viaId       String
+  eventId     String?
+  message     String?  @db.VarChar(1000)
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+
+  requester User @relation("IntroRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("IntroTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  via       User @relation("IntroVia", fields: [viaId], references: [id], onDelete: Cascade)
+
+  @@index([viaId, status])
+  @@index([requesterId])
+  @@map("intro_requests")
+}
+
 model Event {
   id               String          @id @default(uuid())
   organizerId      String
@@ -386,6 +412,7 @@ model Event {
   pageViews     EventPageView[]
   payments      Payment[]
   payouts       Payout[]
+  feedback      EventFeedback[]
 
   @@index([organizerId])
   @@index([status])
@@ -478,6 +505,26 @@ model CommunityMember {
 enum CommunityMemberRole {
   MEMBER
   MODERATOR
+}
+
+// Post-event feedback: one row per (event, attendee). rating 1–5 stars;
+// nps 0–10 (optional) powers the organizer's NPS; comment free-text.
+model EventFeedback {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  rating    Int
+  nps       Int?
+  comment   String?  @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@map("event_feedback")
 }
 
 // Web-push subscription (browser Push API) for a user/device.

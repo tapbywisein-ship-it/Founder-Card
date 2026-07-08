@@ -238,6 +238,22 @@ export const connectionsService = {
     }> }>(`/connections/suggestions?limit=${limit}`);
   },
 
+  /** Mutual connections with a target — people who could introduce you. */
+  async listMutuals(targetId: string) {
+    return apiFetch<{ data: Array<{
+      id: string;
+      profile: { firstName: string; lastName: string; avatar?: string | null; company?: string | null; position?: string | null } | null;
+    }> }>(`/connections/mutuals/${encodeURIComponent(targetId)}`);
+  },
+
+  /** Ask a mutual connection (viaId) to introduce you to targetId. */
+  async requestIntro(input: { targetId: string; viaId: string; eventId?: string; message?: string }) {
+    return apiFetch<{ data: { id: string } }>('/connections/intro', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
   async connectViaScan(input: {
     qrData?: string;
     slug?: string;
