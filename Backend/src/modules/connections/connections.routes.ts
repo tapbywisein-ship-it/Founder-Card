@@ -26,6 +26,10 @@ router.get(
   connectionsController.getContextWith.bind(connectionsController)
 );
 
+// Intro requests — mutuals who could introduce you, and asking one to do it
+router.get('/mutuals/:targetId', connectionsController.listMutuals.bind(connectionsController));
+router.post('/intro', connectionsController.requestIntro.bind(connectionsController));
+
 // Phase 5.3 — Private notes per connection
 router.get('/:id/notes', connectionsController.listNotes.bind(connectionsController));
 router.post('/:id/notes', connectionsController.createNote.bind(connectionsController));

@@ -161,6 +161,31 @@ export class ConnectionsController {
     sendSuccess(res, data, 'Network search results');
   }
 
+  /** Mutual connections with a target — the people who could introduce you. */
+  async listMutuals(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.userId;
+    const { targetId } = req.params as Record<string, string>;
+    const data = await connectionsService.listMutuals(userId, targetId);
+    sendSuccess(res, data, 'Mutual connections retrieved');
+  }
+
+  /** Ask a mutual connection for an intro to a target. */
+  async requestIntro(req: Request, res: Response): Promise<void> {
+    const requesterId = req.user!.userId;
+    const { targetId, viaId, eventId, message } = req.body as {
+      targetId: string;
+      viaId: string;
+      eventId?: string;
+      message?: string;
+    };
+    if (!targetId || !viaId) {
+      res.status(400).json({ success: false, message: 'targetId and viaId are required' });
+      return;
+    }
+    const intro = await connectionsService.requestIntro(requesterId, { targetId, viaId, eventId, message });
+    sendCreated(res, intro, 'Intro requested');
+  }
+
   async connectViaQR(req: Request, res: Response): Promise<void> {
     const scannerId = req.user!.userId;
     const body = req.body as {

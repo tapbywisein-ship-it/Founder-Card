@@ -205,6 +205,9 @@ model User {
   communityPostComments CommunityPostComment[]
   pushSubscriptions   PushSubscription[]
   eventBlasts         EventBlast[]
+  introRequestsMade   IntroRequest[]      @relation("IntroRequester")
+  introRequestsAbout  IntroRequest[]      @relation("IntroTarget")
+  introRequestsVia    IntroRequest[]      @relation("IntroVia")
 
   @@index([email])
   @@index([supabaseId])
@@ -330,6 +333,28 @@ model Connection {
   @@index([status])
   @@index([eventId])
   @@map("connections")
+}
+
+// "Ask a mutual to introduce you": requester asks `via` (a mutual connection)
+// to introduce them to `target`, optionally in the context of an event.
+// Status is a plain string (PENDING | DONE | DECLINED) — no PG enum needed.
+model IntroRequest {
+  id          String   @id @default(uuid())
+  requesterId String
+  targetId    String
+  viaId       String
+  eventId     String?
+  message     String?  @db.VarChar(1000)
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+
+  requester User @relation("IntroRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("IntroTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  via       User @relation("IntroVia", fields: [viaId], references: [id], onDelete: Cascade)
+
+  @@index([viaId, status])
+  @@index([requesterId])
+  @@map("intro_requests")
 }
 
 model Event {

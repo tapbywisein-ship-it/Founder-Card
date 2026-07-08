@@ -1405,26 +1405,34 @@ export class EventsService {
       take: 200,
     });
 
-    const intersect = (a: string[], b: string[]) => a.filter((x) => b.includes(x)).length;
+    const intersect = (a: string[], b: string[]) => a.filter((x) => b.includes(x));
 
     const ranked = pool
       .map((r) => {
         const p = r.user.profile;
-        const skillOverlap = p ? intersect(skills, p.skills ?? []) : 0;
-        const interestOverlap = p ? intersect(interests, p.interests ?? []) : 0;
+        const commonSkills = p ? intersect(skills, p.skills ?? []) : [];
+        const commonInterests = p ? intersect(interests, p.interests ?? []) : [];
         // I'm looking-for x; they have skills x → high signal
-        const lookingForMatchTheirSkills = p ? intersect(lookingFor, p.skills ?? []) : 0;
-        const score = 2 * skillOverlap + 1.5 * interestOverlap + 3 * lookingForMatchTheirSkills;
-        return { registration: r, score };
+        const youWantTheirSkills = p ? intersect(lookingFor, p.skills ?? []) : [];
+        // They're looking for what I offer → powers "they want someone like you"
+        const theyWantYourSkills = p ? intersect(p.lookingFor ?? [], skills) : [];
+        const score =
+          2 * commonSkills.length +
+          1.5 * commonInterests.length +
+          3 * youWantTheirSkills.length +
+          3 * theyWantYourSkills.length;
+        return { registration: r, score, commonSkills, commonInterests, youWantTheirSkills, theyWantYourSkills };
       })
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    return ranked.map(({ registration: r, score }) => ({
+    return ranked.map(({ registration: r, score, ...reasons }) => ({
       userId: r.userId,
       eventRole: r.eventRole,
       score,
+      // Why this person surfaced — the UI renders these as match chips.
+      ...reasons,
       user: {
         id: r.user.id,
         profile: r.user.profile,

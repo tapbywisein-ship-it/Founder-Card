@@ -229,6 +229,13 @@ export interface EventSuggestion {
   userId: string;
   eventRole: EventRole;
   score: number;
+  /** Why this person surfaced — rendered as match chips. */
+  commonSkills?: string[];
+  commonInterests?: string[];
+  /** Skills they have that you said you're looking for. */
+  youWantTheirSkills?: string[];
+  /** Skills you have that they said they're looking for. */
+  theyWantYourSkills?: string[];
   user: {
     id: string;
     profile: {
