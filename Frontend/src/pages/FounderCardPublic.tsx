@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -154,6 +154,13 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
   // Normalize page-content rendering (used by both modes)
   const card = data;
   const profile = card?.user.profile;
+
+  // "View as visitor" — owners preview exactly what a stranger sees
+  // (contact locked, no owner shortcuts). Entered via ?preview=visitor.
+  const [searchParams] = useSearchParams();
+  const isOwner = !!card && card.userId === currentUser?.id;
+  const previewAsVisitor = isOwner && searchParams.get('preview') === 'visitor';
+  const contactUnlocked = previewAsVisitor ? false : !!card?.contactUnlocked;
   const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : (card?.user.email ?? undefined);
 
   // Save contact — must go through an authenticated fetch (a plain <a href>
@@ -237,6 +244,23 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
 
       {card && (
         <>
+          {/* Visitor-preview banner — owner is seeing the stranger view */}
+          {previewAsVisitor && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+              <span className="flex items-center gap-2">
+                <Lock className="h-4 w-4 shrink-0" />
+                Viewing as a visitor — this is what people see before connecting.
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate(window.location.pathname, { replace: true })}
+                className="shrink-0 text-xs font-medium underline underline-offset-2 hover:opacity-80"
+              >
+                Exit preview
+              </button>
+            </div>
+          )}
+
           {/* Hero */}
           <Surface padding="lg" className="relative text-center">
             <div className="flex flex-col items-center gap-4">
@@ -362,7 +386,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                   </Button>
                 )}
                 {/* .vcf download — contact details unlock by connecting */}
-                {card.slug && card.contactUnlocked && (
+                {card.slug && contactUnlocked && (
                   <Button variant="outline" onClick={handleSaveContact} disabled={savingContact}>
                     <ContactRound className="mr-2 h-4 w-4" />
                     {savingContact ? 'Downloading…' : 'Save contact'}
@@ -371,7 +395,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
               </div>
 
               {/* Contact gate — the nudge that makes people hit Connect */}
-              {!card.contactUnlocked && card.userId !== currentUser?.id && (
+              {!contactUnlocked && (card.userId !== currentUser?.id || previewAsVisitor) && (
                 <p className="flex items-center gap-1.5 pt-2 text-xs text-muted-foreground">
                   <Lock className="h-3.5 w-3.5 shrink-0" />
                   Connect with {profile?.firstName || 'them'} to unlock contact details and save

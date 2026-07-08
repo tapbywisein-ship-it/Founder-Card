@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   MapPin, Linkedin, Twitter, Globe, Mail, Edit3, Check, X, Camera,
-  Calendar, BadgeCheck, Loader2, Phone, AtSign,
+  Calendar, BadgeCheck, Loader2, Phone, AtSign, Eye,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { CardBlocksEditor } from '@/components/CardBlocksEditor';
@@ -364,6 +364,18 @@ const ProfilePage = () => {
                 <Button variant="outline" size="sm" onClick={startEdit}>
                   <Edit3 className="w-3.5 h-3.5" /> Edit
                 </Button>
+                {/* See the card exactly as a stranger does (contact locked) */}
+                {user?.id && (
+                  <Button variant="ghost" size="sm" asChild>
+                    <a
+                      href={`/card/${currentUsername ?? user.id}?preview=visitor`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> View as visitor
+                    </a>
+                  </Button>
+                )}
               </div>
             )}
           </div>
