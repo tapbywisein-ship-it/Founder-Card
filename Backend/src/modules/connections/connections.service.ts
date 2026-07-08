@@ -928,13 +928,16 @@ export class ConnectionsService {
   }
 
   async suggestConnections(userId: string, limit = 10) {
-    const userProfile = await prisma.profile.findUnique({ where: { userId } });
-    const userConnections = await prisma.connection.findMany({
-      where: {
-        OR: [{ requesterId: userId }, { receiverId: userId }],
-      },
-      select: { requesterId: true, receiverId: true },
-    });
+    // Independent reads — batch to avoid serialized cross-region round trips.
+    const [userProfile, userConnections] = await Promise.all([
+      prisma.profile.findUnique({ where: { userId } }),
+      prisma.connection.findMany({
+        where: {
+          OR: [{ requesterId: userId }, { receiverId: userId }],
+        },
+        select: { requesterId: true, receiverId: true },
+      }),
+    ]);
 
     const connectedIds = new Set<string>([userId]);
     for (const c of userConnections) {

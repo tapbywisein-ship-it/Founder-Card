@@ -8,7 +8,22 @@ import logger from '@utils/logger';
 
 export class OrganizerService {
   async getDashboardStats(organizerId: string) {
-    const [totalEvents, upcomingEvents, totalRegistrations, totalLeads] = await Promise.all([
+    // All eight reads are independent — issue them as ONE round-trip wave.
+    // Each serialized DB query pays cross-region latency (Render ↔ Supabase),
+    // so the sequential version made the dashboard several seconds slower.
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+    const [
+      totalEvents,
+      upcomingEvents,
+      totalRegistrations,
+      totalLeads,
+      recentEvents,
+      revenueAgg,
+      checkedInCount,
+      recentRegs,
+    ] = await Promise.all([
       prisma.event.count({ where: { organizerId, deletedAt: null } }),
       prisma.event.count({
         where: {
@@ -25,42 +40,36 @@ export class OrganizerService {
         },
       }),
       prisma.lead.count({ where: { organizerId } }),
+      prisma.event.findMany({
+        where: { organizerId, deletedAt: null },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: { select: { registrations: { where: { status: { not: 'CANCELLED' } } } } },
+        },
+      }),
+      // Revenue: sum of amountPaid on non-cancelled registrations
+      prisma.eventRegistration.aggregate({
+        where: { event: { organizerId }, status: { not: 'CANCELLED' } },
+        _sum: { amountPaid: true },
+      }),
+      prisma.eventRegistration.count({
+        where: { event: { organizerId }, checkedIn: true },
+      }),
+      // Registration trend: last 7 days — fetch raw rows, bucket in JS
+      prisma.eventRegistration.findMany({
+        where: {
+          event: { organizerId },
+          status: { not: 'CANCELLED' },
+          registeredAt: { gte: sevenDaysAgo },
+        },
+        select: { registeredAt: true },
+      }),
     ]);
 
-    const recentEvents = await prisma.event.findMany({
-      where: { organizerId, deletedAt: null },
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: { select: { registrations: { where: { status: { not: 'CANCELLED' } } } } },
-      },
-    });
-
-    // Revenue: sum of amountPaid on non-cancelled registrations
-    const revenueAgg = await prisma.eventRegistration.aggregate({
-      where: { event: { organizerId }, status: { not: 'CANCELLED' } },
-      _sum: { amountPaid: true },
-    });
     const totalRevenue = Number(revenueAgg._sum.amountPaid ?? 0);
-
-    // Check-in rate
-    const checkedInCount = await prisma.eventRegistration.count({
-      where: { event: { organizerId }, checkedIn: true },
-    });
     const checkInRate =
       totalRegistrations > 0 ? Math.round((checkedInCount / totalRegistrations) * 100) : 0;
-
-    // Registration trend: last 7 days — fetch raw rows, bucket in JS
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    const recentRegs = await prisma.eventRegistration.findMany({
-      where: {
-        event: { organizerId },
-        status: { not: 'CANCELLED' },
-        registeredAt: { gte: sevenDaysAgo },
-      },
-      select: { registeredAt: true },
-    });
 
     const trendByDay: Record<string, number> = {};
     for (let i = 0; i < 7; i++) {
