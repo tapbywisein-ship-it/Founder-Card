@@ -550,7 +550,7 @@ const EventDetailUnified = () => {
                     type="button"
                     disabled={soldOut}
                     onClick={() => !soldOut && setSelectedTierId(t.id)}
-                    className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    className={`w-full rounded-lg border px-3 py-2 text-sm text-left transition-colors ${
                       soldOut
                         ? 'border-border opacity-60 cursor-not-allowed'
                         : selected
@@ -558,16 +558,28 @@ const EventDetailUnified = () => {
                           : 'border-border hover:border-primary/40'
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={`h-3.5 w-3.5 rounded-full border ${selected && !soldOut ? 'border-primary bg-primary' : 'border-muted-foreground'}`}
-                      />
-                      <span className="text-foreground">{t.name}</span>
+                    <span className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`h-3.5 w-3.5 rounded-full border flex-shrink-0 ${selected && !soldOut ? 'border-primary bg-primary' : 'border-muted-foreground'}`}
+                        />
+                        <span className="text-foreground">{t.name}</span>
+                      </span>
+                      {soldOut ? (
+                        <span className="text-xs font-semibold text-rose-600">Sold out</span>
+                      ) : (
+                        <span className="font-semibold text-foreground">{t.priceLabel}</span>
+                      )}
                     </span>
-                    {soldOut ? (
-                      <span className="text-xs font-semibold text-rose-600">Sold out</span>
-                    ) : (
-                      <span className="font-semibold text-foreground">{t.priceLabel}</span>
+                    {t.benefits.length > 0 && (
+                      <span className="mt-1.5 ml-5 flex flex-col gap-0.5">
+                        {t.benefits.map((b) => (
+                          <span key={b} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                            {b}
+                          </span>
+                        ))}
+                      </span>
                     )}
                   </button>
                 );

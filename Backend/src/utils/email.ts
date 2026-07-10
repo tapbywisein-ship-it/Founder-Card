@@ -194,7 +194,9 @@ export const eventRegistrationConfirmationEmail = (
   eventDate: string,
   eventLocation: string,
   eventUrl: string,
-  hasQr: boolean = false
+  hasQr: boolean = false,
+  ticketTierName?: string | null,
+  ticketBenefits?: string[]
 ): string =>
   baseTemplate(`
     <h2>You're in: ${escapeHtml(eventTitle)}</h2>
@@ -202,7 +204,13 @@ export const eventRegistrationConfirmationEmail = (
     <div class="code-box" style="text-align:left; padding: 20px;">
       <p style="margin:0 0 8px;"><strong>Event:</strong> ${escapeHtml(eventTitle)}</p>
       <p style="margin:0 0 8px;"><strong>Date:</strong> ${escapeHtml(eventDate)}</p>
-      ${eventLocation ? `<p style="margin:0;"><strong>Location:</strong> ${escapeHtml(eventLocation)}</p>` : ''}
+      ${eventLocation ? `<p style="margin:0${ticketTierName ? ' 0 8px' : ''};"><strong>Location:</strong> ${escapeHtml(eventLocation)}</p>` : ''}
+      ${ticketTierName ? `<p style="margin:0;"><strong>Ticket:</strong> ${escapeHtml(ticketTierName)}</p>` : ''}
+      ${
+        ticketBenefits && ticketBenefits.length > 0
+          ? `<ul style="margin:8px 0 0;padding-left:20px;">${ticketBenefits.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>`
+          : ''
+      }
     </div>
     ${
       hasQr

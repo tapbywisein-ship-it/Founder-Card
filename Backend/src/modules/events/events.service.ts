@@ -677,6 +677,15 @@ export class EventsService {
       reg.event.locationType === 'VIRTUAL'
         ? (reg.event.meetingUrl ?? 'Online')
         : [reg.event.city, reg.event.country].filter(Boolean).join(', ') || 'TBD';
+
+    // Which tier they registered for + its perks, so the confirmation shows
+    // what the ticket actually includes (organizers already collect this at
+    // event-creation time; it was just never surfaced in the email).
+    const tiers = Array.isArray(reg.event.ticketTypes)
+      ? (reg.event.ticketTypes as Array<{ id: string; benefits?: string[] }>)
+      : [];
+    const matchedTier = reg.ticketTierId ? tiers.find((t) => t.id === reg.ticketTierId) : undefined;
+
     const { addEmailJob } = await import('@jobs/email.queue');
     await addEmailJob('eventRegistrationConfirmation', {
       to: reg.user.email,
@@ -686,6 +695,8 @@ export class EventsService {
       eventLocation: location,
       eventUrl,
       qrPngBase64,
+      ticketTierName: reg.ticketTierName ?? undefined,
+      ticketBenefits: matchedTier?.benefits ?? undefined,
     });
   }
 

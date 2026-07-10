@@ -80,6 +80,8 @@ export interface Event {
     name: string;
     price: number;
     count: number;
+    /** Perks shown to attendees on the registration page and confirmation email. */
+    benefits?: string[];
     isEnabled?: boolean;
   }>;
   coverImage?: string | null;

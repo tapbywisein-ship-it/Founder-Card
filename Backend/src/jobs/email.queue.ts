@@ -45,6 +45,8 @@ export interface EmailJobData {
   conversationUrl?: string;
   subject?: string;
   bodyHtml?: string;
+  ticketTierName?: string;
+  ticketBenefits?: string[];
 }
 
 const REDIS_URL = process.env.BULL_REDIS_URL ?? process.env.REDIS_URL;
@@ -164,7 +166,9 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
         data.eventDate,
         data.eventLocation ?? '',
         data.eventUrl,
-        !!data.qrPngBase64
+        !!data.qrPngBase64,
+        data.ticketTierName,
+        data.ticketBenefits
       );
       subject = `You're in: ${data.eventTitle}`;
       if (data.qrPngBase64) {
