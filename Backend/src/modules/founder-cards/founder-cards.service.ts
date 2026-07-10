@@ -1,5 +1,5 @@
 import prisma from '@config/database';
-import { NotFoundError, ConflictError, BadRequestError } from '@utils/errors';
+import { NotFoundError, ConflictError, BadRequestError, ForbiddenError } from '@utils/errors';
 import { generateQRCode } from '@utils/qrcode';
 import { cardIdToSlug } from '@utils/slug';
 import { SCORE_VALUES } from '@config/constants';
@@ -719,12 +719,19 @@ export class FounderCardsService {
 
     void this.notifyCardViewed(card.userId, viewerId);
     void this.recordCardView(card.userId, viewerId);
-    const [blocks, contactUnlocked, organizerStats] = await Promise.all([
+    const [blocks, contactUnlocked, organizerStats, endorsements] = await Promise.all([
       this.listBlocks(card.userId),
       this.canSeeContact(card.userId, viewerId),
       this.organizerStats(card.userId),
+      this.skillEndorsementSummary(card.userId, viewerId),
     ]);
-    return { ...this.publicCardShape(card, contactUnlocked), blocks, organizerStats };
+    return {
+      ...this.publicCardShape(card, contactUnlocked),
+      blocks,
+      organizerStats,
+      skillEndorsements: endorsements.counts,
+      viewerEndorsed: endorsements.viewerEndorsed,
+    };
   }
 
   async getPublicCardByUsername(rawUsername: string, viewerId?: string) {
@@ -791,12 +798,19 @@ export class FounderCardsService {
       });
     }
 
-    const [blocks, contactUnlocked, organizerStats] = await Promise.all([
+    const [blocks, contactUnlocked, organizerStats, endorsements] = await Promise.all([
       this.listBlocks(user.id),
       this.canSeeContact(user.id, viewerId),
       this.organizerStats(user.id),
+      this.skillEndorsementSummary(user.id, viewerId),
     ]);
-    if (card) return { ...this.publicCardShape(card, contactUnlocked), blocks, organizerStats };
+    const endorsementFields = {
+      skillEndorsements: endorsements.counts,
+      viewerEndorsed: endorsements.viewerEndorsed,
+    };
+    if (card) {
+      return { ...this.publicCardShape(card, contactUnlocked), blocks, organizerStats, ...endorsementFields };
+    }
 
     // No FounderCard row — return a card-shaped envelope built from the user
     // alone so the public page can still render their profile. Goes through
@@ -821,6 +835,7 @@ export class FounderCardsService {
       ),
       blocks,
       organizerStats,
+      ...endorsementFields,
     };
   }
 
@@ -889,6 +904,97 @@ export class FounderCardsService {
     if (!viewerId) return false;
     if (viewerId === ownerId) return true;
     return this.isAcceptedConnection(viewerId, ownerId);
+  }
+
+  // ── Skill endorsements ────────────────────────────────────────────────────
+
+  /** Per-skill endorsement counts + which skills the viewer already endorsed. */
+  private async skillEndorsementSummary(ownerId: string, viewerId?: string) {
+    const [grouped, mine] = await Promise.all([
+      prisma.skillEndorsement.groupBy({
+        by: ['skill'],
+        where: { endorseeId: ownerId },
+        _count: { _all: true },
+      }),
+      viewerId && viewerId !== ownerId
+        ? prisma.skillEndorsement.findMany({
+            where: { endorseeId: ownerId, endorserId: viewerId },
+            select: { skill: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const counts: Record<string, number> = {};
+    for (const g of grouped) counts[g.skill] = g._count._all;
+    return { counts, viewerEndorsed: mine.map((m) => m.skill) };
+  }
+
+  /**
+   * Endorse one of a user's listed skills. Accepted connections only — an
+   * endorsement is a vouch, so it must come from someone who actually knows
+   * the person. Idempotent via the unique (endorser, endorsee, skill) key.
+   */
+  async endorseSkill(endorserId: string, endorseeId: string, skill: string) {
+    const clean = skill?.trim();
+    if (!clean) throw new BadRequestError('Skill is required');
+    if (endorserId === endorseeId) throw new BadRequestError('You cannot endorse yourself');
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId: endorseeId },
+      select: { skills: true, firstName: true },
+    });
+    if (!profile) throw new NotFoundError('User');
+    if (!profile.skills.includes(clean)) {
+      throw new BadRequestError('You can only endorse a skill listed on their profile');
+    }
+    if (!(await this.isAcceptedConnection(endorserId, endorseeId))) {
+      throw new ForbiddenError('Connect with this person before endorsing their skills');
+    }
+
+    const before = await prisma.skillEndorsement.findUnique({
+      where: {
+        endorserId_endorseeId_skill: { endorserId, endorseeId, skill: clean },
+      },
+      select: { id: true },
+    });
+    await prisma.skillEndorsement.upsert({
+      where: {
+        endorserId_endorseeId_skill: { endorserId, endorseeId, skill: clean },
+      },
+      create: { endorserId, endorseeId, skill: clean },
+      update: {},
+    });
+
+    // Notify only on a genuinely new endorsement, never on idempotent repeats.
+    if (!before) {
+      const endorser = await prisma.user.findUnique({
+        where: { id: endorserId },
+        select: { profile: { select: { firstName: true, lastName: true } } },
+      });
+      const name = endorser?.profile
+        ? `${endorser.profile.firstName} ${endorser.profile.lastName}`.trim()
+        : 'A connection';
+      await notificationsService
+        .createNotification(
+          endorseeId,
+          'SYSTEM',
+          'New endorsement',
+          `${name} endorsed you for ${clean}`,
+          { endorserId, skill: clean }
+        )
+        .catch(() => {});
+    }
+
+    return this.skillEndorsementSummary(endorseeId, endorserId);
+  }
+
+  /** Withdraw an endorsement. */
+  async unendorseSkill(endorserId: string, endorseeId: string, skill: string) {
+    const clean = skill?.trim();
+    if (!clean) throw new BadRequestError('Skill is required');
+    await prisma.skillEndorsement.deleteMany({
+      where: { endorserId, endorseeId, skill: clean },
+    });
+    return this.skillEndorsementSummary(endorseeId, endorserId);
   }
 
   private publicCardShape(
