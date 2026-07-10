@@ -1033,7 +1033,8 @@ const GuestRsvpModal = ({
                   onClick={() => {
                     onOpenChange(false);
                     reset();
-                    navigate('/login');
+                    // Return to this event after sign-in instead of the dashboard.
+                    navigate('/login', { state: { from: { pathname: `/e/${eventId}` } } });
                   }}
                 >
                   Sign in
@@ -1102,7 +1103,7 @@ function PublicNav({ eventId }: { eventId?: string }) {
                 </Link>
               </Button>
               <Button size="sm" asChild>
-                <Link to="/login">Get started</Link>
+                <Link to="/login" state={loginState}>Get started</Link>
               </Button>
             </>
           )}
