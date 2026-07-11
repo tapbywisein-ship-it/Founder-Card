@@ -205,7 +205,8 @@ const LoginPage = () => {
 
           <p className="text-center text-sm text-muted-foreground">
             New to TapByWisein?{' '}
-            <Link to="/register" className="text-primary hover:underline">
+            {/* Forward the return path so signup doesn't lose "go back to /e/:id" */}
+            <Link to="/register" state={location.state} className="text-primary hover:underline">
               Create an account
             </Link>
           </p>

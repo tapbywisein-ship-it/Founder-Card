@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { useAppStore } from '@/store/appStore';
 import { supabase } from '@/lib/supabase';
+import { setPostAuthReturnPath } from '@/lib/loginReturnPath';
 import { toast } from 'sonner';
 
 /**
@@ -88,6 +89,11 @@ const RegisterPage = () => {
         },
       });
       if (error) throw new Error(error.message);
+      // Persist the return path: the email-verification link lands on
+      // /auth/callback (possibly days later, in a fresh tab), where router
+      // state is gone — AuthCallback restores this from localStorage.
+      // setPostAuthReturnPath applies the /e/:slug allowlist internally.
+      if (intendedRoute) setPostAuthReturnPath(intendedRoute);
       toast.success('Account created! Check your email to verify, then sign in.');
       navigate('/login', { state: { from: intendedRoute ? { pathname: intendedRoute } : undefined } });
     } catch (err) {
