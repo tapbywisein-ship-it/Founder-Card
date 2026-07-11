@@ -2,7 +2,8 @@ import prisma from '@config/database';
 import { NotFoundError, ForbiddenError, BadRequestError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { parseAttendeeCsv } from '@utils/csvImport';
-import { sendEmail, inviteClaimEmail, eventBlastEmail } from '@utils/email';
+import { sendEmail, inviteClaimEmail } from '@utils/email';
+import { addEmailJob } from '@jobs/email.queue';
 import authService from '@modules/auth/auth.service';
 import logger from '@utils/logger';
 
@@ -498,24 +499,30 @@ export class OrganizerService {
       },
     });
 
-    // Send one email per recipient with {{firstName}} substitution. We send
-    // synchronously and count real successes so the organizer sees the true
-    // delivery result — a Resend failure now surfaces instead of a false "sent".
-    let sent = 0;
-    let failed = 0;
+    // Enqueue one job per recipient with {{firstName}} substitution instead of
+    // awaiting each send in-request. A large blast used to hold the HTTP request
+    // open for minutes (sequential Resend calls × cross-region latency) and time
+    // out at the proxy, leaving the blast half-sent. Now we hand every email to
+    // the queue and return immediately; the worker delivers with retries and
+    // logs per-recipient failures.
+    // ponytail: with Redis, Bull throttles delivery (single-concurrency worker);
+    // without Redis the queue processes inline-async and unthrottled — provision
+    // Redis in production (see BULL_REDIS_URL) so large blasts pace themselves.
     const delivered: string[] = [];
     for (const r of registrations) {
       const firstName = r.user.profile?.firstName ?? '';
       const personalizedBody = body.replace(/\{\{\s*firstName\s*\}\}/g, firstName);
-      try {
-        await sendEmail(r.user.email, subject, eventBlastEmail(firstName, personalizedBody));
-        sent += 1;
-        delivered.push(r.user.email);
-      } catch (err) {
-        failed += 1;
-        logger.warn('Failed to send blast email', { eventId, to: r.user.email, err });
-      }
+      addEmailJob('eventBlast', {
+        to: r.user.email,
+        name: firstName,
+        subject,
+        bodyHtml: personalizedBody,
+      }).catch((err) =>
+        logger.warn('Failed to enqueue blast email', { eventId, to: r.user.email, err })
+      );
+      delivered.push(r.user.email);
     }
+    const sent = delivered.length;
 
     // Persist the blast so organizers get a history in the Blasts tab.
     await prisma.eventBlast
@@ -528,12 +535,12 @@ export class OrganizerService {
           audience,
           sent,
           sentAt: new Date(),
-          status: failed > 0 && sent === 0 ? 'failed' : 'sent',
+          status: sent === 0 ? 'failed' : 'sent',
         },
       })
       .catch((err) => logger.warn('Failed to record event blast', { eventId, err }));
 
-    return { sent, failed, total: registrations.length, recipients: delivered };
+    return { sent, failed: 0, total: registrations.length, recipients: delivered };
   }
 
   /** Past blasts for an event, newest first — powers the Blasts tab history. */
@@ -602,22 +609,23 @@ export class OrganizerService {
       },
     });
 
-    let sent = 0;
-    let failed = 0;
+    // Enqueue rather than await each send in-request — see sendEventBlast above
+    // for the full rationale (request-timeout on large lists, background retry).
     const delivered: string[] = [];
     for (const r of eligible) {
       const firstName = r.user.profile?.firstName ?? '';
       const personalizedBody = body.replace(/\{\{\s*firstName\s*\}\}/g, firstName);
-      try {
-        await sendEmail(r.user.email, subject, eventBlastEmail(firstName, personalizedBody));
-        sent += 1;
-        delivered.push(r.user.email);
-      } catch (err) {
-        failed += 1;
-        logger.warn('Failed to send attendee blast email', { to: r.user.email, err });
-      }
+      addEmailJob('eventBlast', {
+        to: r.user.email,
+        name: firstName,
+        subject,
+        bodyHtml: personalizedBody,
+      }).catch((err) =>
+        logger.warn('Failed to enqueue attendee blast email', { to: r.user.email, err })
+      );
+      delivered.push(r.user.email);
     }
-    return { sent, failed, total: eligible.length, recipients: delivered };
+    return { sent: delivered.length, failed: 0, total: eligible.length, recipients: delivered };
   }
 
   async checkInAttendee(eventId: string, organizerId: string, userId: string) {

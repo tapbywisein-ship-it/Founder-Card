@@ -1,8 +1,30 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { type Store } from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import { StatusCodes } from 'http-status-codes';
 import { env } from '@config/env';
+import { createRedisClient } from '@config/redis';
+import logger from '@utils/logger';
 
 const isDev = env.NODE_ENV !== 'production';
+
+// The default express-rate-limit MemoryStore counts per-process: limits reset
+// on every deploy and, once you run more than one instance, each instance
+// counts independently — so the effective cap multiplies by the instance count
+// and the protection is defeated. Back the counters with Redis when it's
+// available so every instance shares one bucket. Falls back to MemoryStore
+// (store: undefined) on single-instance / no-Redis deploys.
+const rlClient = createRedisClient();
+if (rlClient) logger.info('Rate limiting: using shared Redis store');
+
+const makeStore = (prefix: string): Store | undefined =>
+  rlClient
+    ? new RedisStore({
+        // ioredis .call is the sendCommand shape rate-limit-redis expects.
+        sendCommand: (...args: string[]) =>
+          (rlClient.call as unknown as (...a: string[]) => Promise<never>)(...args),
+        prefix: `rl:${prefix}:`,
+      })
+    : undefined;
 
 /**
  * Default cap is intentionally generous because React Query polls a few
@@ -12,6 +34,7 @@ const isDev = env.NODE_ENV !== 'production';
  * trip each other.
  */
 export const generalLimiter = rateLimit({
+  store: makeStore('general'),
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   max: env.RATE_LIMIT_MAX,
   standardHeaders: true,
@@ -29,6 +52,7 @@ export const generalLimiter = rateLimit({
 });
 
 export const authLimiter = rateLimit({
+  store: makeStore('auth'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   standardHeaders: true,
@@ -50,6 +74,7 @@ export const authLimiter = rateLimit({
  * human at a console and limits damage from a hijacked admin token.
  */
 export const adminLimiter = rateLimit({
+  store: makeStore('admin'),
   windowMs: 60 * 1000,
   max: 60,
   standardHeaders: true,
@@ -65,6 +90,7 @@ export const adminLimiter = rateLimit({
 });
 
 export const strictLimiter = rateLimit({
+  store: makeStore('strict'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,
   standardHeaders: true,
@@ -87,6 +113,7 @@ export const strictLimiter = rateLimit({
  * visitors — while still stopping bulk spam of a card owner's inbox.
  */
 export const publicWriteLimiter = rateLimit({
+  store: makeStore('publicwrite'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 20,
   standardHeaders: true,
@@ -107,6 +134,7 @@ export const publicWriteLimiter = rateLimit({
  * UUID space by hitting GET /messages/:id at rate-of-IP.
  */
 export const messagesLimiter = rateLimit({
+  store: makeStore('messages'),
   windowMs: 60 * 1000, // 1 minute
   max: 120,
   standardHeaders: true,

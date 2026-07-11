@@ -5,7 +5,10 @@ import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
+import { StatusCodes } from 'http-status-codes';
 
+import prisma from '@config/database';
+import logger from '@utils/logger';
 import { env } from '@config/env';
 import { getSwaggerSpec } from '@config/swagger';
 import { requestLogger } from '@middlewares/requestLogger';
@@ -124,6 +127,8 @@ app.get('/api/docs.json', (_req: Request, res: Response) => {
 });
 
 // ─── Health Check ────────────────────────────────────────────────────────────
+// Liveness — is the process up? Fast, no dependencies. Use this for the
+// platform's restart probe so a slow DB never triggers a pointless restart.
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'healthy',
@@ -132,6 +137,19 @@ app.get('/health', (_req: Request, res: Response) => {
     environment: env.NODE_ENV,
     uptime: process.uptime(),
   });
+});
+
+// Readiness — can this instance actually serve traffic? Pings the DB so a load
+// balancer / uptime monitor can stop routing to an instance whose Prisma
+// connection is dead. Returns 503 (not 200) when the DB is unreachable.
+app.get('/health/ready', async (_req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ready', timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.error('Readiness check failed — database unreachable', { err });
+    res.status(StatusCodes.SERVICE_UNAVAILABLE).json({ status: 'not-ready', reason: 'database' });
+  }
 });
 
 // ─── API Routes ──────────────────────────────────────────────────────────────

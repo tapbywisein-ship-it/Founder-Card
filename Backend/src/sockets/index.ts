@@ -1,7 +1,8 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { env } from '@config/env';
-import redis from '@config/redis';
+import redis, { createRedisClient } from '@config/redis';
 import { supabaseAdmin } from '@config/supabase';
 import prisma from '@config/database';
 import { REDIS_KEYS } from '@config/constants';
@@ -28,6 +29,16 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
     pingTimeout: 60000,
     pingInterval: 25000,
   });
+
+  // Without a shared adapter, a message/notification emitted on one instance
+  // never reaches a client connected to another — real-time silently breaks the
+  // moment you scale past one process. Attach the Redis adapter when Redis is
+  // configured; single-instance deploys run fine on the default in-memory adapter.
+  const pubClient = createRedisClient();
+  if (pubClient) {
+    io.adapter(createAdapter(pubClient, pubClient.duplicate()));
+    logger.info('Socket.IO: Redis adapter attached (multi-instance broadcast enabled)');
+  }
 
   // Authentication middleware
   io.use(async (socket: Socket, next) => {
