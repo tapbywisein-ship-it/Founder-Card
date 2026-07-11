@@ -86,17 +86,6 @@ export const welcomeEmail = (name: string): string =>
     <a href="${env.FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
   `);
 
-export const verificationEmail = (name: string, token: string, url: string): string =>
-  baseTemplate(`
-    <h2>Verify Your Email Address</h2>
-    <p>Hi ${escapeHtml(name)}, thanks for signing up! Please verify your email to activate your account.</p>
-    <a href="${url}" class="button">Verify Email Address</a>
-    <div class="divider"></div>
-    <p>Or use this verification code:</p>
-    <div class="code-box"><div class="code">${token}</div></div>
-    <div class="warning">This link will expire in <strong>24 hours</strong>. If you didn't create an account, please ignore this email.</div>
-  `);
-
 export const eventRsvpConfirmationEmail = (
   name: string,
   eventTitle: string,
@@ -133,17 +122,6 @@ export const inviteClaimEmail = (name: string, claimUrl: string, eventTitle: str
     <p>Tap the button below to set your password and view your ticket.</p>
     <a href="${claimUrl}" class="button">Claim your account</a>
     <div class="warning">This invite link expires in <strong>14 days</strong>.</div>
-  `);
-
-export const passwordResetEmail = (name: string, token: string, url: string): string =>
-  baseTemplate(`
-    <h2>Reset Your Password</h2>
-    <p>Hi ${escapeHtml(name)}, we received a request to reset your password.</p>
-    <a href="${url}" class="button">Reset Password</a>
-    <div class="divider"></div>
-    <p>Or use this reset code:</p>
-    <div class="code-box"><div class="code">${token}</div></div>
-    <div class="warning">This link will expire in <strong>15 minutes</strong>. If you didn't request this, your account remains secure.</div>
   `);
 
 export const connectionRequestEmail = (
@@ -219,6 +197,20 @@ export const eventRegistrationConfirmationEmail = (
         : ''
     }
     <a href="${eventUrl}" class="button">View Event Details</a>
+  `);
+
+/** Organizer-facing: fires whenever someone confirms a registration for their event. */
+export const newRegistrationEmail = (
+  organizerName: string,
+  attendeeName: string,
+  eventTitle: string,
+  attendeesUrl: string,
+  ticketTierName?: string | null
+): string =>
+  baseTemplate(`
+    <h2>New registration: ${escapeHtml(eventTitle)}</h2>
+    <p>Hi ${escapeHtml(organizerName)}, <strong>${escapeHtml(attendeeName)}</strong> just registered for <strong>${escapeHtml(eventTitle)}</strong>${ticketTierName ? ` (${escapeHtml(ticketTierName)})` : ''}.</p>
+    <a href="${attendeesUrl}" class="button">View Attendees</a>
   `);
 
 export const newMessageEmail = (
@@ -349,15 +341,14 @@ export default {
   sendEmail,
   sendEmailWithAttachments,
   welcomeEmail,
-  verificationEmail,
   eventRsvpConfirmationEmail,
   eventRecapEmail,
   inviteClaimEmail,
-  passwordResetEmail,
   connectionRequestEmail,
   founderCardApprovedEmail,
   eventReminderEmail,
   eventRegistrationConfirmationEmail,
+  newRegistrationEmail,
   newMessageEmail,
   waitlistPromotedEmail,
   eventBlastEmail,

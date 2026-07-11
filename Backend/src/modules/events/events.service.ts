@@ -656,9 +656,15 @@ export class EventsService {
     const reg = await prisma.eventRegistration.findUnique({
       where: { id: registrationId },
       include: {
-        event: true,
+        event: {
+          include: {
+            organizer: {
+              select: { id: true, email: true, profile: { select: { firstName: true } } },
+            },
+          },
+        },
         user: {
-          include: { profile: { select: { firstName: true } } },
+          include: { profile: { select: { firstName: true, lastName: true } } },
         },
       },
     });
@@ -698,6 +704,32 @@ export class EventsService {
       ticketTierName: reg.ticketTierName ?? undefined,
       ticketBenefits: matchedTier?.benefits ?? undefined,
     });
+
+    // Notify the organizer too — every confirmed-registration path (free,
+    // paid, organizer-approved) routes through this one function, so this is
+    // the single place to hook it. Best-effort and separate from the
+    // attendee send above: a failure here must never affect their ticket
+    // email. Skipped when the organizer registered for their own event.
+    if (reg.event.organizer.id !== reg.userId) {
+      const organizerName = reg.event.organizer.profile?.firstName ?? 'there';
+      const attendeeName = reg.user.profile
+        ? `${reg.user.profile.firstName} ${reg.user.profile.lastName}`.trim()
+        : reg.user.email;
+      const attendeesUrl = `${env.FRONTEND_URL}/organizer/events/${reg.event.id}`;
+      addEmailJob('newRegistration', {
+        to: reg.event.organizer.email,
+        name: organizerName,
+        eventTitle: reg.event.title,
+        attendeeName,
+        attendeesUrl,
+        ticketTierName: reg.ticketTierName ?? undefined,
+      }).catch((err) =>
+        logger.warn('Failed to send organizer new-registration notification', {
+          err,
+          registrationId: reg.id,
+        })
+      );
+    }
   }
 
   /**
