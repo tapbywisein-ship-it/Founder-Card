@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { BadgeCheck, ArrowRight, ArrowDown, Calendar, Users, ScanLine } from 'lucide-react';
 import { LandingNav } from '@/components/LandingNav';
 import { FeatureBento } from '@/components/FeatureBento';
+import { TapCardSection } from '@/components/TapCardSection';
 import { ParticleWordmark } from '@/components/ParticleWordmark';
 import { RequestDemoModal } from '@/components/RequestDemoModal';
 import { ExitIntentPopup } from '@/components/ExitIntentPopup';
@@ -239,6 +240,11 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {/* ── NFC Tap Card story ──────────────────────────────────────────────
+          "Your network, one tap away" — problem, product, how it works,
+          benefits, use cases, an honest trust note, pricing, and FAQ. ──── */}
+      <TapCardSection />
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer style={{ background: '#0A0E2E', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
