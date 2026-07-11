@@ -3,25 +3,27 @@ import {
   sendEmail,
   sendEmailWithAttachments,
   welcomeEmail,
-  verificationEmail,
-  passwordResetEmail,
   connectionRequestEmail,
   founderCardApprovedEmail,
   eventReminderEmail,
   eventRegistrationConfirmationEmail,
+  newRegistrationEmail,
   newMessageEmail,
   waitlistPromotedEmail,
   eventBlastEmail,
 } from '@utils/email';
 
+// Note: email/password verification and password-reset emails are NOT sent
+// from here — Supabase Auth sends its own (signUp / resetPasswordForEmail on
+// the frontend), so there is nothing to trigger on this side. If we ever move
+// off Supabase's built-in auth emails, add the templates + cases back here.
 export type EmailJobType =
   | 'welcome'
-  | 'verification'
-  | 'passwordReset'
   | 'connectionRequest'
   | 'founderCardApproved'
   | 'eventReminder'
   | 'eventRegistrationConfirmation'
+  | 'newRegistration'
   | 'newMessage'
   | 'waitlistPromoted'
   | 'eventBlast';
@@ -30,8 +32,6 @@ export interface EmailJobData {
   type: EmailJobType;
   to: string;
   name: string;
-  token?: string;
-  url?: string;
   requesterName?: string;
   requesterCompany?: string;
   eventTitle?: string;
@@ -47,6 +47,8 @@ export interface EmailJobData {
   bodyHtml?: string;
   ticketTierName?: string;
   ticketBenefits?: string[];
+  attendeeName?: string;
+  attendeesUrl?: string;
 }
 
 const REDIS_URL = process.env.BULL_REDIS_URL ?? process.env.REDIS_URL;
@@ -121,16 +123,6 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
       html = welcomeEmail(data.name);
       subject = 'Welcome to TapByWisein!';
       break;
-    case 'verification':
-      if (!data.token || !data.url) throw new Error('Token and URL required');
-      html = verificationEmail(data.name, data.token, data.url);
-      subject = 'Verify Your Email - TapByWisein';
-      break;
-    case 'passwordReset':
-      if (!data.token || !data.url) throw new Error('Token and URL required');
-      html = passwordResetEmail(data.name, data.token, data.url);
-      subject = 'Password Reset Request - TapByWisein';
-      break;
     case 'connectionRequest':
       html = connectionRequestEmail(
         data.name,
@@ -185,6 +177,19 @@ async function processEmailJob(data: EmailJobData): Promise<void> {
       }
       break;
     }
+    case 'newRegistration':
+      if (!data.eventTitle || !data.attendeeName || !data.attendeesUrl) {
+        throw new Error('Event, attendee and attendees-url details required');
+      }
+      html = newRegistrationEmail(
+        data.name,
+        data.attendeeName,
+        data.eventTitle,
+        data.attendeesUrl,
+        data.ticketTierName
+      );
+      subject = `New registration: ${data.eventTitle}`;
+      break;
     case 'newMessage':
       html = newMessageEmail(
         data.name,
