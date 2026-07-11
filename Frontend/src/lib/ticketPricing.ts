@@ -7,6 +7,7 @@ export type TicketTierDisplay = {
   seats: number;
   price: number;
   priceLabel: string;
+  benefits: string[];
 };
 
 export function getEnabledTicketTiers(event: Pick<Event, 'ticketTypes'>) {
@@ -27,6 +28,7 @@ export function getRegistrationPricing(event: Pick<Event, 'ticketPrice' | 'ticke
         seats: t.count,
         price: priceNum,
         priceLabel: formatINR(priceNum),
+        benefits: t.benefits ?? [],
       };
     });
 
