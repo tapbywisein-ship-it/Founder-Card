@@ -96,7 +96,7 @@ const LandingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.1 }}
               className="max-w-md text-lg font-light"
-              style={{ color: TEXT_DIM, lineHeight: 1.65 }}
+              style={{ color: 'rgba(255,255,255,0.85)', lineHeight: 1.65 }}
             >
               TapByWisein helps founders, professionals, and event attendees instantly exchange
               details, build meaningful connections, and grow their network with NFC-powered smart
@@ -107,20 +107,30 @@ const LandingPage = () => {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.15 }}
-              className="flex items-center gap-2 sm:gap-3 pt-2"
+              className="flex items-start gap-2 sm:gap-3 pt-2"
             >
-              <button className={`${btnPrimary} flex-1 sm:flex-none`} style={{ background: ACCENT_GRADIENT }} onClick={goCreate}>
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"
-                />
-                <span className="relative whitespace-nowrap">Create Event</span>
-                <ArrowRight className="relative w-4 h-4 shrink-0" />
-              </button>
-              <Link to="/discover" className={`${btnGhostDark} flex-1 sm:flex-none`}>
-                <span className="whitespace-nowrap">Explore events</span>
-                <ArrowDown className="w-4 h-4 shrink-0" />
-              </Link>
+              <div className="flex flex-1 sm:flex-none flex-col items-start gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: TEXT_DIM }}>
+                  Organizing an event?
+                </span>
+                <button className={`${btnPrimary} w-full`} style={{ background: ACCENT_GRADIENT }} onClick={goCreate}>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+                  />
+                  <span className="relative whitespace-nowrap">Create Event</span>
+                  <ArrowRight className="relative w-4 h-4 shrink-0" />
+                </button>
+              </div>
+              <div className="flex flex-1 sm:flex-none flex-col items-start gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: TEXT_DIM }}>
+                  Just attending?
+                </span>
+                <Link to="/discover" className={`${btnGhostDark} w-full`}>
+                  <span className="whitespace-nowrap">Explore events</span>
+                  <ArrowDown className="w-4 h-4 shrink-0" />
+                </Link>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -150,7 +160,7 @@ const LandingPage = () => {
                   key={s.t}
                   initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-60px' }}
+                  viewport={{ once: true, margin: '200px' }}
                   transition={{ duration: 0.45, delay: i * 0.08 }}
                   className="rounded-3xl p-8 md:p-10 transition-transform duration-300 hover:-translate-y-1"
                   style={

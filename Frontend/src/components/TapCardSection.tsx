@@ -27,7 +27,7 @@ const btnSolidLight =
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-60px' },
+  viewport: { once: true, margin: '200px' },
   transition: { duration: 0.45, delay },
 });
 
@@ -380,7 +380,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── FAQ ─────────────────────────────────────────────────────────── */}
-      <section className="bg-white">
+      <section id="faq" className="bg-white scroll-mt-20">
         <div className="max-w-2xl mx-auto px-6 py-24">
           <h3 className="text-center font-extrabold tracking-tight text-[#0A0A0A] mb-10" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
             Frequently asked
