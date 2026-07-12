@@ -1,7 +1,7 @@
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { ThemeToggle, NavbarThemeToggle } from '@/components/ThemeToggle';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { useAppStore } from '@/store/appStore';
 import { useUnreadCount } from '@/hooks/useNotifications';
@@ -140,6 +140,8 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background flex">
+      {/* Desktop only — the mobile top bar below renders its own ThemeToggle */}
+      <NavbarThemeToggle />
       {/* Skip to main content — keyboard/screen-reader bypass (WCAG 2.4.1) */}
       <a
         href="#main-content"
@@ -220,7 +222,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           )}
         </nav>
         <div className="flex flex-col gap-1 pt-3 border-t border-border">
-          <div className="px-1"><ThemeToggle /></div>
           <button
             type="button"
             onClick={handleLogout}
