@@ -1,10 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { NavbarThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
-  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode, Boxes, Scan, Compass, Network,
+  LayoutDashboard, Calendar, Users, Download, LogOut, Ticket, Wallet, UserCircle, Plus, QrCode, Boxes, Scan, Compass, Network, Menu, X,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,12 +22,15 @@ const navItems = [
   { label: 'Profile',      icon: UserCircle,       path: '/profile' },
 ];
 
+/* Four primary tabs; everything else (Communities, Leads, Payouts,
+   Connections, Browse Events, My Tickets, Tap Card, Profile…) lives in the
+   "More" sheet, which renders the same navItems list as the desktop sidebar —
+   so a new nav item can never silently go missing on mobile again. */
 const mobileNav = [
   { label: 'Home',      icon: LayoutDashboard, path: '/organizer/dashboard' },
   { label: 'Attendees', icon: Users,            path: '/organizer/attendees' },
-  { label: 'Connect',   icon: Scan,             path: '/connect' },
   { label: 'New',       icon: Plus,             path: '/organizer/events/create' },
-  { label: 'Profile',   icon: UserCircle,       path: '/profile' },
+  { label: 'Connect',   icon: Scan,             path: '/connect' },
 ];
 
 export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
@@ -35,6 +38,7 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const logout = useAppStore((s) => s.logout);
   const handleLogout = () => { logout(); navigate('/login'); };
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -95,7 +99,70 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          aria-label="More navigation"
+          className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl text-muted-foreground transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+          <span className="text-[10px] font-medium">More</span>
+        </button>
       </nav>
+
+      {/* Mobile "More" sheet — full nav (same items as the desktop sidebar) */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setMoreOpen(false)}>
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" aria-hidden />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-border bg-card shadow-card p-4"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold">Menu</p>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close menu"
+                className="inline-flex w-8 h-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {navItems.map((item) => {
+                const active = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMoreOpen(false)}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl border py-3 px-2 text-center transition-colors ${
+                      active
+                        ? 'border-primary/40 bg-accent text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="text-[11px] font-medium leading-tight">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <LogOut className="w-4 h-4" /> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
