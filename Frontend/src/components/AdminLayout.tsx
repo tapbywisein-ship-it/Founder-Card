@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { NavbarThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
   LayoutDashboard, Users, Calendar, BarChart3, Settings, LogOut, Shield, Sparkles, UserCircle, IndianRupee, ScrollText,
@@ -42,6 +42,7 @@ export const AdminLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background flex">
+      <NavbarThemeToggle />
       <aside className="group hidden md:flex flex-col w-16 hover:w-60 transition-[width] duration-200 ease-out overflow-hidden border-r border-border px-2 py-4 fixed h-full z-40 bg-background">
         <div className="mb-1 px-1"><Logo /></div>
         <p className="flex items-center gap-1 text-xs text-muted-foreground mb-6 px-3 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
@@ -68,7 +69,6 @@ export const AdminLayout = ({ children }: { children: ReactNode }) => {
           })}
         </nav>
         <div className="flex flex-col gap-1 pt-3 border-t border-border">
-          <div className="px-1"><ThemeToggle /></div>
           <button
             onClick={handleLogout}
             title="Sign out"

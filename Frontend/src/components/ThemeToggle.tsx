@@ -2,6 +2,22 @@ import { useTheme } from 'next-themes';
 import { Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+/**
+ * Navbar variant: pinned to the viewport's top-right like a header control.
+ * The app layouts have no top bar on desktop — this gives the toggle a
+ * consistent, always-visible navbar position instead of being tucked at the
+ * bottom of the collapsed sidebar. Desktop-only: on mobile it would overlap
+ * page-header actions, and the attendee mobile top bar has its own toggle
+ * (organizer/admin mobile never had one — unchanged).
+ */
+export const NavbarThemeToggle = ({ className = '' }: { className?: string }) => (
+  <div
+    className={`hidden md:block fixed top-3 right-3 z-40 rounded-full border border-border bg-background/80 backdrop-blur-md shadow-sm ${className}`}
+  >
+    <ThemeToggle />
+  </div>
+);
+
 export const ThemeToggle = () => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
