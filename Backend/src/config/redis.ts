@@ -151,6 +151,31 @@ if (REDIS_URL && REDIS_URL !== 'redis://localhost:6379') {
 
 export { redis, subscriber, usingMemoryFallback };
 
+/**
+ * True when a real (non-localhost) Redis URL is configured. Infra integrations
+ * that need a genuine Redis connection — the distributed rate-limit store and
+ * the Socket.IO adapter — gate on this so single-instance deploys with no Redis
+ * fall back cleanly instead of erroring.
+ */
+export const isRealRedis = !!REDIS_URL && REDIS_URL !== 'redis://localhost:6379';
+
+/**
+ * Fresh ioredis client for libraries that require their own dedicated
+ * connection (rate-limit-redis, @socket.io/redis-adapter). Returns null when no
+ * real Redis is configured. `maxRetriesPerRequest: null` is what those libs
+ * expect for blocking/streaming commands.
+ */
+export function createRedisClient(): import('ioredis').Redis | null {
+  if (!isRealRedis) return null;
+  try {
+    const IORedis = require('ioredis');
+    return new IORedis(REDIS_URL, { maxRetriesPerRequest: null, lazyConnect: false });
+  } catch {
+    logger.warn('Redis: failed to create dedicated client — feature will fall back');
+    return null;
+  }
+}
+
 export async function disconnectRedis(): Promise<void> {
   try {
     await redis.quit();
