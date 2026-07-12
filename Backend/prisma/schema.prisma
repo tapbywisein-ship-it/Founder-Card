@@ -174,7 +174,6 @@ model User {
   organizedLeads      Lead[]              @relation("OrganizerLead")
   auditLogs           AuditLog[]
   refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
   eventMessages       EventMessage[]
   reportsFiled        Report[]            @relation("ReportsFiled")
   reportsReviewed     Report[]            @relation("ReportsReviewed")
@@ -282,21 +281,6 @@ model RefreshToken {
 // restarts (the prod Redis URL falls back to in-memory; tokens stored only
 // there would be wiped on every deploy). We store a SHA-256 HASH of the
 // emailed token, not the token itself — a DB leak doesn't expose live links.
-model PasswordResetToken {
-  id        String    @id @default(uuid())
-  userId    String
-  tokenHash String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("password_reset_tokens")
-}
-
 model FounderCard {
   id         String     @id @default(uuid())
   userId     String     @unique

@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { PrismaClient } from '@prisma/client';
 
 // Mock environment variables for testing

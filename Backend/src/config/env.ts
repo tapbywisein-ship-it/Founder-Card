@@ -8,16 +8,12 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test', 'staging']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   API_VERSION: z.string().default('v1'),
-  API_PREFIX: z.string().default('/api'),
 
   // Database
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL'),
 
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),
-  REDIS_HOST: z.string().default('localhost'),
-  REDIS_PORT: z.coerce.number().int().positive().default(6379),
-  REDIS_PASSWORD: z.string().optional(),
 
   // Bcrypt (still used for claim-account password hashing)
   BCRYPT_ROUNDS: z.coerce.number().int().min(8).max(20).default(12),
