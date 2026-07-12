@@ -2,7 +2,7 @@ import prisma from '@config/database';
 import { NotFoundError, ForbiddenError, BadRequestError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { parseAttendeeCsv } from '@utils/csvImport';
-import { sendEmail, inviteClaimEmail } from '@utils/email';
+import { sendEmail, inviteClaimEmail, plainTextToEmailHtml } from '@utils/email';
 import { addEmailJob } from '@jobs/email.queue';
 import authService from '@modules/auth/auth.service';
 import logger from '@utils/logger';
@@ -511,7 +511,12 @@ export class OrganizerService {
     const delivered: string[] = [];
     for (const r of registrations) {
       const firstName = r.user.profile?.firstName ?? '';
-      const personalizedBody = body.replace(/\{\{\s*firstName\s*\}\}/g, firstName);
+      // Escape AFTER substitution: the typed body and the profile name are both
+      // untrusted. The composer is a plain <textarea>, so treating the body as
+      // text (not HTML) loses nothing and closes the phishing-HTML vector.
+      const personalizedBody = plainTextToEmailHtml(
+        body.replace(/\{\{\s*firstName\s*\}\}/g, firstName)
+      );
       addEmailJob('eventBlast', {
         to: r.user.email,
         name: firstName,
@@ -614,7 +619,10 @@ export class OrganizerService {
     const delivered: string[] = [];
     for (const r of eligible) {
       const firstName = r.user.profile?.firstName ?? '';
-      const personalizedBody = body.replace(/\{\{\s*firstName\s*\}\}/g, firstName);
+      // Same trust boundary as sendEventBlast: typed text in, safe HTML out.
+      const personalizedBody = plainTextToEmailHtml(
+        body.replace(/\{\{\s*firstName\s*\}\}/g, firstName)
+      );
       addEmailJob('eventBlast', {
         to: r.user.email,
         name: firstName,

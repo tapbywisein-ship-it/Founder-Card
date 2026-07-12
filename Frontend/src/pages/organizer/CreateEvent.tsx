@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { OrganizerLayout } from '@/components/OrganizerLayout';
 import { PortalLayout } from '@/components/PortalLayout';
 import { SignInModal } from '@/components/SignInModal';
@@ -12,7 +12,7 @@ import { useCreateEvent, useRequestOrganizer } from '@/hooks/useOrganizer';
 import { useMyCommunities } from '@/hooks/useCommunities';
 import { useAppStore } from '@/store/appStore';
 import { EVENT_THEMES, THEME_IDS } from '@/lib/eventThemes';
-import { getCountryOptions, getStateOptions, getCityOptions, getCountryName, getStateName } from '@/lib/geo';
+import { getCountryOptions, getStateOptions, getCityOptions, type GeoOption } from '@/lib/geo';
 import { apiUpload } from '@/services/api';
 import { toast } from 'sonner';
 import {
@@ -218,15 +218,31 @@ const CreateEventPage = () => {
     setForm((f) => ({ ...f, [k]: v }));
 
   // ── Location cascade: country → state → city ────────────────────────────────
-  const countryOptions = useMemo(() => getCountryOptions(), []);
-  const stateOptions = useMemo(
-    () => (form.country ? getStateOptions(form.country) : []),
-    [form.country]
-  );
-  const cityOptions = useMemo(
-    () => (form.country && form.state ? getCityOptions(form.country, form.state) : []),
-    [form.country, form.state]
-  );
+  // The geo dataset (7.7 MB of cities) loads as a separate async chunk on first
+  // use, so these resolve asynchronously rather than synchronously in render.
+  const [countryOptions, setCountryOptions] = useState<GeoOption[]>([]);
+  const [stateOptions, setStateOptions] = useState<GeoOption[]>([]);
+  const [cityOptions, setCityOptions] = useState<GeoOption[]>([]);
+
+  useEffect(() => {
+    getCountryOptions().then(setCountryOptions);
+  }, []);
+  useEffect(() => {
+    if (!form.country) return setStateOptions([]);
+    let active = true;
+    getStateOptions(form.country).then((o) => active && setStateOptions(o));
+    return () => {
+      active = false;
+    };
+  }, [form.country]);
+  useEffect(() => {
+    if (!form.country || !form.state) return setCityOptions([]);
+    let active = true;
+    getCityOptions(form.country, form.state).then((o) => active && setCityOptions(o));
+    return () => {
+      active = false;
+    };
+  }, [form.country, form.state]);
 
   // ─── Role guards ───────────────────────────────────────────────────────────
   // Kept below all hooks so hook order stays stable across renders (Rules of Hooks).
@@ -472,8 +488,8 @@ const CreateEventPage = () => {
       location: {
         address: form.address,
         city: form.city,
-        state: getStateName(form.country, form.state),
-        country: getCountryName(form.country),
+        state: stateOptions.find((s) => s.code === form.state)?.name ?? form.state,
+        country: countryOptions.find((c) => c.code === form.country)?.name ?? form.country,
         pincode: form.pincode.trim(),
         meetingUrl,
       },

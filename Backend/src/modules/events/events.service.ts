@@ -5,7 +5,7 @@ import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '@
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { SCORE_VALUES } from '@config/constants';
 import { CreateEventDto, UpdateEventDto, SearchEventsDto, RsvpGuestDto } from './events.validation';
-import { sendEmail, eventRsvpConfirmationEmail } from '@utils/email';
+import { sendEmail, eventRsvpConfirmationEmail, escapeHtml } from '@utils/email';
 import { env } from '@config/env';
 import logger from '@utils/logger';
 import gamificationService from '@modules/gamification/gamification.service';
@@ -1557,7 +1557,8 @@ export class EventsService {
           to: reg.user.email,
           name: reg.user.profile?.firstName ?? 'there',
           subject: `Cancelled: ${event.title}`,
-          bodyHtml: `<p>We're sorry — <strong>${event.title}</strong> has been cancelled by the organizer.</p>${reg.paymentStatus === 'PAID' ? '<p>Your ticket will be refunded to your original payment method.</p>' : ''}<p><a href="${eventUrl}">View event</a></p>`,
+          // Event titles are user-supplied — escape them before HTML interpolation.
+          bodyHtml: `<p>We're sorry — <strong>${escapeHtml(event.title)}</strong> has been cancelled by the organizer.</p>${reg.paymentStatus === 'PAID' ? '<p>Your ticket will be refunded to your original payment method.</p>' : ''}<p><a href="${eventUrl}">View event</a></p>`,
         }).catch(() => {});
       }
       if (reg.paymentStatus === 'PAID') {
