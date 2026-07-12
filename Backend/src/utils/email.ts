@@ -10,7 +10,7 @@ const FROM = `TapByWisein <${env.EMAIL_FROM}>`;
  * Escape HTML special chars so user-controlled values can't inject markup
  * into email templates rendered by mail clients.
  */
-const escapeHtml = (s: string | null | undefined): string => {
+export const escapeHtml = (s: string | null | undefined): string => {
   if (s == null) return '';
   return String(s).replace(/[&<>"']/g, (c) => {
     switch (c) {
@@ -29,6 +29,15 @@ const escapeHtml = (s: string | null | undefined): string => {
     }
   });
 };
+
+/**
+ * Convert untrusted plain text (e.g. the organizer blast composer, a plain
+ * <textarea>) into safe email HTML: escape everything, then turn newlines
+ * into <br>. This is the only sanctioned way user-typed text may enter an
+ * email body — never interpolate it as raw HTML.
+ */
+export const plainTextToEmailHtml = (text: string): string =>
+  `<p>${escapeHtml(text).replace(/\r?\n/g, '<br>')}</p>`;
 
 const baseTemplate = (content: string): string => `
 <!DOCTYPE html>
