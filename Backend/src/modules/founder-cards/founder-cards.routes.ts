@@ -64,6 +64,17 @@ router.post(
   publicWriteLimiter,
   founderCardsController.captureLead.bind(founderCardsController)
 );
+// Skill endorsements — accepted connections vouch for a listed skill.
+router.post(
+  '/public/user/:userId/endorse',
+  authenticate,
+  founderCardsController.endorseSkill.bind(founderCardsController)
+);
+router.delete(
+  '/public/user/:userId/endorse',
+  authenticate,
+  founderCardsController.unendorseSkill.bind(founderCardsController)
+);
 router.post(
   '/me/blocks',
   authenticate,

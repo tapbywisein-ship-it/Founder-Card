@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -18,6 +18,7 @@ import {
   ContactRound,
   Lock,
   Star,
+  ThumbsUp,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
@@ -137,6 +138,17 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
   });
   const isConnected = connectionQuery.data?.status === 'ACCEPTED';
   const isPending = connectionQuery.data?.status === 'PENDING';
+
+  // Endorse / withdraw an endorsement on a skill chip. Connections only —
+  // the server enforces the same gate; refetch the card so counts update.
+  const qc = useQueryClient();
+  const endorseMutation = useMutation({
+    mutationFn: ({ skill, endorse }: { skill: string; endorse: boolean }) =>
+      founderCardService.endorseSkill(data!.userId, skill, endorse),
+    onSuccess: () => qc.invalidateQueries({ queryKey }),
+    onError: (err: Error) => toast.error(err.message),
+  });
+  const canEndorse = isAuthenticated && isConnected && data?.userId !== currentUser?.id;
 
   const handleConnect = () => {
     if (!isAuthenticated) {
@@ -514,12 +526,44 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                     I can help with
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {profile.skills.map((s) => (
-                      <span key={s} className="chip">
-                        {s}
-                      </span>
-                    ))}
+                    {profile.skills.map((s) => {
+                      const count = data.skillEndorsements?.[s] ?? 0;
+                      const mine = data.viewerEndorsed?.includes(s) ?? false;
+                      const label = (
+                        <>
+                          {s}
+                          {count > 0 && <span className="font-semibold">· {count}</span>}
+                        </>
+                      );
+                      // Connections can tap a chip to endorse (tap again to withdraw).
+                      return canEndorse ? (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => endorseMutation.mutate({ skill: s, endorse: !mine })}
+                          disabled={endorseMutation.isPending}
+                          title={mine ? `You endorsed ${s} — tap to withdraw` : `Endorse ${s}`}
+                          className={`chip inline-flex items-center gap-1 transition-all ${
+                            mine
+                              ? 'ring-1 ring-primary text-primary'
+                              : 'hover:ring-1 hover:ring-primary/40'
+                          }`}
+                        >
+                          {label}
+                          <ThumbsUp className={`h-3 w-3 ${mine ? 'fill-current' : 'opacity-50'}`} />
+                        </button>
+                      ) : (
+                        <span key={s} className="chip inline-flex items-center gap-1">
+                          {label}
+                        </span>
+                      );
+                    })}
                   </div>
+                  {canEndorse && (
+                    <p className="mt-2 text-[10px] text-muted-foreground/70">
+                      Tap a skill to endorse it.
+                    </p>
+                  )}
                 </Surface>
               )}
               {profile.lookingFor.length > 0 && (

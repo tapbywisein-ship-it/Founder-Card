@@ -48,6 +48,10 @@ export interface PublicCard {
   blocks?: CardBlock[];
   /** True for the owner and accepted connections — unlocks email/phone. */
   contactUnlocked?: boolean;
+  /** Per-skill endorsement counts, e.g. { Design: 3 }. */
+  skillEndorsements?: Record<string, number>;
+  /** Skills the signed-in viewer has endorsed on this card. */
+  viewerEndorsed?: string[];
   /** Host trust signals — present only when the user has hosted events. */
   organizerStats?: {
     eventsHosted: number;
@@ -179,6 +183,14 @@ export const founderCardService = {
   async getPublicCardByUserId(userId: string) {
     return apiFetch<{ data: PublicCard }>(
       `/founder-cards/public/user/${encodeURIComponent(userId)}`
+    );
+  },
+
+  /** Endorse / withdraw an endorsement for one of a connection's listed skills. */
+  async endorseSkill(userId: string, skill: string, endorse: boolean) {
+    return apiFetch<{ data: { counts: Record<string, number>; viewerEndorsed: string[] } }>(
+      `/founder-cards/public/user/${encodeURIComponent(userId)}/endorse`,
+      { method: endorse ? 'POST' : 'DELETE', body: JSON.stringify({ skill }) }
     );
   },
 };

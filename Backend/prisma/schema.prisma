@@ -208,6 +208,8 @@ model User {
   introRequestsAbout  IntroRequest[]      @relation("IntroTarget")
   introRequestsVia    IntroRequest[]      @relation("IntroVia")
   eventFeedback       EventFeedback[]
+  endorsementsGiven   SkillEndorsement[] @relation("EndorsementsGiven")
+  endorsementsReceived SkillEndorsement[] @relation("EndorsementsReceived")
 
   @@index([email])
   @@index([supabaseId])
@@ -500,6 +502,24 @@ enum CommunityMemberRole {
 
 // Post-event feedback: one row per (event, attendee). rating 1–5 stars;
 // nps 0–10 (optional) powers the organizer's NPS; comment free-text.
+// A connection vouching for one of a user's skills ("12 people endorse
+// Fundraising"). Only accepted connections may endorse; unique per
+// (endorser, endorsee, skill) so re-endorsing is idempotent.
+model SkillEndorsement {
+  id         String   @id @default(uuid())
+  endorserId String
+  endorseeId String
+  skill      String
+  createdAt  DateTime @default(now())
+
+  endorser User @relation("EndorsementsGiven", fields: [endorserId], references: [id], onDelete: Cascade)
+  endorsee User @relation("EndorsementsReceived", fields: [endorseeId], references: [id], onDelete: Cascade)
+
+  @@unique([endorserId, endorseeId, skill])
+  @@index([endorseeId])
+  @@map("skill_endorsements")
+}
+
 model EventFeedback {
   id        String   @id @default(uuid())
   eventId   String

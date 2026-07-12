@@ -142,6 +142,24 @@ export class FounderCardsController {
     res.send(vcf);
   }
 
+  /** Endorse one of a connection's listed skills. */
+  async endorseSkill(req: Request, res: Response): Promise<void> {
+    const endorserId = req.user!.userId;
+    const { userId } = req.params as Record<string, string>;
+    const { skill } = req.body as { skill: string };
+    const summary = await founderCardsService.endorseSkill(endorserId, userId, skill);
+    sendSuccess(res, summary, 'Skill endorsed');
+  }
+
+  /** Withdraw an endorsement. */
+  async unendorseSkill(req: Request, res: Response): Promise<void> {
+    const endorserId = req.user!.userId;
+    const { userId } = req.params as Record<string, string>;
+    const { skill } = req.body as { skill: string };
+    const summary = await founderCardsService.unendorseSkill(endorserId, userId, skill);
+    sendSuccess(res, summary, 'Endorsement removed');
+  }
+
   async getPublicCardByUserId(req: Request, res: Response): Promise<void> {
     const { userId } = req.params as Record<string, string>;
     const card = await founderCardsService.getPublicCardByUserId(userId, req.user?.userId);
