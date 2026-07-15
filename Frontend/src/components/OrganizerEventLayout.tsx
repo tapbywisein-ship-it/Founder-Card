@@ -31,7 +31,6 @@ const TABS = [
   { label: 'Overview',     to: '',         end: true  },
   { label: 'Guests',       to: 'guests',   end: false },
   { label: 'Visitors',     to: 'visitors', end: false },
-  { label: 'Registration', to: 'manage',   end: false },
   { label: 'Blasts',       to: 'blasts',   end: false },
   { label: 'Coupons',      to: 'coupons',  end: false },
   { label: 'Insights',     to: 'analytics',end: false },
