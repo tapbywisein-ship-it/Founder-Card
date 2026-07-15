@@ -102,8 +102,18 @@ if (hasRedis) {
       logger.error('Email job failed', { jobId: job.id, type: job.data.type, error: err.message });
     });
 
+    // Redis-level errors (auth, TLS, connection drop) surface here, NOT via the
+    // try/catch above — Bull connects lazily. Without this, a queue that can add
+    // jobs but never process them (dead consumer) fails completely silently.
+    queue.on('error', (err: Error) => {
+      logger.error('Email queue Redis error — jobs may not be processed', { error: err.message });
+    });
+    queue.on('completed', (job: import('bull').Job<EmailJobData>) => {
+      logger.info('Email job processed', { jobId: job.id, type: job.data.type });
+    });
+
     emailQueueInstance = queue;
-    logger.info('Email queue initialized with Redis');
+    logger.info('Email queue initialized with Redis (Bull consumer active)');
   } catch (err) {
     logger.warn('Email queue: failed to init Bull, using inline processing', { error: err });
   }

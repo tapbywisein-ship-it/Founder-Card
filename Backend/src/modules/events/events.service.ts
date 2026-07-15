@@ -545,8 +545,9 @@ export class EventsService {
 
     // Fire registration confirmation email with QR ticket attachment.
     this.sendRegistrationConfirmation(registration.id).catch((err) =>
-      logger.warn('Failed to send registration confirmation', {
-        err,
+      logger.error('Failed to send registration confirmation', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
         registrationId: registration.id,
       })
     );
@@ -607,8 +608,9 @@ export class EventsService {
     }
 
     this.sendRegistrationConfirmation(registration.id).catch((err) =>
-      logger.warn('Failed to send paid registration confirmation', {
-        err,
+      logger.error('Failed to send paid registration confirmation', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
         registrationId: registration.id,
       })
     );
@@ -647,7 +649,11 @@ export class EventsService {
       .catch(() => {});
 
     this.sendRegistrationConfirmation(reg.id).catch((err) =>
-      logger.warn('Failed to send approval confirmation', { err, registrationId: reg.id })
+      logger.error('Failed to send approval confirmation', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        registrationId: reg.id,
+      })
     );
   }
 
@@ -692,6 +698,14 @@ export class EventsService {
       : [];
     const matchedTier = reg.ticketTierId ? tiers.find((t) => t.id === reg.ticketTierId) : undefined;
 
+    // Breadcrumb so this path is traceable in prod logs: if you see this line
+    // but no matching "Email sent" / "Failed to send" afterwards, the job was
+    // enqueued but never processed (a dead queue consumer), not a Resend error.
+    logger.info('Queuing registration confirmation', {
+      registrationId: reg.id,
+      to: reg.user.email,
+      eventId: reg.event.id,
+    });
     const { addEmailJob } = await import('@jobs/email.queue');
     await addEmailJob('eventRegistrationConfirmation', {
       to: reg.user.email,
