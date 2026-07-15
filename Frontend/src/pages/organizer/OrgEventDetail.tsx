@@ -290,7 +290,7 @@ const OrgEventDetail = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Attendees</h2>
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`/organizer/events/${id}/manage`}>View All</Link>
+              <Link to={`/organizer/events/${id}/guests`}>View All</Link>
             </Button>
           </div>
 
@@ -341,7 +341,7 @@ const OrgEventDetail = () => {
               {guests.length > 8 && (
                 <p className="text-xs text-muted-foreground text-center pt-2">
                   +{guests.length - 8} more ·{' '}
-                  <Link to={`/organizer/events/${id}/manage`} className="text-primary hover:underline">View all</Link>
+                  <Link to={`/organizer/events/${id}/guests`} className="text-primary hover:underline">View all</Link>
                 </p>
               )}
             </div>

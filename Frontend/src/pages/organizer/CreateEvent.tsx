@@ -7,8 +7,9 @@ import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { useCreateEvent, useRequestOrganizer } from '@/hooks/useOrganizer';
+import { useNavigate, Navigate, useParams } from 'react-router-dom';
+import { useCreateEvent, useUpdateEvent, useRequestOrganizer } from '@/hooks/useOrganizer';
+import { useEvent } from '@/hooks/useEvents';
 import { useMyCommunities } from '@/hooks/useCommunities';
 import { useAppStore } from '@/store/appStore';
 import { EVENT_THEMES, THEME_IDS } from '@/lib/eventThemes';
@@ -130,10 +131,17 @@ const BECOME_ORGANIZER_STEPS = [
 
 const CreateEventPage = () => {
   const navigate = useNavigate();
+  // Edit mode: this same form powers `/organizer/events/:id/edit`. When an id is
+  // present we load the event, pre-fill the form once, and submit via updateEvent.
+  const { id: editEventId } = useParams<{ id: string }>();
+  const isEdit = !!editEventId;
+  const { data: editEvent } = useEvent(editEventId ?? '');
   const createMutation = useCreateEvent();
+  const updateMutation = useUpdateEvent();
   const requestOrgMutation = useRequestOrganizer();
   const { data: myCommunities } = useMyCommunities();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const prefilledRef = useRef(false);
 
   // Luma pattern: render the form for signed-out visitors too. The modal
   // overlays the page, so they can see what they're signing in for. Form
@@ -243,6 +251,77 @@ const CreateEventPage = () => {
       active = false;
     };
   }, [form.country, form.state]);
+
+  // ── Edit mode: pre-fill the form from the loaded event (once) ────────────────
+  // Country/state are stored as full names but the pickers key on ISO codes, so
+  // we reverse-map name → code. The values round-trip exactly because they were
+  // saved from this same geo dataset, so an exact name match always resolves.
+  useEffect(() => {
+    if (!isEdit || !editEvent || prefilledRef.current) return;
+    prefilledRef.current = true;
+    const ev = editEvent as typeof editEvent & { timezone?: string; communityId?: string };
+    const sd = new Date(ev.startDate);
+    const ed = new Date(ev.endDate);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const timeStr = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const tiers = ev.ticketTypes ?? [];
+
+    (async () => {
+      let country = '';
+      let state = '';
+      if (ev.country) {
+        const countries = await getCountryOptions();
+        country = countries.find((c) => c.name === ev.country)?.code ?? '';
+        if (country && ev.state) {
+          const states = await getStateOptions(country);
+          state = states.find((s) => s.name === ev.state)?.code ?? '';
+        }
+      }
+      setForm((f) => ({
+        ...f,
+        title: ev.title ?? '',
+        description: ev.description ?? '',
+        category: ev.category ?? '',
+        startDate: dateStr(sd),
+        startTime: timeStr(sd),
+        endDate: dateStr(ed),
+        endTime: timeStr(ed),
+        timezone: ev.timezone ?? f.timezone,
+        locationType: ev.locationType,
+        address: ev.address ?? '',
+        city: ev.city ?? '',
+        state,
+        country,
+        pincode: ev.pincode ?? '',
+        meetingUrl: ev.meetingUrl ?? '',
+        coverImage: ev.coverImage ?? '',
+        theme: ev.theme ?? f.theme,
+        useTicketTypes: tiers.length > 0,
+        capacity: ev.capacity ?? f.capacity,
+        isPaid: !!ev.ticketPrice && Number(ev.ticketPrice) > 0,
+        ticketPrice: ev.ticketPrice ? String(ev.ticketPrice) : '',
+        ticketTypes: tiers.length > 0
+          ? tiers.map((t) => ({
+              id: t.id,
+              name: t.name,
+              price: t.price,
+              count: t.count,
+              benefits: t.benefits ?? [],
+              color: (t as { color?: string }).color ?? 'blue',
+              isEnabled: t.isEnabled ?? true,
+            }))
+          : f.ticketTypes,
+        requiresApproval: ev.requiresApproval ?? false,
+        waitlistEnabled: ev.waitlistEnabled ?? true,
+        visibility: ev.visibility ?? 'PUBLIC',
+        tags: (ev.tags ?? []).join(', '),
+        slug: ev.slug ?? '',
+        communityId: ev.communityId ?? '',
+      }));
+      if (ev.coverImage) setImagePreview(ev.coverImage);
+    })();
+  }, [isEdit, editEvent]);
 
   // ─── Role guards ───────────────────────────────────────────────────────────
   // Kept below all hooks so hook order stays stable across renders (Rules of Hooks).
@@ -422,7 +501,9 @@ const CreateEventPage = () => {
     // hitting the API. Their form state stays intact behind the modal, so
     // they can submit immediately after signing in.
     if (!isAuthenticated) {
-      setSignInOpen(true);
+      // Open the organizer sign-in gate (the create form is an organizer intent).
+      // Their form state stays intact behind the modal.
+      setGateStep('organizer');
       return;
     }
 
@@ -462,7 +543,9 @@ const CreateEventPage = () => {
     const startDt = new Date(startISO);
     const endDt   = new Date(endISO);
 
-    if (startDt <= new Date()) { toast.error('Start date must be in the future.'); return; }
+    // Only new events must start in the future — an event being edited may
+    // already have started (or ended), and blocking that would make it uneditable.
+    if (!isEdit && startDt <= new Date()) { toast.error('Start date must be in the future.'); return; }
     if (endDt <= startDt)     { toast.error('End date must be after the start date.'); return; }
 
     if (form.useTicketTypes && usedCapacity > form.capacity) {
@@ -508,9 +591,13 @@ const CreateEventPage = () => {
     };
 
     try {
-      const res = await createMutation.mutateAsync(payload);
-      toast.success('Event created!');
-      navigate(`/organizer/events/${(res as { data: { id: string } }).data.id}`);
+      if (isEdit && editEventId) {
+        await updateMutation.mutateAsync({ id: editEventId, payload });
+        navigate(`/organizer/events/${editEventId}`);
+      } else {
+        const res = await createMutation.mutateAsync(payload);
+        navigate(`/organizer/events/${(res as { data: { id: string } }).data.id}`);
+      }
     } catch {
       // Error is already shown by the mutation's onError toast
     }
@@ -543,6 +630,15 @@ const CreateEventPage = () => {
   return (
     <OrganizerLayout>
       <div className="max-w-[820px] mx-auto pb-12">
+
+        {isEdit && (
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold text-foreground">Edit event</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Update the details below and save your changes.
+            </p>
+          </div>
+        )}
 
         {/* ── Two-column grid ────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-[360px,1fr] gap-8 items-start">
@@ -1168,9 +1264,11 @@ const CreateEventPage = () => {
             <Button
               className="w-full h-12 text-base font-semibold"
               onClick={handleSubmit}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending ? 'Creating…' : 'Create Event'}
+              {isEdit
+                ? (updateMutation.isPending ? 'Saving…' : 'Save Changes')
+                : (createMutation.isPending ? 'Creating…' : 'Create Event')}
             </Button>
 
             {missingHints.length > 0 && (

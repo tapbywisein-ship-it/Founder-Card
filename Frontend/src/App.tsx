@@ -63,7 +63,6 @@ const OrgEventDetail = lazy(() => import("./pages/organizer/OrgEventDetail"));
 const LeadsPage = lazy(() => import("./pages/organizer/Leads"));
 const PayoutsPage = lazy(() => import("./pages/organizer/Payouts"));
 const AttendeeDirectoryPage = lazy(() => import("./pages/organizer/AttendeeDirectory"));
-const EventManagePage = lazy(() => import("./pages/organizer/EventManage"));
 const CheckInPage = lazy(() => import("./pages/organizer/CheckIn"));
 const OrgAnalyticsPage = lazy(() => import("./pages/organizer/Analytics"));
 
@@ -250,10 +249,14 @@ const App = () => (
           <Route path="/organizer/communities" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><CommunitiesPage /></ProtectedRoute>} />
           <Route path="/organizer/leads" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><LeadsPage /></ProtectedRoute>} />
           <Route path="/organizer/payouts" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><PayoutsPage /></ProtectedRoute>} />
+          {/* Edit an existing event — reuses the create form in edit mode. Standalone
+              (no event-tab chrome), so it must sit before the /:id tab layout. */}
+          <Route path="/organizer/events/:id/edit" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><CreateEventPage /></ProtectedRoute>} />
           <Route path="/organizer/events/:id" element={<ProtectedRoute allowedRoles={['organizer', 'admin']}><OrganizerEventLayout /></ProtectedRoute>}>
             <Route index element={<OrgEventDetail />} />
             <Route path="guests" element={<GuestsTab />} />
-            <Route path="manage" element={<EventManagePage />} />
+            {/* Legacy "Registration" tab — folded into Guests. Redirect old links. */}
+            <Route path="manage" element={<Navigate to="../guests" replace />} />
             <Route path="blasts" element={<BlastsTab />} />
             <Route path="analytics" element={<OrgAnalyticsPage />} />
             <Route path="matchmaking" element={<MatchmakingTab />} />
