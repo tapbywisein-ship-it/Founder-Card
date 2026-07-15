@@ -77,7 +77,7 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
           </button>
         </div>
       </aside>
-      <div className="flex-1 md:ml-16 min-h-screen">
+      <div className="flex-1 md:ml-16 min-h-screen min-w-0">
         <main className="p-4 md:p-8 max-w-xwide mx-auto pb-24 md:pb-8">{children}</main>
       </div>
 

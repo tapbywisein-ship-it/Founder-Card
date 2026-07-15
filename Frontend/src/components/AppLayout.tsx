@@ -235,7 +235,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </aside>
 
       {/* ── Main column ───────────────────────────────────── */}
-      <div className="flex-1 md:ml-16 min-h-screen flex flex-col">
+      <div className="flex-1 md:ml-16 min-h-screen min-w-0 flex flex-col">
         <VerifyEmailBanner />
 
         {/* ── Mobile top bar (md:hidden) ────────────────────── */}

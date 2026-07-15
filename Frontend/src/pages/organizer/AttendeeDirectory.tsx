@@ -207,7 +207,8 @@ const AttendeeDirectoryPage = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
@@ -311,6 +312,68 @@ const AttendeeDirectoryPage = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile: stacked cards — no horizontal scroll, everything readable vertically */}
+            <div className="md:hidden divide-y divide-border/50">
+              {attendees.map((a) => {
+                const name = a.user?.profile
+                  ? `${a.user.profile.firstName} ${a.user.profile.lastName}`.trim()
+                  : a.email;
+                const isFounder = a.user?.founderCard?.status === 'ACTIVE';
+                const sc = statusConfig[a.status] ?? statusConfig['REGISTERED'];
+                const userId = a.user?.id;
+                const isSelected = userId ? selected.has(userId) : false;
+
+                return (
+                  <div key={a.id} className={`py-3 ${isSelected ? 'bg-primary/5' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      {userId && (
+                        <button
+                          onClick={() => toggleOne(userId)}
+                          className="mt-1 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                        >
+                          {isSelected
+                            ? <CheckSquare className="w-4 h-4 text-primary" />
+                            : <Square className="w-4 h-4" />}
+                        </button>
+                      )}
+                      {a.user?.profile?.avatar ? (
+                        <img src={a.user.profile.avatar} alt={name} loading="lazy" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
+                          {name[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border flex-shrink-0 ${sc.color}`}>
+                            {sc.label}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {a.user?.profile?.position ?? a.email}
+                          {a.user?.profile?.company ? ` · ${a.user.profile.company}` : ''}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="chip text-[10px]">{a.event?.title ?? '-'}</span>
+                          {isFounder ? (
+                            <span className="flex items-center gap-1 text-[10px] text-primary"><Crown className="w-3 h-3" /> FounderCard</span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">Free</span>
+                          )}
+                          <span className="text-[11px] text-muted-foreground">FK <span className="font-bold text-foreground">{a.user?.gamification?.fkScore ?? 0}</span></span>
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs mt-1.5 -ml-2" onClick={() => setSelectedAttendee(a)}>
+                          <Eye className="w-3 h-3 mr-1" /> View details
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            </>
           )}
         </Surface>
       </div>
