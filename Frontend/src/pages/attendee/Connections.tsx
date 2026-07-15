@@ -69,7 +69,10 @@ const ConnectionsPage = () => {
 
   return (
     <PortalLayout>
-      <div className="space-y-6 pb-24 md:pb-8">
+      {/* People lists read better as a focused column than stretched across the
+          full 1080px shell — cap the width so rows and their action buttons stay
+          close together on desktop. */}
+      <div className="space-y-6 pb-24 md:pb-8 max-w-3xl mx-auto">
         {isError && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <span className="flex items-center gap-2.5">

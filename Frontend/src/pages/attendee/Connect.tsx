@@ -54,7 +54,9 @@ const ConnectPage = () => {
 
   return (
     <PortalLayout>
-      <div className="space-y-6 pb-24 md:pb-8">
+      {/* Focused single-column width — the scan / QR flow looks lost stretched
+          across the full shell on desktop. */}
+      <div className="space-y-6 pb-24 md:pb-8 max-w-3xl mx-auto">
         <h1 className="text-3xl font-semibold text-foreground">Connect</h1>
 
         {/* Mode tabs */}
