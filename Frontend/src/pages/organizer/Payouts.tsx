@@ -197,7 +197,8 @@ const Payouts = () => {
         {summary && summary.events.length > 0 && (
           <Surface>
             <h2 className="text-base font-semibold text-foreground mb-3">Earnings by event</h2>
-            <div className="overflow-x-auto">
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-muted-foreground border-b border-border text-xs">
@@ -220,6 +221,32 @@ const Payouts = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile: stacked cards — no horizontal scroll */}
+            <div className="md:hidden space-y-2">
+              {summary.events.map((e) => (
+                <div key={e.eventId} className="rounded-xl border border-border/60 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground min-w-0 truncate">{e.title}</p>
+                    <p className="text-sm font-semibold text-foreground flex-shrink-0">{formatINR(e.earning)}</p>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Sales</p>
+                      <p className="text-foreground font-medium">{e.sales}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Gross</p>
+                      <p className="text-foreground font-medium">{formatINR(e.gross)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Fee (5%)</p>
+                      <p className="text-foreground font-medium">−{formatINR(e.fee)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </Surface>
         )}
