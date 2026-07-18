@@ -142,41 +142,28 @@ export class FounderCardsService {
       card = await prisma.founderCard.update({ where: { id: card.id }, data });
     }
 
-    // First activation perks: FOUNDER tier + one-time score award. The tier
-    // flip is the atomic gate — updateMany returns count=1 only for the row
-    // that actually transitioned FREE -> FOUNDER, so two concurrent onboarding
-    // calls can't both award the score.
-    const tierFlip = await prisma.user.updateMany({
-      where: { id: userId, tier: { not: 'FOUNDER' } },
-      data: { tier: 'FOUNDER' },
+    // New signups stay FREE — the card is free, paid perks come from a plan.
+    // One-time score award is gated on score-history so re-onboarding doesn't
+    // re-award. ponytail: not atomic vs a concurrent double-onboarding (would
+    // double-award cosmetic FK points) — add a CAS column if that ever matters.
+    const alreadyScored = await prisma.scoreHistory.findFirst({
+      where: { userId, action: 'FOUNDER_CARD_ACTIVE' },
+      select: { id: true },
     });
-    if (tierFlip.count === 1) {
+    await prisma.auditLog
+      .create({
+        data: {
+          userId,
+          action: alreadyScored ? 'FOUNDER_CARD_REISSUED' : 'FOUNDER_CARD_ISSUED',
+          resource: 'FounderCard',
+          resourceId: card.id,
+        },
+      })
+      .catch(() => {});
+    if (!alreadyScored) {
       await gamificationService
         .addScore(userId, 'FOUNDER_CARD_ACTIVE', SCORE_VALUES.FOUNDER_CARD_ACTIVE, {
           cardId: card.id,
-        })
-        .catch(() => {});
-      await prisma.auditLog
-        .create({
-          data: {
-            userId,
-            action: 'FOUNDER_CARD_ISSUED',
-            resource: 'FounderCard',
-            resourceId: card.id,
-          },
-        })
-        .catch(() => {});
-    } else {
-      // Re-onboarding case: tier was already FOUNDER, no score re-award, but
-      // record that an issuance happened so the audit trail isn't lost.
-      await prisma.auditLog
-        .create({
-          data: {
-            userId,
-            action: 'FOUNDER_CARD_REISSUED',
-            resource: 'FounderCard',
-            resourceId: card.id,
-          },
         })
         .catch(() => {});
     }
