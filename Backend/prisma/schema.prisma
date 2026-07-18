@@ -19,7 +19,11 @@ enum Role {
 
 enum UserTier {
   FREE
-  FOUNDER
+  FOUNDER // legacy — treated as PRO
+  PRO
+  ORGANIZER_LITE
+  ORGANIZER_PRO
+  ENTERPRISE
 }
 
 enum CardStatus {

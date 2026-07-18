@@ -67,6 +67,17 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().default(''),
   RAZORPAY_KEY_SECRET: z.string().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().default(''),
+  // Subscription plan ids (Razorpay Subscriptions → Plans). Empty = plan not sold.
+  RZP_PLAN_PRO_MONTHLY: z.string().default(''),
+  RZP_PLAN_PRO_YEARLY: z.string().default(''),
+  RZP_PLAN_ORG_LITE: z.string().default(''),
+  RZP_PLAN_ORG_PRO: z.string().default(''),
+  // Master switch for tier enforcement. Off = everything free (today's
+  // behavior). Flip to "true" only once paid plans exist and are tested.
+  BILLING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 const parseResult = envSchema.safeParse(process.env);

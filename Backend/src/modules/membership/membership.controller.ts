@@ -3,6 +3,8 @@ import membershipService, { type PlanKey } from './membership.service';
 import { sendSuccess } from '@utils/response';
 import { BadRequestError } from '@utils/errors';
 
+const PLAN_KEYS: PlanKey[] = ['pro_monthly', 'pro_yearly', 'org_lite', 'org_pro'];
+
 export class MembershipController {
   async getMine(req: Request, res: Response): Promise<void> {
     const userId = req.user!.userId;
@@ -13,8 +15,8 @@ export class MembershipController {
   async subscribe(req: Request, res: Response): Promise<void> {
     const userId = req.user!.userId;
     const { plan } = req.body as { plan?: string };
-    if (plan !== 'monthly' && plan !== 'annual') {
-      throw new BadRequestError('plan must be "monthly" or "annual"');
+    if (!plan || !PLAN_KEYS.includes(plan as PlanKey)) {
+      throw new BadRequestError(`plan must be one of: ${PLAN_KEYS.join(', ')}`);
     }
     const data = await membershipService.createSubscription(userId, plan as PlanKey);
     sendSuccess(res, data, 'Subscription created');
