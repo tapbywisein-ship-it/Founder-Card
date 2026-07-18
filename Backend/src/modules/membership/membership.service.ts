@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { UserTier } from '@prisma/client';
 import prisma from '@config/database';
 import { env } from '@config/env';
 import { BadRequestError, NotFoundError, ServiceUnavailableError } from '@utils/errors';
@@ -12,9 +13,25 @@ const authHeader = (): string =>
 
 const configured = (): boolean => Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
 
-/** Legacy plan identifiers — kept so old Membership rows and the verify/cancel
- *  flows for any pre-existing subscriber still type-check. No longer sold. */
-export type PlanKey = 'monthly' | 'annual';
+export type PlanKey = 'pro_monthly' | 'pro_yearly' | 'org_lite' | 'org_pro';
+
+/** Public plan key → Razorpay plan id (server-only) + granted tier. */
+const PLANS: Record<PlanKey, { planId: () => string; tier: UserTier }> = {
+  pro_monthly: { planId: () => env.RZP_PLAN_PRO_MONTHLY, tier: 'PRO' },
+  pro_yearly: { planId: () => env.RZP_PLAN_PRO_YEARLY, tier: 'PRO' },
+  org_lite: { planId: () => env.RZP_PLAN_ORG_LITE, tier: 'ORGANIZER_LITE' },
+  org_pro: { planId: () => env.RZP_PLAN_ORG_PRO, tier: 'ORGANIZER_PRO' },
+};
+
+/** Razorpay plan_id → tier, for verify/webhook which only know the plan id. */
+const planTierMap = (): Record<string, UserTier> => {
+  const m: Record<string, UserTier> = {};
+  for (const { planId, tier } of Object.values(PLANS)) {
+    const id = planId();
+    if (id) m[id] = tier;
+  }
+  return m;
+};
 
 const timingSafe = (a: string, b: string): boolean => {
   const ba = Buffer.from(a);
@@ -69,12 +86,64 @@ export class MembershipService {
     };
   }
 
+  /** The paid tier a plan id grants, or null if it isn't one of ours. */
+  tierForPlan(planId: string | null | undefined): UserTier | null {
+    return planId ? (planTierMap()[planId] ?? null) : null;
+  }
+
+  /** Set the user's tier. Reset to FREE never downgrades a manually-set ENTERPRISE. */
+  private async applyTier(userId: string, tier: UserTier): Promise<void> {
+    if (tier === 'FREE') {
+      await prisma.user.updateMany({
+        where: { id: userId, tier: { notIn: ['ENTERPRISE'] } },
+        data: { tier: 'FREE' },
+      });
+      return;
+    }
+    await prisma.user.update({ where: { id: userId }, data: { tier } });
+  }
+
   /**
-   * Founder membership perks (unlimited follow-ups, network search) are free
-   * for everyone now — new paid subscriptions are no longer offered.
+   * Create a Razorpay subscription for one of our plans and stash it on the
+   * user's Membership row. Checkout authorizes it client-side; `verify` +
+   * the webhook flip status to ACTIVE and grant the tier.
    */
-  async createSubscription(_userId: string, _plan: PlanKey): Promise<never> {
-    throw new BadRequestError('Founder membership is no longer a paid subscription — all perks are free.');
+  async createSubscription(userId: string, planKey: PlanKey) {
+    if (!configured()) throw new ServiceUnavailableError('Payments are not configured');
+    const plan = PLANS[planKey];
+    const planId = plan?.planId();
+    if (!planId) throw new BadRequestError('That plan is not available');
+
+    const res = await fetch(`${RAZORPAY_API}/subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: authHeader() },
+      // ponytail: 120 cycles ≈ 10y monthly / 120y yearly — Razorpay needs a
+      // finite count; bump if anyone actually renews for a decade.
+      body: JSON.stringify({ plan_id: planId, total_count: 120, customer_notify: 1 }),
+    });
+    if (!res.ok) {
+      logger.error('Razorpay subscription create failed', {
+        userId,
+        planId,
+        body: await res.text(),
+      });
+      throw new ServiceUnavailableError('Could not start the subscription');
+    }
+    const sub = (await res.json()) as RazorpaySubscription;
+
+    await prisma.membership.upsert({
+      where: { userId },
+      create: {
+        userId,
+        status: 'NONE',
+        plan: planId,
+        razorpaySubscriptionId: sub.id,
+        razorpayPlanId: planId,
+      },
+      update: { plan: planId, razorpaySubscriptionId: sub.id, razorpayPlanId: planId },
+    });
+
+    return { subscriptionId: sub.id, keyId: env.RAZORPAY_KEY_ID };
   }
 
   /**
@@ -114,12 +183,15 @@ export class MembershipService {
       },
     });
 
+    const tier = this.tierForPlan(membership.razorpayPlanId);
+    if (tier) await this.applyTier(userId, tier);
+
     await notificationsService
       .createNotification(
         userId,
         'SYSTEM',
-        'Welcome to Founder membership 🎉',
-        'Your membership is active. Enjoy unlimited follow-ups, network search, and full analytics.'
+        'Your plan is active 🎉',
+        'Your subscription is active. Enjoy your upgraded features.'
       )
       .catch(() => {});
 
@@ -191,12 +263,15 @@ export class MembershipService {
 
     switch (eventType) {
       case 'subscription.activated':
-      case 'subscription.charged':
+      case 'subscription.charged': {
         await prisma.membership.update({
           where: { id: membership.id },
           data: { status: 'ACTIVE', cancelAtPeriodEnd: false, currentPeriodEnd: periodEnd },
         });
+        const tier = this.tierForPlan(membership.razorpayPlanId);
+        if (tier) await this.applyTier(membership.userId, tier);
         break;
+      }
       case 'subscription.halted':
         await prisma.membership.update({
           where: { id: membership.id },
@@ -217,6 +292,8 @@ export class MembershipService {
           where: { id: membership.id },
           data: { status: 'EXPIRED', cancelAtPeriodEnd: false },
         });
+        // Access ends now — drop back to Free.
+        await this.applyTier(membership.userId, 'FREE');
         break;
       default:
         break;

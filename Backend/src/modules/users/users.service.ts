@@ -8,6 +8,7 @@ import mediaService from '@modules/media/media.service';
 import gamificationService from '@modules/gamification/gamification.service';
 import logger from '@utils/logger';
 import { SCORE_VALUES } from '@config/constants';
+import { entitlements } from '@config/entitlements';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -87,6 +88,7 @@ export class UsersService {
       username: user.username,
       role: user.role,
       tier: user.tier,
+      entitlements: entitlements(user.tier),
       isActive: user.isActive,
       isEmailVerified: user.isEmailVerified,
       createdAt: user.createdAt,

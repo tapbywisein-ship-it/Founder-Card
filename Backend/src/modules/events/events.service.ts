@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 import prisma from '@config/database';
+import { assertEntitled, entitlements } from '@config/entitlements';
 import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { SCORE_VALUES } from '@config/constants';
@@ -84,6 +85,25 @@ export class EventsService {
   }
 
   async createEvent(organizerId: string, dto: CreateEventDto) {
+    // Hosting is a paid-organizer entitlement; Lite is capped on active events.
+    // No-ops while billing is off.
+    await assertEntitled(organizerId, 'canHost');
+    if (env.BILLING_ENABLED) {
+      const { tier } = (await prisma.user.findUnique({
+        where: { id: organizerId },
+        select: { tier: true },
+      })) ?? { tier: 'FREE' as const };
+      const cap = entitlements(tier).maxActiveEvents;
+      if (Number.isFinite(cap)) {
+        const active = await prisma.event.count({
+          where: { organizerId, deletedAt: null, status: { in: ['PUBLISHED', 'DRAFT'] } },
+        });
+        if (active >= cap) {
+          throw new BadRequestError(`Your plan allows up to ${cap} active events. Upgrade for more.`);
+        }
+      }
+    }
+
     // Only allow linking an event to a community the organizer actually owns.
     if (dto.communityId) {
       const owned = await prisma.community.findFirst({

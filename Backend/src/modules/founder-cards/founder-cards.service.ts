@@ -1,4 +1,5 @@
 import prisma from '@config/database';
+import { assertEntitled } from '@config/entitlements';
 import { NotFoundError, ConflictError, BadRequestError, ForbiddenError } from '@utils/errors';
 import { generateQRCode } from '@utils/qrcode';
 import { cardIdToSlug } from '@utils/slug';
@@ -342,6 +343,7 @@ export class FounderCardsService {
   }
 
   async createBlock(userId: string, input: { type?: string; label: string; url: string }) {
+    await assertEntitled(userId, 'customBlocks');
     const label = input.label?.trim();
     const url = input.url?.trim();
     if (!label) throw new BadRequestError('Label is required');
@@ -395,6 +397,8 @@ export class FounderCardsService {
 
   /** Anonymous visitor leaves contact details on someone's public card. */
   async captureLead(ownerId: string, input: { name: string; email: string; message?: string }) {
+    // Lead capture is a Pro perk — gate on the card owner, not the visitor.
+    await assertEntitled(ownerId, 'leadCapture');
     const name = input.name?.trim();
     const email = input.email?.trim();
     if (!name) throw new BadRequestError('Name is required');

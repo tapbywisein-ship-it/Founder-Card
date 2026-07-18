@@ -2,7 +2,15 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
 export type UserRole = 'attendee' | 'organizer' | 'admin';
-export type UserTier = 'free' | 'founder';
+export type UserTier =
+  | 'free'
+  | 'founder'
+  | 'FREE'
+  | 'FOUNDER'
+  | 'PRO'
+  | 'ORGANIZER_LITE'
+  | 'ORGANIZER_PRO'
+  | 'ENTERPRISE';
 export type CardStatus = 'none' | 'pending' | 'active' | 'deactivated';
 export type AccountType = 'company' | 'student';
 

@@ -1,4 +1,5 @@
 import prisma from '@config/database';
+import { assertEntitled } from '@config/entitlements';
 import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { SCORE_VALUES } from '@config/constants';
@@ -666,6 +667,7 @@ export class ConnectionsService {
   }
 
   async createNote(connectionId: string, authorId: string, body: string) {
+    await assertEntitled(authorId, 'crmNotes');
     const trimmed = body.trim();
     if (!trimmed) throw new BadRequestError('Note cannot be empty');
     if (trimmed.length > 2000) throw new BadRequestError('Note is too long (max 2000 chars)');
