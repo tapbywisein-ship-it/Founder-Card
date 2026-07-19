@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import {
   Bell, Compass, Calendar, Scan, User as UserIcon,
   LogOut, Plus, Search, Trophy, Users, QrCode, MessageCircle, Ticket,
-  Building2, Boxes, X, Menu,
+  Building2, Boxes, X, Menu, Crown,
 } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
@@ -50,6 +50,7 @@ const navItems = [
   { label: 'My Tickets',    icon: Ticket,        path: '/my-tickets' },
   { label: 'FK Score',      icon: Trophy,        path: '/gamification' },
   { label: 'Tap Card',      icon: QrCode,        path: '/apply-card' },
+  { label: 'Plans',         icon: Crown,         path: '/pricing' },
   { label: 'Profile',       icon: UserIcon,      path: '/profile' },
 ];
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { RequestDemoModal } from '@/components/RequestDemoModal';
 import { FeatureBento } from '@/components/FeatureBento';
 import { useAppStore } from '@/store/appStore';
+import { PortalLayout } from '@/components/PortalLayout';
 import { startSubscription, type PlanKey } from '@/services/membership.service';
 
 type Tier = {
@@ -130,16 +131,8 @@ const Pricing = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="px-6 py-5 flex items-center justify-between max-w-xwide mx-auto w-full">
-        <Logo size="md" />
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4" /> Home
-        </Link>
-      </header>
-
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-10">
+  const body = (
+    <>
         <div className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-semibold text-foreground">Pricing</h1>
           <p className="mt-2 text-muted-foreground">
@@ -230,10 +223,32 @@ const Pricing = () => {
           Paid ticket sales carry a 5–8% platform fee (free events are always free). Featured
           placement & sponsored networking available on request.
         </p>
-      </main>
+    </>
+  );
 
+  // Signed-in users see pricing inside their portal chrome (keeps the nav);
+  // anonymous visitors get the standalone marketing shell.
+  if (isAuthenticated) {
+    return (
+      <PortalLayout>
+        <div className="max-w-6xl mx-auto w-full pb-24 md:pb-8">
+          {body}
+        </div>
+        <RequestDemoModal open={demoOpen} onOpenChange={setDemoOpen} />
+      </PortalLayout>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="px-6 py-5 flex items-center justify-between max-w-xwide mx-auto w-full">
+        <Logo size="md" />
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" /> Home
+        </Link>
+      </header>
+      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-10">{body}</main>
       <FeatureBento />
-
       <RequestDemoModal open={demoOpen} onOpenChange={setDemoOpen} />
     </div>
   );
