@@ -110,7 +110,7 @@ export class PaymentsService {
           amount: amountPaise,
           currency: 'INR',
           receipt: `evt_${eventId.slice(0, 8)}_${userId.slice(0, 8)}_${Date.now()}`,
-          notes: { eventId, userId, ticketTierId, ticketTierName: tier.name },
+          notes: { app: 'tapbywisein', eventId, userId, ticketTierId, ticketTierName: tier.name },
         }),
       });
       if (!res.ok) {
@@ -318,7 +318,7 @@ export class PaymentsService {
           amount: amountPaise,
           currency: 'INR',
           receipt: `card_${userId.slice(0, 8)}_${Date.now()}`,
-          notes: { userId, purpose: 'nfc_card' },
+          notes: { app: 'tapbywisein', userId, purpose: 'nfc_card' },
         }),
       });
       if (!res.ok) {
