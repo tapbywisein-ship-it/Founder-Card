@@ -201,14 +201,7 @@ export class PaymentsService {
 
     // Count the coupon use now that payment succeeded (best-effort — never fail
     // a confirmed payment over bookkeeping).
-    if (payment.couponCode) {
-      await prisma.coupon
-        .update({
-          where: { eventId_code: { eventId: payment.eventId, code: payment.couponCode } },
-          data: { usedCount: { increment: 1 } },
-        })
-        .catch((err) => logger.warn('Coupon usedCount increment failed', { err }));
-    }
+    await this.claimCouponUse(payment.eventId, payment.couponCode);
 
     // Revenue ledger: split the captured amount into platform fee + organizer earning.
     const feePercent = await getPlatformFeePercent();
@@ -241,6 +234,31 @@ export class PaymentsService {
     );
 
     return { payment: updated, registration };
+  }
+
+  /**
+   * Atomically count a coupon redemption, capped at maxUses (raw SQL because
+   * Prisma can't compare two columns in a where). Best-effort: the payment is
+   * already captured, so a cap overrun under a create-time race is logged, not
+   * reversed. ponytail: true fix is reserving the use at order-create; add if
+   * coupon overruns ever actually show up in these logs.
+   */
+  private async claimCouponUse(eventId: string, couponCode: string | null): Promise<void> {
+    if (!couponCode) return;
+    try {
+      const claimed = await prisma.$executeRaw`
+        UPDATE "coupons" SET "usedCount" = "usedCount" + 1
+        WHERE "eventId" = ${eventId} AND "code" = ${couponCode}
+          AND ("maxUses" IS NULL OR "usedCount" < "maxUses")`;
+      if (claimed === 0) {
+        logger.warn('Coupon cap exceeded at capture (create-time race) — payment honored', {
+          eventId,
+          couponCode,
+        });
+      }
+    } catch (err) {
+      logger.warn('Coupon usedCount increment failed', { err, eventId, couponCode });
+    }
   }
 
   private async attemptOrganizerTransfer(
@@ -585,12 +603,39 @@ export class PaymentsService {
           amountPaid: Number(payment.amount),
           ticketTierId: payment.ticketTierId ?? undefined,
           ticketTierName: payment.ticketTierName ?? undefined,
+          couponCode: payment.couponCode ?? undefined,
         });
+
+        // Same bookkeeping as the verify path — webhook-recovered payments must
+        // count coupons and land in the revenue ledger too.
+        await this.claimCouponUse(payment.eventId, payment.couponCode);
+
+        const feePercent = await getPlatformFeePercent();
+        const amount = Number(payment.amount);
+        const platformFee = Math.round(amount * feePercent) / 100;
+        const organizerEarning = Math.round((amount - platformFee) * 100) / 100;
 
         await prisma.payment.update({
           where: { id: payment.id },
-          data: { registrationId: registration.id },
+          data: {
+            registrationId: registration.id,
+            platformFee,
+            organizerEarning,
+            transferStatus: 'pending',
+          },
         });
+
+        this.attemptOrganizerTransfer(
+          payment.id,
+          payment.eventId,
+          paymentId,
+          organizerEarning
+        ).catch((err) =>
+          logger.warn('Webhook: organizer Route transfer attempt failed', {
+            err,
+            paymentId: payment.id,
+          })
+        );
         return;
       }
 

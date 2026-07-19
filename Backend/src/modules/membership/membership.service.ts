@@ -2,7 +2,12 @@ import crypto from 'crypto';
 import { UserTier } from '@prisma/client';
 import prisma from '@config/database';
 import { env } from '@config/env';
-import { BadRequestError, NotFoundError, ServiceUnavailableError } from '@utils/errors';
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+  ServiceUnavailableError,
+} from '@utils/errors';
 import logger from '@utils/logger';
 import notificationsService from '@modules/notifications/notifications.service';
 
@@ -113,6 +118,14 @@ export class MembershipService {
     const plan = PLANS[planKey];
     const planId = plan?.planId();
     if (!planId) throw new BadRequestError('That plan is not available');
+
+    // One live subscription per user. We only track one razorpaySubscriptionId,
+    // so a second subscription would double-bill AND orphan the first (cancel
+    // would only ever reach the newest one).
+    const existing = await prisma.membership.findUnique({ where: { userId } });
+    if (existing?.status === 'ACTIVE') {
+      throw new ConflictError('You already have an active plan. Cancel it first to switch plans.');
+    }
 
     const res = await fetch(`${RAZORPAY_API}/subscriptions`, {
       method: 'POST',
