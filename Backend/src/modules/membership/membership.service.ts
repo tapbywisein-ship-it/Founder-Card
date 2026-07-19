@@ -119,7 +119,13 @@ export class MembershipService {
       headers: { 'Content-Type': 'application/json', Authorization: authHeader() },
       // ponytail: 120 cycles ≈ 10y monthly / 120y yearly — Razorpay needs a
       // finite count; bump if anyone actually renews for a decade.
-      body: JSON.stringify({ plan_id: planId, total_count: 120, customer_notify: 1 }),
+      // notes.app tags this as ours on the Razorpay account shared with WiseIn.
+      body: JSON.stringify({
+        plan_id: planId,
+        total_count: 120,
+        customer_notify: 1,
+        notes: { app: 'tapbywisein', tier: PLANS[planKey].tier },
+      }),
     });
     if (!res.ok) {
       logger.error('Razorpay subscription create failed', {
