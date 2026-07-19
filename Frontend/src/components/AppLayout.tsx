@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import {
   Bell, Compass, Calendar, Scan, User as UserIcon,
   LogOut, Plus, Search, Trophy, Users, QrCode, MessageCircle, Ticket,
-  Building2, Boxes, X,
+  Building2, Boxes, X, Menu,
 } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
@@ -53,13 +53,13 @@ const navItems = [
   { label: 'Profile',       icon: UserIcon,      path: '/profile' },
 ];
 
+// Four primary tabs; everything else lives in the "More" sheet (same navItems
+// as the desktop sidebar), so 6+ tabs never overflow the bar again.
 const bottomNav = [
   { label: 'Discover', icon: Compass, path: '/discover' },
   { label: 'Events', icon: Calendar, path: '/events' },
   { label: 'Community', icon: Boxes, path: '/communities' },
   { label: 'Connect', icon: Scan, path: '/connect' },
-  { label: 'Messages', icon: MessageCircle, path: '/messages' },
-  { label: 'Profile', icon: UserIcon, path: '/profile' },
 ];
 
 interface SearchResult {
@@ -92,6 +92,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
   // Organizer request dialog
   const [orgDialogOpen, setOrgDialogOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [orgOrganization, setOrgOrganization] = useState('');
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -349,17 +350,12 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         <div className="flex justify-around py-1.5">
           {bottomNav.map((item) => {
             const active = location.pathname.startsWith(item.path);
-            const badge =
-              item.path === '/connect' && pendingRequests
-                ? pendingRequests
-                : item.path === '/messages' && unreadMessages
-                ? unreadMessages
-                : 0;
+            const badge = item.path === '/connect' && pendingRequests ? pendingRequests : 0;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className="flex flex-col items-center gap-0.5 py-1.5 px-4"
+                className="flex flex-col items-center gap-0.5 py-1.5 px-3"
               >
                 <div className="relative">
                   <item.icon
@@ -381,8 +377,71 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-label="More navigation"
+            className="flex flex-col items-center gap-0.5 py-1.5 px-3 text-muted-foreground"
+          >
+            <Menu className="w-5 h-5" />
+            <span className="text-[10px] font-medium">More</span>
+          </button>
         </div>
       </nav>
+
+      {/* Mobile "More" sheet — the full nav (same items as the desktop sidebar) */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setMoreOpen(false)}>
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" aria-hidden />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-border bg-card shadow-card p-4"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold">Menu</p>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close menu"
+                className="inline-flex w-8 h-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {navItems.map((item) => {
+                const active = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMoreOpen(false)}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl border py-3 px-2 text-center transition-colors ${
+                      active
+                        ? 'border-primary/40 bg-accent text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="text-[11px] font-medium leading-tight">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <LogOut className="w-4 h-4" /> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Global search drawer ───────────────────────────── */}
       {searchOpen && (
