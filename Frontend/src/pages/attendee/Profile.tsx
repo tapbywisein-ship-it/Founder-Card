@@ -8,6 +8,7 @@ import {
 import { PortalLayout } from '@/components/PortalLayout';
 import { CardBlocksEditor } from '@/components/CardBlocksEditor';
 import { Surface } from '@/components/Surface';
+import { PlanSection } from '@/components/PlanSection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -470,6 +471,9 @@ const ProfilePage = () => {
             </div>
           )}
         </Surface>
+
+        {/* Plan — in-app upgrade / manage entry point */}
+        <PlanSection />
 
         {/* Bio */}
         <Surface>
