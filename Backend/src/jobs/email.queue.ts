@@ -1,3 +1,4 @@
+import prisma from '@config/database';
 import logger from '@utils/logger';
 import {
   sendEmail,
@@ -49,6 +50,36 @@ export interface EmailJobData {
   ticketBenefits?: string[];
   attendeeName?: string;
   attendeesUrl?: string;
+  /** Present only on 'eventBlast' jobs — lets the queue report real delivery
+   *  outcomes back onto the persisted EventBlast row (see recordBlastOutcome). */
+  blastId?: string;
+}
+
+/**
+ * Single place every blast-send outcome (success or terminal failure) flows
+ * through, regardless of whether Bull or the inline no-Redis path handled it.
+ * Increments the real counter and flips status once every recipient resolves.
+ */
+async function recordBlastOutcome(blastId: string | undefined, success: boolean): Promise<void> {
+  if (!blastId) return;
+  try {
+    const field = success ? 'sent' : 'failed';
+    const updated = await prisma.eventBlast.update({
+      where: { id: blastId },
+      data: { [field]: { increment: 1 } },
+    });
+    if (updated.sent + updated.failed >= updated.total) {
+      await prisma.eventBlast.update({
+        where: { id: blastId },
+        data: {
+          status: updated.failed === 0 ? 'sent' : updated.sent === 0 ? 'failed' : 'partial',
+          sentAt: new Date(),
+        },
+      });
+    }
+  } catch (err) {
+    logger.error('Failed to record blast delivery outcome', { blastId, success, err });
+  }
 }
 
 const REDIS_URL = process.env.BULL_REDIS_URL ?? process.env.REDIS_URL;
@@ -64,13 +95,16 @@ const noopQueue = {
     // job promise would reject with no handler and take the whole server down
     // via the global unhandledRejection → graceful-shutdown path. Emails are
     // best-effort; log and swallow so a bad email never crashes the API.
-    processEmailJob(data).catch((err) => {
-      logger.error('Inline email job failed', {
-        type: data.type,
-        to: data.to,
-        error: err instanceof Error ? err.message : String(err),
+    processEmailJob(data)
+      .then(() => recordBlastOutcome(data.blastId, true))
+      .catch((err) => {
+        logger.error('Inline email job failed', {
+          type: data.type,
+          to: data.to,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        void recordBlastOutcome(data.blastId, false);
       });
-    });
     return { id: 'inline', data } as unknown as import('bull').Job<EmailJobData>;
   },
   close: async () => {},
@@ -99,7 +133,19 @@ if (hasRedis) {
     });
 
     queue.on('failed', (job: import('bull').Job<EmailJobData>, err: Error) => {
-      logger.error('Email job failed', { jobId: job.id, type: job.data.type, error: err.message });
+      logger.error('Email job failed', {
+        jobId: job.id,
+        type: job.data.type,
+        error: err.message,
+        attemptsMade: job.attemptsMade,
+      });
+      // Bull emits 'failed' on every retry attempt, not just the final one —
+      // only count it against the blast once retries are exhausted, or a job
+      // that succeeds on attempt 2 would still show as a failure.
+      const maxAttempts = job.opts?.attempts ?? 1;
+      if (job.attemptsMade >= maxAttempts) {
+        void recordBlastOutcome(job.data.blastId, false);
+      }
     });
 
     // Redis-level errors (auth, TLS, connection drop) surface here, NOT via the
@@ -110,6 +156,7 @@ if (hasRedis) {
     });
     queue.on('completed', (job: import('bull').Job<EmailJobData>) => {
       logger.info('Email job processed', { jobId: job.id, type: job.data.type });
+      void recordBlastOutcome(job.data.blastId, true);
     });
 
     emailQueueInstance = queue;
