@@ -231,14 +231,17 @@ export const organizerService = {
   },
 
   async sendEventBlast(eventId: string, payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) {
-    return apiFetch<{ data: { sent: number; failed: number; total: number; recipients: string[] } }>(
+    // Delivery is async — this only confirms the blast was queued. Real
+    // sent/failed counts appear on the EventBlast row as jobs complete
+    // (poll getEventBlasts / useEventBlasts while status === 'sending').
+    return apiFetch<{ data: { blastId: string; total: number; recipients: string[] } }>(
       `/organizer/events/${eventId}/blast`,
       { method: 'POST', body: JSON.stringify(payload) }
     );
   },
 
   async sendAttendeeBlast(payload: { userIds: string[]; subject: string; body: string }) {
-    return apiFetch<{ data: { sent: number; failed: number; total: number; recipients: string[] } }>(
+    return apiFetch<{ data: { blastId: string; total: number; recipients: string[] } }>(
       '/organizer/attendees/blast',
       { method: 'POST', body: JSON.stringify(payload) }
     );
@@ -333,7 +336,10 @@ export interface EventBlastRecord {
   subject: string;
   body: string;
   audience: string;
+  total: number;
   sent: number;
+  failed: number;
+  /** sending | sent | partial | failed */
   status: string;
   sentAt: string | null;
   createdAt: string;

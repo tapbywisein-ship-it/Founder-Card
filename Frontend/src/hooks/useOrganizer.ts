@@ -62,6 +62,10 @@ export function useEventBlasts(eventId: string) {
     queryFn: () => organizerService.getEventBlasts(eventId),
     select: (res) => res.data,
     enabled: !!eventId,
+    // Poll while any blast is still delivering so "Sending…" flips to a real
+    // sent/failed count without the organizer having to refresh the page.
+    refetchInterval: (query) =>
+      query.state.data?.some((b) => b.status === 'sending') ? 4000 : false,
   });
 }
 
@@ -186,19 +190,18 @@ export function useCheckInAttendee(eventId: string) {
   });
 }
 
-/** Report the real delivery outcome so a silent Resend failure doesn't look like success. */
-function reportBlastResult(res: unknown, noun: string) {
-  const d = (res as { data?: { sent?: number; failed?: number } }).data;
-  const sent = d?.sent ?? 0;
-  const failed = d?.failed ?? 0;
-  if (sent === 0 && failed === 0) {
+/**
+ * Sending is async now — the request only confirms the blast was queued, not
+ * delivered. Say so plainly rather than implying success; the "Past Blasts"
+ * list (polling while status === 'sending') is where the real outcome shows up.
+ */
+function reportBlastQueued(res: unknown, noun: string) {
+  const d = (res as { data?: { total?: number } }).data;
+  const total = d?.total ?? 0;
+  if (total === 0) {
     toast.error(`No matching ${noun} to email.`);
-  } else if (sent === 0) {
-    toast.error(`Delivery failed for all ${failed} ${noun}. Check email configuration.`);
-  } else if (failed > 0) {
-    toast.warning(`Sent to ${sent} ${noun} · ${failed} failed to deliver.`);
   } else {
-    toast.success(`Sent to ${sent} ${noun}.`);
+    toast.success(`Queued for ${total} ${noun} — check below for delivery status.`);
   }
 }
 
@@ -206,7 +209,7 @@ export function useSendAttendeeBlast() {
   return useMutation({
     mutationFn: (payload: { userIds: string[]; subject: string; body: string }) =>
       organizerService.sendAttendeeBlast(payload),
-    onSuccess: (res) => reportBlastResult(res, 'attendees'),
+    onSuccess: (res) => reportBlastQueued(res, 'attendees'),
     onError: (err: Error) => toast.error(err.message),
   });
 }
@@ -217,7 +220,7 @@ export function useSendBlast(eventId: string) {
     mutationFn: (payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) =>
       organizerService.sendEventBlast(eventId, payload),
     onSuccess: (res) => {
-      reportBlastResult(res, 'recipients');
+      reportBlastQueued(res, 'recipients');
       qc.invalidateQueries({ queryKey: ['organizer', 'blasts', eventId] });
     },
     onError: (err: Error) => toast.error(err.message),

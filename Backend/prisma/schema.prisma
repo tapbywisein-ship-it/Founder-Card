@@ -581,19 +581,21 @@ model Coupon {
 // Record of every email blast sent (or scheduled) for an event.
 model EventBlast {
   id          String    @id @default(uuid())
-  eventId     String
+  eventId     String? // null for cross-event attendee blasts (sendAttendeeBlast)
   organizerId String
   subject     String
   body        String    @db.Text
   audience    String    @default("all") // all | registered | waitlist
-  sent        Int       @default(0)
+  total       Int       @default(0) // recipients targeted
+  sent        Int       @default(0) // CONFIRMED delivered (updated as jobs complete)
+  failed      Int       @default(0) // CONFIRMED failed (updated as jobs complete)
   scheduledAt DateTime?
   sentAt      DateTime?
-  status      String    @default("sent") // sent | scheduled | failed
+  status      String    @default("sending") // sending | sent | partial | failed
   createdAt   DateTime  @default(now())
 
-  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  organizer User  @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  event     Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  organizer User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
   @@index([eventId, createdAt])
   @@index([organizerId])

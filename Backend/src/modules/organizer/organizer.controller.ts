@@ -88,11 +88,13 @@ export class OrganizerController {
       audience?: 'all' | 'registered' | 'waitlist';
     };
     const result = await organizerService.sendEventBlast(id, organizerId, subject, body, audience);
-    const msg =
-      result.failed > 0
-        ? `Blast sent to ${result.sent} of ${result.total} recipients (${result.failed} failed)`
-        : `Blast sent to ${result.sent} recipients`;
-    sendSuccess(res, result, msg);
+    // Delivery is asynchronous — real sent/failed counts land on the persisted
+    // EventBlast row (see recordBlastOutcome), not in this response.
+    sendSuccess(
+      res,
+      result,
+      `Queued for ${result.total} recipient${result.total === 1 ? '' : 's'}`
+    );
   }
 
   async sendAttendeeBlast(req: Request, res: Response): Promise<void> {
@@ -107,11 +109,7 @@ export class OrganizerController {
       return;
     }
     const result = await organizerService.sendAttendeeBlast(organizerId, userIds, subject, body);
-    const msg =
-      result.failed > 0
-        ? `Email sent to ${result.sent} of ${result.total} attendees (${result.failed} failed)`
-        : `Email sent to ${result.sent} attendees`;
-    sendSuccess(res, result, msg);
+    sendSuccess(res, result, `Queued for ${result.total} attendee${result.total === 1 ? '' : 's'}`);
   }
 
   async checkInAttendee(req: Request, res: Response): Promise<void> {
@@ -174,7 +172,10 @@ export class OrganizerController {
     const organizerId = req.user!.userId;
     const { id } = req.params as Record<string, string>;
     const { code, discountPct, maxUses, expiresAt } = req.body as {
-      code: string; discountPct: number; maxUses?: number; expiresAt?: string;
+      code: string;
+      discountPct: number;
+      maxUses?: number;
+      expiresAt?: string;
     };
     const coupon = await organizerService.createCoupon(id, organizerId, {
       code,

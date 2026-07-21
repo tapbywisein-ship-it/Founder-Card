@@ -132,9 +132,21 @@ const BlastsTab = () => {
                     </p>
                   </div>
                   <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                    b.status === 'failed' ? 'bg-red-500/15 text-red-600' : 'bg-emerald-500/15 text-emerald-700'
+                    b.status === 'failed'
+                      ? 'bg-red-500/15 text-red-600'
+                      : b.status === 'partial'
+                        ? 'bg-amber-500/15 text-amber-700'
+                        : b.status === 'sending'
+                          ? 'bg-blue-500/15 text-blue-700'
+                          : 'bg-emerald-500/15 text-emerald-700'
                   }`}>
-                    {b.status === 'failed' ? 'Failed' : `Sent to ${b.sent}`}
+                    {b.status === 'sending'
+                      ? `Sending… ${b.sent + b.failed}/${b.total}`
+                      : b.status === 'failed'
+                        ? `Failed (0/${b.total})`
+                        : b.status === 'partial'
+                          ? `Sent to ${b.sent}/${b.total} (${b.failed} failed)`
+                          : `Sent to ${b.sent}`}
                   </span>
                 </div>
               </div>

@@ -499,16 +499,31 @@ export class OrganizerService {
       },
     });
 
+    // Persist the blast BEFORE sending — real delivery outcomes (sent/failed)
+    // are written back onto this row as each queued job actually resolves (see
+    // recordBlastOutcome in email.queue.ts), so the count is never faked.
+    const total = registrations.length;
+    const blast = await prisma.eventBlast.create({
+      data: {
+        eventId,
+        organizerId,
+        subject,
+        body,
+        audience,
+        total,
+        status: total === 0 ? 'sent' : 'sending',
+      },
+    });
+
     // Enqueue one job per recipient with {{firstName}} substitution instead of
     // awaiting each send in-request. A large blast used to hold the HTTP request
     // open for minutes (sequential Resend calls × cross-region latency) and time
     // out at the proxy, leaving the blast half-sent. Now we hand every email to
     // the queue and return immediately; the worker delivers with retries and
-    // logs per-recipient failures.
+    // updates `blast`'s sent/failed counters as jobs actually complete.
     // ponytail: with Redis, Bull throttles delivery (single-concurrency worker);
     // without Redis the queue processes inline-async and unthrottled — provision
     // Redis in production (see BULL_REDIS_URL) so large blasts pace themselves.
-    const delivered: string[] = [];
     for (const r of registrations) {
       const firstName = r.user.profile?.firstName ?? '';
       // Escape AFTER substitution: the typed body and the profile name are both
@@ -522,30 +537,13 @@ export class OrganizerService {
         name: firstName,
         subject,
         bodyHtml: personalizedBody,
+        blastId: blast.id,
       }).catch((err) =>
         logger.warn('Failed to enqueue blast email', { eventId, to: r.user.email, err })
       );
-      delivered.push(r.user.email);
     }
-    const sent = delivered.length;
 
-    // Persist the blast so organizers get a history in the Blasts tab.
-    await prisma.eventBlast
-      .create({
-        data: {
-          eventId,
-          organizerId,
-          subject,
-          body,
-          audience,
-          sent,
-          sentAt: new Date(),
-          status: sent === 0 ? 'failed' : 'sent',
-        },
-      })
-      .catch((err) => logger.warn('Failed to record event blast', { eventId, err }));
-
-    return { sent, failed: 0, total: registrations.length, recipients: delivered };
+    return { blastId: blast.id, total, recipients: registrations.map((r) => r.user.email) };
   }
 
   /** Past blasts for an event, newest first — powers the Blasts tab history. */
@@ -567,7 +565,8 @@ export class OrganizerService {
   ) {
     await this.assertEventOwner(eventId, organizerId);
     if (!dto.code?.trim()) throw new BadRequestError('Coupon code is required');
-    if (dto.discountPct < 1 || dto.discountPct > 100) throw new BadRequestError('Discount must be 1–100%');
+    if (dto.discountPct < 1 || dto.discountPct > 100)
+      throw new BadRequestError('Discount must be 1–100%');
     return prisma.coupon.create({
       data: {
         eventId,
@@ -614,9 +613,23 @@ export class OrganizerService {
       },
     });
 
+    // Persist first, same real-delivery-tracking pattern as sendEventBlast.
+    // Attendee blasts aren't tied to one event, so eventId is null on this row.
+    const total = eligible.length;
+    const blast = await prisma.eventBlast.create({
+      data: {
+        eventId: null,
+        organizerId,
+        subject,
+        body,
+        audience: 'attendees',
+        total,
+        status: total === 0 ? 'sent' : 'sending',
+      },
+    });
+
     // Enqueue rather than await each send in-request — see sendEventBlast above
     // for the full rationale (request-timeout on large lists, background retry).
-    const delivered: string[] = [];
     for (const r of eligible) {
       const firstName = r.user.profile?.firstName ?? '';
       // Same trust boundary as sendEventBlast: typed text in, safe HTML out.
@@ -628,12 +641,12 @@ export class OrganizerService {
         name: firstName,
         subject,
         bodyHtml: personalizedBody,
+        blastId: blast.id,
       }).catch((err) =>
         logger.warn('Failed to enqueue attendee blast email', { to: r.user.email, err })
       );
-      delivered.push(r.user.email);
     }
-    return { sent: delivered.length, failed: 0, total: eligible.length, recipients: delivered };
+    return { blastId: blast.id, total, recipients: eligible.map((r) => r.user.email) };
   }
 
   async checkInAttendee(eventId: string, organizerId: string, userId: string) {
@@ -1157,7 +1170,9 @@ export class OrganizerService {
     ]);
 
     // Pairs already connected at this event — surfaced but de-prioritized.
-    const connected = new Set(connectionRows.map((c) => [c.requesterId, c.receiverId].sort().join(':')));
+    const connected = new Set(
+      connectionRows.map((c) => [c.requesterId, c.receiverId].sort().join(':'))
+    );
 
     const inter = (a: string[], b: string[]) => a.filter((x) => b.includes(x));
     const attendees = regs
@@ -1170,7 +1185,13 @@ export class OrganizerService {
       }))
       .filter((a) => a.profile);
 
-    type Pair = { score: number; reasons: string[]; a: (typeof attendees)[number]; b: (typeof attendees)[number]; alreadyConnected: boolean };
+    type Pair = {
+      score: number;
+      reasons: string[];
+      a: (typeof attendees)[number];
+      b: (typeof attendees)[number];
+      alreadyConnected: boolean;
+    };
     const pairs: Pair[] = [];
     for (let i = 0; i < attendees.length; i++) {
       for (let j = i + 1; j < attendees.length; j++) {
@@ -1181,9 +1202,13 @@ export class OrganizerService {
         const aWantsB = inter(A.lookingFor, B.skills);
         const bWantsA = inter(B.lookingFor, A.skills);
         const score =
-          2 * sharedSkills.length + 1.5 * sharedInterests.length + 3 * (aWantsB.length + bWantsA.length);
+          2 * sharedSkills.length +
+          1.5 * sharedInterests.length +
+          3 * (aWantsB.length + bWantsA.length);
         if (score <= 0) continue;
-        const reasons = [...new Set([...aWantsB, ...bWantsA, ...sharedSkills, ...sharedInterests])].slice(0, 4);
+        const reasons = [
+          ...new Set([...aWantsB, ...bWantsA, ...sharedSkills, ...sharedInterests]),
+        ].slice(0, 4);
         pairs.push({
           score,
           reasons,
