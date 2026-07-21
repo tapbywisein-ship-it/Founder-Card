@@ -578,19 +578,13 @@ const AttendeeDashboard = () => {
               </div>
               <p className="text-xs text-muted-foreground mb-3">Events tailored to your interests.</p>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: 'Tech', icon: '💻' },
-                  { label: 'Business', icon: '📈' },
-                  { label: 'Design', icon: '🎨' },
-                  { label: 'Startup', icon: '🚀' },
-                ].map(({ label, icon }) => (
+                {['Tech', 'Business', 'Design', 'Startup'].map((label) => (
                   <Link
                     key={label}
                     to={`/discover?category=${label.toLowerCase()}`}
-                    className="p-2.5 rounded-xl bg-muted/40 hover:bg-secondary transition-colors text-center"
+                    className="py-3 rounded-xl bg-muted/40 hover:bg-secondary transition-colors text-center"
                   >
-                    <span className="text-base">{icon}</span>
-                    <p className="text-[11px] font-medium text-muted-foreground mt-1">{label}</p>
+                    <p className="text-xs font-medium text-muted-foreground">{label}</p>
                   </Link>
                 ))}
               </div>
