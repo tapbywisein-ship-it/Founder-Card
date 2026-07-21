@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { organizerService, CreateEventPayload } from '@/services/organizer.service';
+import { eventKeys } from '@/hooks/useEvents';
 import type { Event, Pagination } from '@/services/events.service';
 import type { Guest, AttendeeItem } from '@/services/organizer.service';
 import { useAppStore } from '@/store/appStore';
@@ -156,9 +157,13 @@ export function usePublishEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => organizerService.publishEvent(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: orgKeys.events() });
       qc.invalidateQueries({ queryKey: orgKeys.dashboard() });
+      // The event-detail query (useEvent) feeds the OrgEventDetail status badge +
+      // Publish button; without this it stays DRAFT until the 30s poll, so the
+      // button lingers and a second click hits the "only drafts" guard.
+      qc.invalidateQueries({ queryKey: eventKeys.detail(id) });
       toast.success('Event published!');
     },
     onError: (err: Error) => toast.error(err.message),
