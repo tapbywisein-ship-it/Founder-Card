@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import {
   Calendar, MapPin, Globe, ExternalLink, Users, CheckCircle2,
-  Clock, Share2, Tag, QrCode, ArrowLeft,
+  Clock, Share2, Tag, QrCode, ArrowLeft, Nfc, UserPlus, Sparkles, Mail,
 } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { Surface } from '@/components/Surface';
@@ -80,6 +80,7 @@ const EventDetailUnified = () => {
   // early returns, which produced "rendered more hooks than during the
   // previous render" once the data loaded.
   const [guestRsvpOpen, setGuestRsvpOpen] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState('');
   const [paying, setPaying] = useState(false);
   const [couponInput, setCouponInput] = useState('');
@@ -328,7 +329,7 @@ const EventDetailUnified = () => {
                 razorpaySignature: resp.razorpay_signature,
               });
               await queryClient.invalidateQueries({ queryKey: ['events'] });
-              toast.success('Payment successful, you\'re registered!');
+              setPaymentSuccess(true);
             } catch (err) {
               toast.error(err instanceof Error ? err.message : 'Payment verification failed');
             } finally {
@@ -511,6 +512,31 @@ const EventDetailUnified = () => {
             </div>
           ) : null}
         </div>
+
+        {/* Networking angle — the reason to attend, front and center */}
+        <Surface elevated className="border-primary/30">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h2 className="text-base font-semibold text-foreground">Network smarter here</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            This isn't just a ticket. Tap to exchange contacts on the spot, get intro'd to the
+            people worth meeting, and leave with everyone's details already saved.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { icon: Nfc, title: 'Tap to connect', sub: 'No business cards, no typing.' },
+              { icon: Users, title: 'Who to meet', sub: 'Smart intros to the right people.' },
+              { icon: UserPlus, title: 'Auto follow-up', sub: 'Everyone you met, saved for you.' },
+            ].map(({ icon: Icon, title, sub }) => (
+              <div key={title} className="rounded-xl bg-muted/40 p-3">
+                <Icon className="w-4 h-4 text-primary mb-1.5" />
+                <p className="text-sm font-medium text-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground">{sub}</p>
+              </div>
+            ))}
+          </div>
+        </Surface>
 
         {/* Registration card */}
         <Surface elevated>
@@ -892,6 +918,32 @@ const EventDetailUnified = () => {
         eventId={event.id}
         eventTitle={event.title}
       />
+
+      {/* Post-payment confirmation — shown after Razorpay checkout succeeds. */}
+      <Dialog open={paymentSuccess} onOpenChange={setPaymentSuccess}>
+        <DialogContent className="sm:max-w-md text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 mb-1">
+            <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+          </div>
+          <DialogHeader>
+            <DialogTitle className="text-center">You're in! 🎉</DialogTitle>
+            <DialogDescription className="text-center">
+              Payment successful — your spot for <strong>{event.title}</strong> is confirmed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground flex items-start gap-2.5 text-left">
+            <Mail className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <span>
+              We've emailed your ticket — with a <strong>QR code to check in</strong> —
+              {user?.email ? <> to <strong className="text-foreground">{user.email}</strong></> : ' to your inbox'}.
+              Look for “You're in: {event.title}” (check spam too).
+            </span>
+          </div>
+          <Button className="w-full mt-1" onClick={() => setPaymentSuccess(false)}>
+            Done
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
