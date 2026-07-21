@@ -117,7 +117,9 @@ if (require.main === module) {
   assert(!entitlements('PRO').canHost, 'pro is individual, cannot host');
   assert(entitlements('ORGANIZER_LITE').canHost, 'org lite can host');
   assert(entitlements('ORGANIZER_LITE').maxActiveEvents === 2, 'org lite caps at 2 events');
+  assert(entitlements('ORGANIZER_LITE').maxAttendeesPerEvent === 200, 'org lite caps at 200 attendees');
   assert(entitlements('ORGANIZER_PRO').maxActiveEvents === Infinity, 'org pro unlimited');
+  assert(entitlements('ORGANIZER_PRO').maxAttendeesPerEvent === Infinity, 'org pro unlimited attendees');
   assert(entitlements('FOUNDER').leadCapture, 'legacy founder == pro');
   // eslint-disable-next-line no-console
   console.log('entitlements ladder OK');
