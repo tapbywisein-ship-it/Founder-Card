@@ -26,6 +26,13 @@ export function PublicNav({ loginFrom }: { loginFrom?: string }) {
       <div className="max-w-content mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo renders its own link (home for anon) — don't wrap it in another. */}
         <Logo />
+        {/* Same primary links as the landing nav, so public pages share one navbar. */}
+        <div className="hidden md:flex items-center gap-6">
+          <Link to="/discover" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Discover</Link>
+          <Link to="/communities" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Communities</Link>
+          <Link to="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
+          <a href="/#faq" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">FAQ</a>
+        </div>
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <Button variant="outline" size="sm" asChild>
