@@ -369,6 +369,9 @@ model Event {
   country          String?
   pincode          String?
   meetingUrl       String?
+  latitude         Float?
+  longitude        Float?
+  placeId          String?
   capacity         Int             @default(100)
   ticketPrice      Decimal?        @db.Decimal(10, 2)
   coverImage       String?

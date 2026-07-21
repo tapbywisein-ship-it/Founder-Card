@@ -27,6 +27,9 @@ export interface CreateEventPayload {
     country?: string;
     pincode?: string;
     meetingUrl?: string;
+    latitude?: number;
+    longitude?: number;
+    placeId?: string;
   };
   capacity?: number;
   ticketPrice?: number;

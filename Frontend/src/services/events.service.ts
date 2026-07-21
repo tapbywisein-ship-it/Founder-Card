@@ -9,6 +9,9 @@ export interface EventLocation {
   country?: string;
   pincode?: string;
   meetingUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  placeId?: string;
 }
 
 /** Public, aggregate-only networking impact report (shareable with sponsors). */
@@ -73,6 +76,9 @@ export interface Event {
   country?: string;
   pincode?: string;
   meetingUrl?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  placeId?: string | null;
   capacity: number;
   ticketPrice?: string | null;
   ticketTypes?: Array<{
