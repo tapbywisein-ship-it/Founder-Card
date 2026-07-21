@@ -8,13 +8,14 @@ export const connKeys = {
   search: (q: string) => ['connections', 'search', q] as const,
 };
 
-export function useConnections(page = 1, limit = 20) {
+export function useConnections(page = 1, limit = 20, enabled = true) {
   return useQuery({
     queryKey: connKeys.list(),
     queryFn: () => connectionsService.getConnections(page, limit),
     // Backend returns { data: Connection[], pagination }; the page expects
     // `{ connections, pagination }`. Repack into the shape it reads.
     select: (res) => ({ connections: res.data, pagination: res.pagination }),
+    enabled,
   });
 }
 

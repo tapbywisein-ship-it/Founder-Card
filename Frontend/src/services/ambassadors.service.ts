@@ -1,0 +1,54 @@
+import { apiFetch } from './api';
+
+export type AmbassadorStatus = 'APPLIED' | 'INTERVIEW' | 'ACTIVE' | 'REJECTED';
+
+export interface AmbassadorPublic {
+  id: string;
+  city: string;
+  region?: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    username?: string | null;
+    profile?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      avatar?: string | null;
+      company?: string | null;
+      position?: string | null;
+    } | null;
+  };
+}
+
+export interface MyAmbassador {
+  id: string;
+  city: string;
+  region?: string | null;
+  motivation: string;
+  status: AmbassadorStatus;
+  reviewNote?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApplyAmbassadorInput {
+  city: string;
+  region?: string;
+  motivation: string;
+}
+
+export const ambassadorsService = {
+  listActive(city?: string) {
+    const qs = city ? `?city=${encodeURIComponent(city)}` : '';
+    return apiFetch<{ data: AmbassadorPublic[] }>(`/ambassadors${qs}`);
+  },
+  getMine() {
+    return apiFetch<{ data: MyAmbassador | null }>('/ambassadors/me');
+  },
+  apply(input: ApplyAmbassadorInput) {
+    return apiFetch<{ data: MyAmbassador }>('/ambassadors/apply', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+};

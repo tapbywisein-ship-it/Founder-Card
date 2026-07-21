@@ -4,6 +4,8 @@ export interface PublicStats {
   founders: number;
   connections: number;
   events: number;
+  cities: number;
+  ambassadors: number;
 }
 
 export const publicService = {

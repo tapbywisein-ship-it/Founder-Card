@@ -214,6 +214,7 @@ model User {
   eventFeedback       EventFeedback[]
   endorsementsGiven   SkillEndorsement[] @relation("EndorsementsGiven")
   endorsementsReceived SkillEndorsement[] @relation("EndorsementsReceived")
+  ambassador          Ambassador?
 
   @@index([email])
   @@index([supabaseId])
@@ -1199,4 +1200,33 @@ model EventTap {
   @@index([scannerUserId])
   @@index([targetUserId])
   @@map("event_taps")
+}
+
+enum AmbassadorStatus {
+  APPLIED
+  INTERVIEW
+  ACTIVE
+  REJECTED
+}
+
+/// Community Lead / Ambassador program. One application per user (unique userId).
+/// Pipeline: APPLIED → INTERVIEW → ACTIVE (or REJECTED). ACTIVE rows power the
+/// public directory and the live "ambassadors" stat.
+model Ambassador {
+  id         String           @id @default(uuid())
+  userId     String           @unique
+  city       String
+  region     String?
+  motivation String           @db.Text
+  status     AmbassadorStatus @default(APPLIED)
+  reviewedBy String?
+  reviewNote String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([city])
+  @@map("ambassadors")
 }

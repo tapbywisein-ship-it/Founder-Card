@@ -36,6 +36,7 @@ import seoRoutes from '@modules/seo/seo.routes';
 import publicRoutes from '@modules/public/public.routes';
 import searchRoutes from '@modules/search/search.routes';
 import communitiesRoutes from '@modules/communities/communities.routes';
+import ambassadorsRoutes from '@modules/ambassadors/ambassadors.routes';
 import { ogImageRouter, ogHtmlRouter } from '@modules/og/og.routes';
 
 const app = express();
@@ -174,6 +175,7 @@ app.use(`${API_BASE}/seo`, seoRoutes);
 app.use(`${API_BASE}/public`, publicRoutes);
 app.use(`${API_BASE}/search`, searchRoutes);
 app.use(`${API_BASE}/communities`, communitiesRoutes);
+app.use(`${API_BASE}/ambassadors`, ambassadorsRoutes);
 app.use(`${API_BASE}/og`, ogImageRouter);
 // Crawler-facing HTML endpoints sit at the root so unfurlers see clean URLs.
 app.use('/og', ogHtmlRouter);
