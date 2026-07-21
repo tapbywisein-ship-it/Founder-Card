@@ -84,25 +84,49 @@ export class EventsService {
       .slice(0, 80);
   }
 
+  /**
+   * Enforce the organizer's plan limits for hosting. No-op while billing is off,
+   * so nothing changes until BILLING_ENABLED flips. One tier lookup covers both
+   * caps: max active events (create only) and max attendees per event (capacity).
+   */
+  private async assertEventTierLimits(
+    organizerId: string,
+    opts: { capacity?: number; countActive?: boolean }
+  ): Promise<void> {
+    if (!env.BILLING_ENABLED) return;
+    const { tier } = (await prisma.user.findUnique({
+      where: { id: organizerId },
+      select: { tier: true },
+    })) ?? { tier: 'FREE' as const };
+    const ent = entitlements(tier);
+
+    if (opts.countActive && Number.isFinite(ent.maxActiveEvents)) {
+      const active = await prisma.event.count({
+        where: { organizerId, deletedAt: null, status: { in: ['PUBLISHED', 'DRAFT'] } },
+      });
+      if (active >= ent.maxActiveEvents) {
+        throw new BadRequestError(
+          `Your plan allows up to ${ent.maxActiveEvents} active events. Upgrade for more.`
+        );
+      }
+    }
+
+    if (
+      opts.capacity !== undefined &&
+      Number.isFinite(ent.maxAttendeesPerEvent) &&
+      opts.capacity > ent.maxAttendeesPerEvent
+    ) {
+      throw new BadRequestError(
+        `Your plan allows up to ${ent.maxAttendeesPerEvent} attendees per event. Upgrade for more.`
+      );
+    }
+  }
+
   async createEvent(organizerId: string, dto: CreateEventDto) {
     // Hosting is a paid-organizer entitlement; Lite is capped on active events.
     // No-ops while billing is off.
     await assertEntitled(organizerId, 'canHost');
-    if (env.BILLING_ENABLED) {
-      const { tier } = (await prisma.user.findUnique({
-        where: { id: organizerId },
-        select: { tier: true },
-      })) ?? { tier: 'FREE' as const };
-      const cap = entitlements(tier).maxActiveEvents;
-      if (Number.isFinite(cap)) {
-        const active = await prisma.event.count({
-          where: { organizerId, deletedAt: null, status: { in: ['PUBLISHED', 'DRAFT'] } },
-        });
-        if (active >= cap) {
-          throw new BadRequestError(`Your plan allows up to ${cap} active events. Upgrade for more.`);
-        }
-      }
-    }
+    await this.assertEventTierLimits(organizerId, { capacity: dto.capacity, countActive: true });
 
     // Only allow linking an event to a community the organizer actually owns.
     if (dto.communityId) {
@@ -189,6 +213,9 @@ export class EventsService {
     if (event.status === 'CANCELLED') {
       throw new BadRequestError('Cannot update a cancelled event');
     }
+
+    // Don't let an edit raise capacity beyond the organizer's plan cap.
+    await this.assertEventTierLimits(organizerId, { capacity: dto.capacity });
 
     const updated = await prisma.event.update({
       where: { id: eventId },
