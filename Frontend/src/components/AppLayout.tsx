@@ -157,7 +157,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
       {/* ── Desktop left sidebar — collapsed to icons, expands on hover ──── */}
       <aside className="group hidden md:flex flex-col w-16 hover:w-60 transition-[width] duration-200 ease-out overflow-hidden border-r border-border px-2 py-4 fixed h-full z-40 bg-background">
-        <div className="mb-3 px-1"><Logo size="md" /></div>
+        <div className="mb-3 px-1"><Logo size="md" collapsible /></div>
         <button
           type="button"
           onClick={() => setSearchOpen(true)}

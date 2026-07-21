@@ -30,6 +30,7 @@ export function PublicNav({ loginFrom }: { loginFrom?: string }) {
         <div className="hidden md:flex items-center gap-6">
           <Link to="/discover" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Discover</Link>
           <Link to="/communities" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Communities</Link>
+          <Link to="/ambassadors" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Ambassadors</Link>
           <Link to="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
           <a href="/#faq" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">FAQ</a>
         </div>

@@ -55,7 +55,7 @@ export const AdminLayout = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-background flex">
       <NavbarThemeToggle />
       <aside className="group hidden md:flex flex-col w-16 hover:w-60 transition-[width] duration-200 ease-out overflow-hidden border-r border-border px-2 py-4 fixed h-full z-40 bg-background">
-        <div className="mb-1 px-1"><Logo /></div>
+        <div className="mb-1 px-1"><Logo collapsible /></div>
         <p className="flex items-center gap-1 text-xs text-muted-foreground mb-6 px-3 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
           <Shield className="w-3 h-3 flex-shrink-0" /> Admin
         </p>
