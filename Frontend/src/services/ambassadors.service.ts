@@ -37,6 +37,18 @@ export interface ApplyAmbassadorInput {
   motivation: string;
 }
 
+/** Admin review row: the full application plus the applicant's public profile. */
+export interface AmbassadorAdminRow extends MyAmbassador {
+  user: AmbassadorPublic['user'];
+}
+
+export interface Pagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const ambassadorsService = {
   listActive(city?: string) {
     const qs = city ? `?city=${encodeURIComponent(city)}` : '';
@@ -49,6 +61,19 @@ export const ambassadorsService = {
     return apiFetch<{ data: MyAmbassador }>('/ambassadors/apply', {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  },
+
+  // ── Admin ──────────────────────────────────────────────────────────────────
+  adminList(status?: AmbassadorStatus, page = 1, limit = 50) {
+    const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) qs.set('status', status);
+    return apiFetch<{ data: AmbassadorAdminRow[]; pagination: Pagination }>(`/ambassadors/admin?${qs}`);
+  },
+  updateStatus(id: string, status: AmbassadorStatus, reviewNote?: string) {
+    return apiFetch<{ data: MyAmbassador }>(`/ambassadors/admin/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reviewNote }),
     });
   },
 };
