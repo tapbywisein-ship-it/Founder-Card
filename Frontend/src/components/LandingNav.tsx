@@ -14,6 +14,7 @@ export const LandingNav = () => {
         <div className="hidden md:flex items-center gap-6">
           <Link to="/discover" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Discover</Link>
           <Link to="/communities" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Communities</Link>
+          <Link to="/ambassadors" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Ambassadors</Link>
           <Link to="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
           <a href="/#faq" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">FAQ</a>
           <Button size="sm" asChild>
@@ -32,6 +33,7 @@ export const LandingNav = () => {
         <div className="md:hidden p-6 border-t border-border flex flex-col gap-4 bg-background">
           <Link to="/discover" className="text-sm font-medium text-foreground" onClick={() => setOpen(false)}>Discover</Link>
           <Link to="/communities" className="text-sm font-medium text-foreground" onClick={() => setOpen(false)}>Communities</Link>
+          <Link to="/ambassadors" className="text-sm font-medium text-foreground" onClick={() => setOpen(false)}>Ambassadors</Link>
           <Link to="/pricing" className="text-sm font-medium text-foreground" onClick={() => setOpen(false)}>Pricing</Link>
           <a href="/#faq" className="text-sm font-medium text-foreground" onClick={() => setOpen(false)}>FAQ</a>
           <Button size="sm" asChild><Link to="/login">Get started</Link></Button>

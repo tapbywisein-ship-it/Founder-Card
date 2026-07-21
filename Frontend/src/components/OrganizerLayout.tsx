@@ -44,7 +44,7 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-background flex">
       <NavbarThemeToggle />
       <aside className="group hidden md:flex flex-col w-16 hover:w-60 transition-[width] duration-200 ease-out overflow-hidden border-r border-border px-2 py-4 fixed h-full z-40 bg-background">
-        <div className="mb-1 px-1"><Logo /></div>
+        <div className="mb-1 px-1"><Logo collapsible /></div>
         <p className="text-xs text-muted-foreground mb-6 px-3 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Organizer</p>
         <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Organizer">
           {navItems.map((item) => {

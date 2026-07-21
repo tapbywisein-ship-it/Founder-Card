@@ -13,7 +13,21 @@ const HOME_BY_ROLE: Record<string, string> = {
  * which looks like a logout). Anonymous visitors go to the landing page.
  * Pass `to` to override the destination.
  */
-export const Logo = ({ size = 'md', to }: { size?: 'sm' | 'md' | 'lg'; to?: string }) => {
+export const Logo = ({
+  size = 'md',
+  to,
+  collapsible = false,
+}: {
+  size?: 'sm' | 'md' | 'lg';
+  to?: string;
+  /**
+   * For collapsible icon-rail sidebars: show just the T mark while the rail is
+   * collapsed, and reveal the full wordmark when the rail expands on hover (the
+   * parent `aside` carries the `group` class). Without this the wordmark gets
+   * clipped into a "molded" sliver at the 64px collapsed width.
+   */
+  collapsible?: boolean;
+}) => {
   // Logo is ~93×24; scale by height and let width follow the aspect ratio.
   const heights = { sm: 'h-5', md: 'h-6', lg: 'h-8' };
 
@@ -25,8 +39,20 @@ export const Logo = ({ size = 'md', to }: { size?: 'sm' | 'md' | 'lg'; to?: stri
   // logo-light = dark text for light backgrounds; logo-dark = white text for dark.
   return (
     <Link to={target} className="flex items-center group">
-      <img src="/logo-light.png" alt="TapByWisein" className={`${heights[size]} w-auto block dark:hidden`} />
-      <img src="/logo-dark.png" alt="TapByWisein" className={`${heights[size]} w-auto hidden dark:block`} />
+      {collapsible && (
+        // Blue T mark — reads on both themes; hidden once the rail expands.
+        <img src="/logo-mark.png" alt="TapByWisein" className={`${heights[size]} w-auto block group-hover:hidden`} />
+      )}
+      <img
+        src="/logo-light.png"
+        alt="TapByWisein"
+        className={`${heights[size]} w-auto ${collapsible ? 'hidden group-hover:block' : 'block'} dark:hidden`}
+      />
+      <img
+        src="/logo-dark.png"
+        alt="TapByWisein"
+        className={`${heights[size]} w-auto hidden ${collapsible ? 'dark:group-hover:block' : 'dark:block'}`}
+      />
     </Link>
   );
 };

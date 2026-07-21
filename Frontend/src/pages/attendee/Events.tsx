@@ -5,7 +5,7 @@ import { PublicNav } from '@/components/PublicNav';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
 import { useEvents, useRegisterForEvent, useMyRegistrations, useSavedEvents, useEventQuestions } from '@/hooks/useEvents';
 import { SaveEventButton } from '@/components/SaveEventButton';
@@ -37,6 +37,7 @@ const EventsPage = () => {
   const [savedOnly, setSavedOnly] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const withUser = searchParams.get('withUser') ?? undefined;
+  const navigate = useNavigate();
   const [registerModal, setRegisterModal] = useState<Event | null>(null);
   const [regStep, setRegStep] = useState<'confirm' | 'success'>('confirm');
   const [registrationId, setRegistrationId] = useState<string | null>(null);
@@ -91,7 +92,18 @@ const EventsPage = () => {
     setRegStep('success');
   };
 
-  const openModal = (e: Event) => { setRegisterModal(e); setRegStep('confirm'); setRegistrationId(null); };
+  // Paid events can't register through the quick modal (it only does free
+  // sign-up). Route them to the event page, where the Razorpay checkout lives.
+  const isPaidEvent = (e: Event) => {
+    const enabled = (e.ticketTypes ?? []).filter((t) => t.isEnabled ?? true);
+    return enabled.length > 0
+      ? enabled.some((t) => (Number(t.price) || 0) > 0)
+      : e.ticketPrice != null && Number(e.ticketPrice) > 0;
+  };
+  const openModal = (e: Event) => {
+    if (isPaidEvent(e)) { navigate(`/event/${e.id}`); return; }
+    setRegisterModal(e); setRegStep('confirm'); setRegistrationId(null);
+  };
   const closeModal = () => setRegisterModal(null);
 
   const qrValue = registrationId
@@ -327,7 +339,7 @@ const EventsPage = () => {
                             onClick={() => openModal(e)}
                           >
                             <Ticket className="w-3 h-3 mr-1" />
-                            {isFull ? (e.waitlistEnabled ? 'Waitlist' : 'Full') : 'Register'}
+                            {isFull ? (e.waitlistEnabled ? 'Waitlist' : 'Full') : (isPaidEvent(e) ? 'Get tickets' : 'Register')}
                           </Button>
                         )}
                       </div>
