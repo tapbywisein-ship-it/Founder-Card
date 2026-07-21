@@ -17,7 +17,7 @@ import { getCountryOptions, getStateOptions, getCityOptions, type GeoOption } fr
 import { apiUpload } from '@/services/api';
 import { toast } from 'sonner';
 import {
-  Calendar, Check, MapPin, Upload, X, Plus, Trash2, Shuffle, Globe, Building2, Loader2,
+  Calendar, Check, MapPin, Upload, X, Plus, Trash2, Shuffle, Globe, Building2, Loader2, AlertTriangle,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -149,6 +149,8 @@ const CreateEventPage = () => {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const userRole = useAppStore((s) => s.user?.role);
   const [orgName, setOrgName] = useState('');
+  // Same irreversibility gate as the attendee portal's "Become an organizer" dialog.
+  const [orgAck, setOrgAck] = useState(false);
 
   // ─── Auth gate ───────────────────────────────────────────────────────────
   // All gate hooks live ABOVE the early returns below so hook order stays stable
@@ -390,6 +392,26 @@ const CreateEventPage = () => {
               />
             </div>
 
+            {/* Irreversible: no backend path from ORGANIZER back to ATTENDEE. */}
+            <div className="flex gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-left">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+              <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                This is <strong>permanent</strong>. Once you become an organizer, your account can’t be switched back to a regular attendee account.
+              </p>
+            </div>
+
+            <label className="flex items-start gap-2.5 cursor-pointer select-none text-left">
+              <input
+                type="checkbox"
+                checked={orgAck}
+                onChange={(e) => setOrgAck(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary cursor-pointer"
+              />
+              <span className="text-sm text-foreground">
+                I understand this can’t be undone and I want to become an organizer.
+              </span>
+            </label>
+
             <Button
               className="w-full"
               onClick={() =>
@@ -397,7 +419,7 @@ const CreateEventPage = () => {
                   onSuccess: () => toast.success("You're an organizer now. Let's create your event!"),
                 })
               }
-              disabled={requestOrgMutation.isPending}
+              disabled={requestOrgMutation.isPending || !orgAck}
             >
               {requestOrgMutation.isPending ? 'Upgrading…' : 'Become an organizer'}
             </Button>
