@@ -46,6 +46,12 @@ export const ParticleWordmark = ({
 
     const buildParticles = () => {
       width = container.clientWidth;
+      // Container not laid out yet (clientWidth 0) → a 0-wide offscreen canvas
+      // makes getImageData throw. Bail and retry next frame instead of crashing.
+      if (width === 0) {
+        requestAnimationFrame(buildParticles);
+        return;
+      }
       const vw = window.innerWidth / 100;
       const fontSize = Math.min(Math.max(56, vw * 12), 144);
       height = Math.round(fontSize * 1.15);
