@@ -1,5 +1,4 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
-import { Link } from 'react-router-dom';
 import { AlertCircle, RotateCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -41,10 +40,14 @@ export class ErrorBoundary extends Component<Props, State> {
             <Button onClick={() => { this.setState({ error: null }); window.location.reload(); }}>
               <RotateCcw className="w-4 h-4 mr-1.5" /> Refresh
             </Button>
+            {/* Plain anchor, not react-router <Link>: this boundary sits ABOVE
+                <BrowserRouter> in App, so a <Link> here has no router context
+                and throws while rendering the fallback — turning a caught error
+                into a blank white screen. A full-load home works from any state. */}
             <Button variant="outline" asChild>
-              <Link to="/" onClick={() => this.setState({ error: null })}>
+              <a href="/">
                 <Home className="w-4 h-4 mr-1.5" /> Home
-              </Link>
+              </a>
             </Button>
           </div>
         </div>
