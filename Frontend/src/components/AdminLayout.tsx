@@ -4,7 +4,7 @@ import { Logo } from '@/components/Logo';
 import { NavbarThemeToggle, ThemeToggle } from '@/components/ThemeToggle';
 import { useAppStore } from '@/store/appStore';
 import {
-  LayoutDashboard, Users, Calendar, BarChart3, Settings, LogOut, Shield, Sparkles, UserCircle, IndianRupee, ScrollText, Menu, X,
+  LayoutDashboard, Users, Calendar, BarChart3, Settings, LogOut, Shield, Sparkles, UserCircle, IndianRupee, ScrollText, Award, Menu, X,
 } from 'lucide-react';
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Users',       icon: Users,           path: '/admin/users' },
   { label: 'Events',      icon: Calendar,        path: '/admin/events' },
   { label: 'Tap Cards',   icon: Sparkles,        path: '/admin/founder-cards' },
+  { label: 'Ambassadors', icon: Award,           path: '/admin/ambassadors' },
   { label: 'Revenue',     icon: IndianRupee,     path: '/admin/revenue' },
   { label: 'Analytics',   icon: BarChart3,       path: '/admin/analytics' },
   { label: 'Audit Logs',  icon: ScrollText,      path: '/admin/audit-logs' },
