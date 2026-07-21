@@ -47,38 +47,38 @@ const baseTemplate = (content: string): string => `
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TapByWisein</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f4f5; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-    .header { background: linear-gradient(135deg, #3B6FF0 0%, #0A0E2E 100%); padding: 32px 40px; text-align: center; }
-    .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
-    .header p { color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px; }
-    .body { padding: 40px; }
-    .body h2 { color: #0A0E2E; font-size: 22px; margin: 0 0 16px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: #eef1f6; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; }
+    img { border: 0; line-height: 100%; outline: none; text-decoration: none; }
+    .body h2 { color: #0A0E2E; font-size: 22px; margin: 0 0 16px; font-weight: 700; letter-spacing: -0.3px; }
     .body p { color: #4a4a6a; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
-    .button { display: inline-block; background: #3B6FF0; color: #ffffff !important; text-decoration: none; padding: 14px 32px; border-radius: 9999px; font-weight: 600; font-size: 15px; margin: 8px 0 24px; }
-    .code-box { background: #f8f9fa; border: 2px dashed #3B6FF0; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0; }
-    .code { font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0A0E2E; font-family: monospace; }
-    .divider { height: 1px; background: #f0f0f0; margin: 24px 0; }
-    .footer { background: #f8f9fa; padding: 24px 40px; text-align: center; }
-    .footer p { color: #9999aa; font-size: 12px; margin: 4px 0; }
-    .footer a { color: #3B6FF0; text-decoration: none; }
-    .warning { background: #EAF1FF; border-left: 4px solid #3B6FF0; padding: 12px 16px; border-radius: 0 6px 6px 0; font-size: 13px; color: #1a3a8f; margin: 16px 0; }
+    .body ul { color: #4a4a6a; line-height: 1.8; margin: 0 0 16px; padding-left: 20px; font-size: 15px; }
+    .button { display: inline-block; background: #3B6FF0; color: #ffffff !important; text-decoration: none; padding: 14px 34px; border-radius: 9999px; font-weight: 600; font-size: 15px; margin: 8px 0; }
+    .code-box { background: #f6f8fc; border: 1px solid #e3e9f5; border-radius: 12px; padding: 20px 22px; margin: 20px 0; }
+    .code { font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0A0E2E; font-family: 'SF Mono', Menlo, monospace; }
+    .divider { height: 1px; background: #eef1f6; margin: 24px 0; line-height: 1px; }
+    .warning { background: #EAF1FF; border-left: 4px solid #3B6FF0; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #1a3a8f; margin: 16px 0; }
+    @media (max-width: 620px) { .card { width: 100% !important; } .pad { padding: 28px 24px !important; } }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <!-- White-text wordmark for the dark header. Absolute URL (email can't use
-           relative paths); alt is the fallback when a client blocks images. -->
-      <img src="${env.FRONTEND_URL}/logo-dark.png" alt="TapByWisein" height="30" style="height:30px;width:auto;display:inline-block;border:0;" />
-      <p>Founder Networking Platform</p>
-    </div>
-    <div class="body">${content}</div>
-    <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} TapByWisein. All rights reserved.</p>
-      <p>Questions? <a href="mailto:support@tapbywisein.com">support@tapbywisein.com</a></p>
-    </div>
-  </div>
+<body style="margin:0;padding:0;background:#eef1f6;">
+  <span style="display:none;max-height:0;overflow:hidden;opacity:0;color:#eef1f6;">TapByWisein — where founders connect.</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f6;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table role="presentation" class="card" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;">
+        <!-- Header: solid brand color renders reliably where gradients get stripped. -->
+        <tr><td align="center" bgcolor="#0A0E2E" style="background:#0A0E2E;padding:30px 40px;">
+          <img src="${env.FRONTEND_URL}/logo-dark.png" alt="TapByWisein" height="28" style="height:28px;width:auto;display:inline-block;border:0;" />
+          <div style="color:#93a4c9;font-size:13px;margin-top:8px;">Where founders connect</div>
+        </td></tr>
+        <tr><td class="body pad" style="padding:36px 40px;">${content}</td></tr>
+        <tr><td align="center" bgcolor="#f6f8fc" style="background:#f6f8fc;padding:26px 40px;border-top:1px solid #eef1f6;">
+          <div style="color:#8a93a6;font-size:12px;line-height:1.6;">&copy; ${new Date().getFullYear()} TapByWisein · Made for founders, by founders.</div>
+          <div style="color:#8a93a6;font-size:12px;line-height:1.6;margin-top:4px;">Questions? <a href="mailto:support@tapbywisein.com" style="color:#3B6FF0;text-decoration:none;">support@tapbywisein.com</a></div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>`;
 
@@ -331,6 +331,9 @@ export const sendEmailWithAttachments = async (
     const resendAttachments = attachments.map((a) => ({
       filename: a.filename,
       content: Buffer.from(a.content, 'base64'),
+      // Forward the content-id so `<img src="cid:...">` inline images resolve
+      // (Resend maps contentId → content_id). Without this the QR shows broken.
+      ...(a.cid ? { contentId: a.cid } : {}),
     }));
 
     const { data, error } = await resend.emails.send({

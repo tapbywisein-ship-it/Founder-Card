@@ -189,6 +189,21 @@ export class PaymentsService {
       return { payment, registration };
     }
 
+    // Trust-but-verify: a valid signature can exist for an authorized-but-not-
+    // captured payment that Razorpay later fails (e.g. risk-flagged / "website
+    // mismatch"). Confirm the payment actually captured before issuing a ticket,
+    // otherwise a failed/refunded payment would hand out a free registration.
+    const captured = await this.isPaymentCaptured(razorpayPaymentId);
+    if (!captured) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: 'FAILED', razorpayPaymentId, razorpaySignature },
+      });
+      throw new BadRequestError(
+        'Payment could not be confirmed. If money was debited, it will be refunded automatically within 5–7 business days.'
+      );
+    }
+
     const eventsService = (await import('@modules/events/events.service')).default;
     const registration = await eventsService.finalizePaidRegistration({
       eventId: payment.eventId,
@@ -258,6 +273,21 @@ export class PaymentsService {
       }
     } catch (err) {
       logger.warn('Coupon usedCount increment failed', { err, eventId, couponCode });
+    }
+  }
+
+  /** True only if Razorpay reports the payment as fully captured (money settled). */
+  private async isPaymentCaptured(razorpayPaymentId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${RAZORPAY_API}/payments/${razorpayPaymentId}`, {
+        headers: { Authorization: authHeader() },
+      });
+      if (!res.ok) return false;
+      const body = (await res.json()) as { status?: string };
+      return body.status === 'captured';
+    } catch (err) {
+      logger.error('Razorpay payment status fetch failed', { err, razorpayPaymentId });
+      return false;
     }
   }
 

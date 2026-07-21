@@ -8,17 +8,19 @@ import { LocationPicker, type PickedLocation } from '@/components/LocationPicker
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useNavigate, Navigate, useParams } from 'react-router-dom';
+import { useNavigate, Navigate, useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useCreateEvent, useUpdateEvent, useRequestOrganizer } from '@/hooks/useOrganizer';
 import { useEvent } from '@/hooks/useEvents';
 import { useMyCommunities } from '@/hooks/useCommunities';
 import { useAppStore } from '@/store/appStore';
+import { payoutsService } from '@/services/payouts.service';
 import { EVENT_THEMES, THEME_IDS } from '@/lib/eventThemes';
 import { getCountryOptions, getStateOptions, getCityOptions, type GeoOption } from '@/lib/geo';
 import { apiUpload } from '@/services/api';
 import { toast } from 'sonner';
 import {
-  Calendar, Check, MapPin, Upload, X, Plus, Trash2, Shuffle, Globe, Building2, Loader2,
+  Calendar, Check, MapPin, Upload, X, Plus, Trash2, Shuffle, Globe, Building2, Loader2, AlertTriangle,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -231,6 +233,21 @@ const CreateEventPage = () => {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  // ── Payout gate ─────────────────────────────────────────────────────────────
+  // Warn organizers who are selling paid tickets but have no verified payout
+  // account — otherwise their ticket revenue sits held until they onboard.
+  const isPaidEvent =
+    (!form.useTicketTypes && form.isPaid && Number(form.ticketPrice) > 0) ||
+    (form.useTicketTypes && form.ticketTypes.some((t) => (t.isEnabled ?? true) && Number(t.price) > 0));
+  const { data: payoutData } = useQuery({
+    queryKey: ['organizer', 'payouts', 'account'],
+    queryFn: () => payoutsService.getRouteAccount(),
+    select: (r) => r.data,
+    enabled: isAuthenticated && (userRole === 'organizer' || userRole === 'admin'),
+    staleTime: 5 * 60_000,
+  });
+  const payoutReady = payoutData?.account?.razorpayAccountStatus === 'activated';
 
   // ── Location cascade: country → state → city ────────────────────────────────
   // The geo dataset (7.7 MB of cities) loads as a separate async chunk on first
@@ -1055,6 +1072,23 @@ const CreateEventPage = () => {
 
               <Surface>
                 <div className="space-y-4">
+
+                  {/* Payout gate — selling paid tickets without a verified bank account. */}
+                  {isPaidEvent && !payoutReady && (
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div className="text-xs text-amber-700 dark:text-amber-400">
+                        <p className="font-medium">Set up payouts to receive money</p>
+                        <p className="mt-0.5 opacity-90">
+                          You're selling paid tickets but haven't added a verified bank account. Ticket
+                          revenue is held until you set up and verify payouts.
+                        </p>
+                        <Link to="/organizer/payouts" className="inline-block mt-1.5 font-medium underline">
+                          Set up payouts →
+                        </Link>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Ticket Price — hidden once multiple ticket tiers are enabled, since each tier sets its own price */}
                   {!form.useTicketTypes && (
