@@ -4,6 +4,7 @@ import { PortalLayout } from '@/components/PortalLayout';
 import { SignInModal } from '@/components/SignInModal';
 import { RoleChoiceModal } from '@/components/RoleChoiceModal';
 import { Surface } from '@/components/Surface';
+import { LocationPicker, type PickedLocation } from '@/components/LocationPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -104,6 +105,9 @@ interface FormState {
   /** ISO country code, e.g. "IN" — converted to the full country name on submit. */
   country: string;
   pincode: string;
+  latitude: number | null;
+  longitude: number | null;
+  placeId: string;
   meetingUrl: string;
   coverImage: string;
   theme: string;
@@ -206,6 +210,9 @@ const CreateEventPage = () => {
     state: '',
     country: '',
     pincode: '',
+    latitude: null,
+    longitude: null,
+    placeId: '',
     meetingUrl: '',
     coverImage: '',
     theme: 'indigo',
@@ -294,6 +301,9 @@ const CreateEventPage = () => {
         state,
         country,
         pincode: ev.pincode ?? '',
+        latitude: ev.latitude ?? null,
+        longitude: ev.longitude ?? null,
+        placeId: ev.placeId ?? '',
         meetingUrl: ev.meetingUrl ?? '',
         coverImage: ev.coverImage ?? '',
         theme: ev.theme ?? f.theme,
@@ -575,6 +585,9 @@ const CreateEventPage = () => {
         country: countryOptions.find((c) => c.code === form.country)?.name ?? form.country,
         pincode: form.pincode.trim(),
         meetingUrl,
+        latitude: form.latitude ?? undefined,
+        longitude: form.longitude ?? undefined,
+        placeId: form.placeId || undefined,
       },
       coverImage: form.coverImage || undefined,
       theme: form.theme,
@@ -870,58 +883,111 @@ const CreateEventPage = () => {
                     <span>In Person</span>
                   </div>
 
-                  <select
-                    value={form.country}
-                    onChange={(e) => {
-                      const country = e.target.value;
-                      setForm((prev) => ({ ...prev, country, state: '', city: '' }));
-                    }}
-                    className="w-full h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">Select country…</option>
-                    {countryOptions.map((c) => (
-                      <option key={c.code} value={c.code}>{c.name}</option>
-                    ))}
-                  </select>
+                  {/* Google Places search — auto-fills the fields below + stores coordinates. */}
+                  <LocationPicker
+                    latitude={form.latitude}
+                    longitude={form.longitude}
+                    placeId={form.placeId}
+                    onPick={(loc: PickedLocation) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        address: loc.address || prev.address,
+                        // Google returns full names; the cascade selects match ISO codes, so
+                        // these fall through to their raw value on submit (handled below).
+                        city: loc.city || prev.city,
+                        state: loc.state || prev.state,
+                        country: loc.country || prev.country,
+                        pincode: loc.pincode || prev.pincode,
+                        latitude: loc.latitude,
+                        longitude: loc.longitude,
+                        placeId: loc.placeId,
+                      }))
+                    }
+                  />
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={form.state}
-                      onChange={(e) => {
-                        const state = e.target.value;
-                        setForm((prev) => ({ ...prev, state, city: '' }));
-                      }}
-                      disabled={!form.country}
-                      className="h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                    >
-                      <option value="">Select state…</option>
-                      {stateOptions.map((s) => (
-                        <option key={s.code} value={s.code}>{s.name}</option>
-                      ))}
-                    </select>
-
-                    {cityOptions.length > 0 ? (
-                      <select
-                        value={form.city}
-                        onChange={(e) => set('city', e.target.value)}
-                        disabled={!form.state}
-                        className="h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                  {/* A Google pick is the source of truth — show it as a summary and skip the
+                      ISO-coded cascade (it can't display Google's full place names). */}
+                  {form.placeId ? (
+                    <div className="px-3 py-2 rounded-xl bg-muted/20 border border-border text-xs space-y-1">
+                      <div className="text-muted-foreground">
+                        {[form.city, form.state, form.country].filter(Boolean).join(', ') || 'Location selected'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            latitude: null,
+                            longitude: null,
+                            placeId: '',
+                            country: '',
+                            state: '',
+                            city: '',
+                          }))
+                        }
+                        className="text-primary hover:underline"
                       >
-                        <option value="">Select city…</option>
-                        {cityOptions.map((c) => (
+                        Change / enter manually
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-muted-foreground">Or enter it manually:</p>
+
+                      <select
+                        value={form.country}
+                        onChange={(e) => {
+                          const country = e.target.value;
+                          setForm((prev) => ({ ...prev, country, state: '', city: '' }));
+                        }}
+                        className="w-full h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Select country…</option>
+                        {countryOptions.map((c) => (
                           <option key={c.code} value={c.code}>{c.name}</option>
                         ))}
                       </select>
-                    ) : (
-                      <Input
-                        value={form.city}
-                        onChange={(e) => set('city', e.target.value)}
-                        placeholder="City"
-                        disabled={!form.state}
-                        className="h-9 text-sm disabled:opacity-50"
-                      />
-                    )}
-                  </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={form.state}
+                          onChange={(e) => {
+                            const state = e.target.value;
+                            setForm((prev) => ({ ...prev, state, city: '' }));
+                          }}
+                          disabled={!form.country}
+                          className="h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        >
+                          <option value="">Select state…</option>
+                          {stateOptions.map((s) => (
+                            <option key={s.code} value={s.code}>{s.name}</option>
+                          ))}
+                        </select>
+
+                        {cityOptions.length > 0 ? (
+                          <select
+                            value={form.city}
+                            onChange={(e) => set('city', e.target.value)}
+                            disabled={!form.state}
+                            className="h-9 px-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                          >
+                            <option value="">Select city…</option>
+                            {cityOptions.map((c) => (
+                              <option key={c.code} value={c.code}>{c.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Input
+                            value={form.city}
+                            onChange={(e) => set('city', e.target.value)}
+                            placeholder="City"
+                            disabled={!form.state}
+                            className="h-9 text-sm disabled:opacity-50"
+                          />
+                        )}
+                      </div>
+                    </>
+                  )}
 
                   <Input
                     value={form.address}

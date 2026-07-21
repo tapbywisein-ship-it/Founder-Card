@@ -8,6 +8,9 @@ const locationSchema = z.object({
   pincode: z.string().min(3, 'Pincode is required').max(20),
   virtual: z.boolean().optional(),
   meetingUrl: z.string().url().optional().or(z.literal('')),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  placeId: z.string().max(255).optional(),
 });
 
 export const createEventSchema = z
