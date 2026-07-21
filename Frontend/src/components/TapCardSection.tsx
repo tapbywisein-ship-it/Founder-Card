@@ -175,12 +175,22 @@ export const TapCardSection = () => {
       {/* ── Product intro ──────────────────────────────────────────────── */}
       <section style={{ background: TINT }}>
         <div className="max-w-xwide mx-auto px-6 py-20 text-center">
+          {/* Real card art — front + back, gently fanned. drop-shadow (not
+              box-shadow) so it follows the PNG's rounded-corner alpha. */}
           <motion.div
             {...fadeUp()}
-            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl"
-            style={{ background: ACCENT_GRADIENT, boxShadow: '0 20px 50px -20px rgba(76,123,255,0.5)' }}
+            className="mx-auto mb-8 flex items-center justify-center gap-3 sm:gap-5"
           >
-            <Nfc className="h-8 w-8 text-white" />
+            <img
+              src="/card-front.png"
+              alt="Tap Card front — name, title and contact"
+              className="w-40 sm:w-64 -rotate-3 drop-shadow-2xl transition-transform duration-300 hover:-translate-y-1 hover:rotate-0"
+            />
+            <img
+              src="/card-back.png"
+              alt="Tap Card back — scan-me QR code"
+              className="w-40 sm:w-64 rotate-3 drop-shadow-2xl transition-transform duration-300 hover:-translate-y-1 hover:rotate-0"
+            />
           </motion.div>
           <motion.h3
             {...fadeUp(0.05)}
