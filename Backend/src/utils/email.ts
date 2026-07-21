@@ -68,7 +68,9 @@ const baseTemplate = (content: string): string => `
 <body>
   <div class="container">
     <div class="header">
-      <h1>TapByWisein</h1>
+      <!-- White-text wordmark for the dark header. Absolute URL (email can't use
+           relative paths); alt is the fallback when a client blocks images. -->
+      <img src="${env.FRONTEND_URL}/logo-dark.png" alt="TapByWisein" height="30" style="height:30px;width:auto;display:inline-block;border:0;" />
       <p>Founder Networking Platform</p>
     </div>
     <div class="body">${content}</div>
