@@ -53,8 +53,8 @@ const OrgEventDetail = () => {
 
   const handlePublish = async () => {
     if (!id) return;
+    // usePublishEvent already toasts on success — no duplicate here.
     await publishMutation.mutateAsync(id);
-    toast.success('Event published!');
   };
 
   if (eventLoading) {

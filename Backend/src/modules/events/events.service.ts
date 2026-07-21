@@ -312,6 +312,11 @@ export class EventsService {
 
     const where: Prisma.EventWhereInput = {
       deletedAt: null,
+      // Only PUBLIC events are discoverable in the browse list. PRIVATE and
+      // UNLISTED events stay off every listing and are reachable only by their
+      // direct link (getEvent has no visibility gate), which is exactly what
+      // "private — nobody sees it unless they have the link" means.
+      visibility: 'PUBLIC',
     };
 
     if (dto.status) where.status = dto.status;
