@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Logo } from '@/components/Logo';
+import { PublicNav } from '@/components/PublicNav';
 import { EventSpeakersAgenda } from '@/components/EventSpeakersAgenda';
 import { ReportButton } from '@/components/ReportButton';
 import { EventFeedbackCard } from '@/components/EventFeedbackCard';
@@ -158,7 +158,7 @@ const EventDetailUnified = () => {
       <PortalLayout>{children}</PortalLayout>
     ) : (
       <div className="min-h-screen bg-background">
-        <PublicNav eventId={id} />
+        <PublicNav loginFrom={`/e/${id}`} />
         <main className="max-w-content mx-auto px-4 py-6 md:py-10">
           {children}
         </main>
@@ -1084,45 +1084,5 @@ const GuestRsvpModal = ({
     </Dialog>
   );
 };
-
-/** Minimal navbar shown on the public `/e/:id` route. */
-function PublicNav({ eventId }: { eventId?: string }) {
-  const { isAuthenticated, user } = useAppStore();
-  const dashPath =
-    user?.role === 'organizer'
-      ? '/organizer/dashboard'
-      : user?.role === 'admin'
-        ? '/admin/dashboard'
-        : '/dashboard';
-  const loginState = eventId ? { from: { pathname: `/e/${eventId}` } } : undefined;
-
-  return (
-    <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-content mx-auto px-4 h-14 flex items-center justify-between">
-        <Link to="/">
-          <Logo />
-        </Link>
-        <div className="flex items-center gap-2">
-          {isAuthenticated ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link to={dashPath}>Dashboard</Link>
-            </Button>
-          ) : (
-            <>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/login" state={loginState}>
-                  Sign in
-                </Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link to="/login" state={loginState}>Get started</Link>
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
 
 export default EventDetailUnified;

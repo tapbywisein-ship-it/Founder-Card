@@ -221,11 +221,12 @@ const App = () => (
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/my-tickets" element={<ProtectedRoute><MyTicketsPage /></ProtectedRoute>} />
-          <Route path="/discover" element={<ProtectedRoute><DiscoverPage /></ProtectedRoute>} />
+          {/* Public browsing: anyone can discover/browse events; registering gates to /login. */}
+          <Route path="/discover" element={<DiscoverPage />} />
           <Route path="/communities" element={<ProtectedRoute><BrowseCommunitiesPage /></ProtectedRoute>} />
           <Route path="/gamification" element={<ProtectedRoute><GamificationPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-          <Route path="/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
+          <Route path="/events" element={<EventsPage />} />
           <Route path="/event/:id" element={<ProtectedRoute><EventDetailPage /></ProtectedRoute>} />
           <Route path="/event/:id/attendees" element={<ProtectedRoute><EventAttendeesPage /></ProtectedRoute>} />
           {/* Check-in via QR poster URL — auth gate handled inside the page */}

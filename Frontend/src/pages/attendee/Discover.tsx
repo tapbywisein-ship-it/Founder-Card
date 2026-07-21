@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { motion } from 'framer-motion';
 import { PortalLayout } from '@/components/PortalLayout';
+import { PublicNav } from '@/components/PublicNav';
+import { useAppStore } from '@/store/appStore';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +25,7 @@ const CATEGORIES = [
 ];
 
 const DiscoverPage = () => {
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') ?? '');
   const [search, setSearch] = useState('');
@@ -52,8 +55,19 @@ const DiscoverPage = () => {
     setPriceFilter('');
   };
 
-  return (
-    <PortalLayout>
+  // Public browsing: logged-out visitors get the minimal PublicNav shell; signed-in
+  // users keep their portal chrome. Registering still routes through /login.
+  const wrap = (children: ReactNode) =>
+    isAuthenticated ? (
+      <PortalLayout>{children}</PortalLayout>
+    ) : (
+      <div className="min-h-screen bg-background">
+        <PublicNav />
+        <main className="max-w-content mx-auto px-4 py-6 md:py-10">{children}</main>
+      </div>
+    );
+
+  return wrap(
       <div className="space-y-6 pb-24 md:pb-8">
         <div className="flex items-center gap-3 mb-2">
           <Sparkles className="w-5 h-5 text-primary" />
@@ -240,7 +254,6 @@ const DiscoverPage = () => {
           )}
         </div>
       </div>
-    </PortalLayout>
   );
 };
 

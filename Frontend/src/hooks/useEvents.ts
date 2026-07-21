@@ -15,11 +15,13 @@ export const eventKeys = {
 
 export const savedKeys = ['events', 'saved'] as const;
 
-export function useSavedEvents(page = 1, limit = 20) {
+export function useSavedEvents(page = 1, limit = 20, enabled = true) {
   return useQuery({
     queryKey: [...savedKeys, page, limit],
     queryFn: () => eventsService.listSaved(page, limit),
     select: (res) => ({ events: res.data, pagination: res.pagination }),
+    // Auth-only endpoint — skip for logged-out visitors browsing publicly.
+    enabled,
   });
 }
 
@@ -74,11 +76,13 @@ export function useEvent(id: string) {
   });
 }
 
-export function useMyRegistrations(page = 1, limit = 20) {
+export function useMyRegistrations(page = 1, limit = 20, enabled = true) {
   return useQuery({
     queryKey: eventKeys.myRegistrations(),
     queryFn: () => eventsService.getMyRegistrations(page, limit),
     select: (res) => ({ registrations: res.data, pagination: res.pagination }),
+    // Auth-only endpoint — skip for logged-out visitors browsing publicly.
+    enabled,
   });
 }
 
