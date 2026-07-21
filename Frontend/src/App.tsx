@@ -43,6 +43,7 @@ const ConnectPage = lazy(() => import("./pages/attendee/Connect"));
 const ConnectionsPage = lazy(() => import("./pages/attendee/Connections"));
 const DiscoverPage = lazy(() => import("./pages/attendee/Discover"));
 const BrowseCommunitiesPage = lazy(() => import("./pages/attendee/Communities"));
+const AmbassadorsPage = lazy(() => import("./pages/Ambassadors"));
 const GamificationPage = lazy(() => import("./pages/attendee/Gamification"));
 const NotificationsPage = lazy(() => import("./pages/attendee/Notifications"));
 const EventsPage = lazy(() => import("./pages/attendee/Events"));
@@ -221,9 +222,10 @@ const App = () => (
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/my-tickets" element={<ProtectedRoute><MyTicketsPage /></ProtectedRoute>} />
-          {/* Public browsing: anyone can discover/browse events; registering gates to /login. */}
+          {/* Public browsing: anyone can discover/browse events + communities; joining gates to /login. */}
           <Route path="/discover" element={<DiscoverPage />} />
-          <Route path="/communities" element={<ProtectedRoute><BrowseCommunitiesPage /></ProtectedRoute>} />
+          <Route path="/communities" element={<BrowseCommunitiesPage />} />
+          <Route path="/ambassadors" element={<AmbassadorsPage />} />
           <Route path="/gamification" element={<ProtectedRoute><GamificationPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
           <Route path="/events" element={<EventsPage />} />

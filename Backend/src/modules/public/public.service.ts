@@ -6,14 +6,20 @@ import { env } from '@config/env';
 const ADMIN_EMAIL = env.EMAIL_FROM.replace(/^.*<(.+)>$/, '$1');
 
 export class PublicService {
-  /** Lightweight public counters for landing-page social proof. */
+  /** Lightweight public counters for landing-page + community social proof. */
   async getStats() {
-    const [founders, connections, events] = await Promise.all([
+    const [founders, connections, events, cityRows, ambassadors] = await Promise.all([
       prisma.user.count({ where: { isActive: true, deletedAt: null } }),
       prisma.connection.count({ where: { status: 'ACCEPTED' } }),
       prisma.event.count({ where: { status: 'PUBLISHED', deletedAt: null } }),
+      prisma.event.findMany({
+        where: { status: 'PUBLISHED', deletedAt: null, city: { not: null } },
+        select: { city: true },
+        distinct: ['city'],
+      }),
+      prisma.ambassador.count({ where: { status: 'ACTIVE' } }),
     ]);
-    return { founders, connections, events };
+    return { founders, connections, events, cities: cityRows.length, ambassadors };
   }
 
   /** Capture an organizer "Request a demo" lead — emails the platform inbox. */

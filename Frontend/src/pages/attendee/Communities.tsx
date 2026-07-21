@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PortalLayout } from '@/components/PortalLayout';
+import { PublicNav } from '@/components/PublicNav';
 import { Surface } from '@/components/Surface';
+import { StatsBar } from '@/components/StatsBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAppStore } from '@/store/appStore';
 import { usePublicCommunities, useJoinLeaveCommunity } from '@/hooks/useCommunities';
 import { useConnections } from '@/hooks/useConnections';
 import { getTheme } from '@/lib/eventThemes';
@@ -18,10 +21,21 @@ const communityUrl = (slug: string) => `${window.location.origin}/community/${sl
 
 const CommunitiesPage = () => {
   const navigate = useNavigate();
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const { data: communities, isLoading, isError, refetch } = usePublicCommunities(search);
   const joinLeave = useJoinLeaveCommunity();
+
+  // Public browsing: logged-out visitors can browse, but joining requires an
+  // account — send them to sign-in and return to this page afterward.
+  const requireAuth = (fn: () => void) => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: '/communities' } } });
+      return;
+    }
+    fn();
+  };
 
   // Category chips derived from the loaded set; filtering is client-side so
   // switching categories is instant (no refetch).
@@ -32,7 +46,7 @@ const CommunitiesPage = () => {
   const [inviteTarget, setInviteTarget] = useState<PublicCommunity | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
-  const { data: connData } = useConnections(1, 100);
+  const { data: connData } = useConnections(1, 100, isAuthenticated);
   const connections = connData?.connections ?? [];
 
   const share = (c: PublicCommunity) => {
@@ -71,8 +85,20 @@ const CommunitiesPage = () => {
     setSelected(new Set());
   };
 
-  return (
-    <PortalLayout>
+  // Signed-in users keep their portal chrome; logged-out visitors get the
+  // minimal public shell (same pattern as /discover).
+  const wrap = (children: ReactNode) =>
+    isAuthenticated ? (
+      <PortalLayout>{children}</PortalLayout>
+    ) : (
+      <div className="min-h-screen bg-background">
+        <PublicNav />
+        <main className="max-w-content mx-auto px-4 py-6 md:py-10">{children}</main>
+      </div>
+    );
+
+  return wrap(
+    <>
       <div className="space-y-6 pb-24 md:pb-8">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -91,6 +117,9 @@ const CommunitiesPage = () => {
             />
           </div>
         </div>
+
+        {/* Live social proof — real DB counts */}
+        <StatsBar />
 
         {/* Category filter */}
         {categories.length > 0 && (
@@ -204,7 +233,7 @@ const CommunitiesPage = () => {
                           <Button
                             variant="outline" size="sm" className="flex-1"
                             disabled={pending}
-                            onClick={() => joinLeave.mutate({ id: c.id, join: false })}
+                            onClick={() => requireAuth(() => joinLeave.mutate({ id: c.id, join: false }))}
                           >
                             {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Joined'}
                           </Button>
@@ -212,7 +241,7 @@ const CommunitiesPage = () => {
                           <Button
                             size="sm" className="flex-1"
                             disabled={pending}
-                            onClick={() => joinLeave.mutate({ id: c.id, join: true })}
+                            onClick={() => requireAuth(() => joinLeave.mutate({ id: c.id, join: true }))}
                           >
                             {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Join'}
                           </Button>
@@ -220,9 +249,11 @@ const CommunitiesPage = () => {
                         <Button variant="ghost" size="sm" className="w-8 h-8 p-0" title="Share" onClick={() => share(c)}>
                           <Share2 className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0" title="Invite connections" onClick={() => openInvite(c)}>
-                          <UserPlus className="w-4 h-4" />
-                        </Button>
+                        {isAuthenticated && (
+                          <Button variant="ghost" size="sm" className="w-8 h-8 p-0" title="Invite connections" onClick={() => openInvite(c)}>
+                            <UserPlus className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Surface>
@@ -315,7 +346,7 @@ const CommunitiesPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </PortalLayout>
+    </>
   );
 };
 
