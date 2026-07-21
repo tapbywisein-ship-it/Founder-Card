@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PortalLayout } from '@/components/PortalLayout';
+import { PublicNav } from '@/components/PublicNav';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ const CATEGORIES = ['All', 'Tech', 'Business', 'Design', 'Health', 'Social', 'Ar
 
 const EventsPage = () => {
   const user = useAppStore((s) => s.user);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [savedOnly, setSavedOnly] = useState(false);
@@ -47,8 +49,9 @@ const EventsPage = () => {
     withUser,
   });
 
-  const { data: myRegsData } = useMyRegistrations();
-  const { data: savedData } = useSavedEvents(1, 100);
+  // Auth-only queries — skip for logged-out visitors browsing publicly.
+  const { data: myRegsData } = useMyRegistrations(1, 20, isAuthenticated);
+  const { data: savedData } = useSavedEvents(1, 100, isAuthenticated);
   const savedIdSet = new Set(savedData?.events.map((e) => e.id) ?? []);
 
   const registerMutation = useRegisterForEvent();
@@ -95,8 +98,20 @@ const EventsPage = () => {
     ? `tapbywisein://registration/${registrationId}`
     : `tapbywisein://event/${registerModal?.id}/user/${user?.id}`;
 
-  return (
-    <PortalLayout>
+  // Public browsing: logged-out visitors get the minimal PublicNav shell; signed-in
+  // users keep their portal chrome. Registering still routes through /login.
+  const wrap = (children: ReactNode) =>
+    isAuthenticated ? (
+      <PortalLayout>{children}</PortalLayout>
+    ) : (
+      <div className="min-h-screen bg-background">
+        <PublicNav />
+        <main className="max-w-content mx-auto px-4 py-6 md:py-10">{children}</main>
+      </div>
+    );
+
+  return wrap(
+    <>
       <div className="space-y-6 pb-24 md:pb-8">
         {/* Filter active banner: comes from /card/:id → "Find at events" link.
             Tells the user the list has been narrowed to events they and the
@@ -455,7 +470,7 @@ const EventsPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </PortalLayout>
+    </>
   );
 };
 
