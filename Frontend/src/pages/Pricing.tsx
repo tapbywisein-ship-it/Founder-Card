@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Check, CreditCard } from 'lucide-react';
 import { PublicNav } from '@/components/PublicNav';
+import { PublicFooter } from '@/components/PublicFooter';
+import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { RequestDemoModal } from '@/components/RequestDemoModal';
 import { FeatureBento } from '@/components/FeatureBento';
@@ -142,11 +144,11 @@ const Pricing = () => {
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {TIERS.map((t) => (
-            <div
+            <Surface
               key={t.name}
-              className={`rounded-2xl border p-6 flex flex-col ${
-                t.highlight ? 'border-primary shadow-lg ring-1 ring-primary/20' : 'border-border'
-              }`}
+              elevated={t.highlight}
+              padding="none"
+              className={`p-6 flex flex-col ${t.highlight ? 'border-primary ring-1 ring-primary/30' : ''}`}
             >
               {t.highlight && (
                 <span className="self-start mb-2 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
@@ -191,12 +193,12 @@ const Pricing = () => {
                   {t.cta}
                 </Button>
               )}
-            </div>
+            </Surface>
           ))}
         </div>
 
         {/* NFC Founder Card — one-time product, the easiest upsell */}
-        <div className="mt-6 rounded-2xl border border-border p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <Surface padding="none" className="mt-6 p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
               <CreditCard className="w-5 h-5 text-primary" />
@@ -217,7 +219,7 @@ const Pricing = () => {
               <Link to="/apply-card">Get a card</Link>
             </Button>
           </div>
-        </div>
+        </Surface>
 
         <p className="text-center text-xs text-muted-foreground mt-8">
           Paid ticket sales carry a 5–8% platform fee (free events are always free). Featured
@@ -244,6 +246,7 @@ const Pricing = () => {
       <PublicNav />
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-10">{body}</main>
       <FeatureBento />
+      <PublicFooter />
       <RequestDemoModal open={demoOpen} onOpenChange={setDemoOpen} />
     </div>
   );
