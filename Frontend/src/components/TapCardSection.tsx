@@ -7,7 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 /* Luma-style accent word — brand-blue gradient, theme-aware via --primary. */
-const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #8AA6FF 100%)';
+const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #9DCAFF 100%)';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },

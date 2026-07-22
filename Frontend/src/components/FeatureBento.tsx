@@ -5,7 +5,7 @@ import { BadgeCheck, Sparkles } from 'lucide-react';
 import { publicService } from '@/services/public.service';
 
 /* Luma-style accent word — brand-blue gradient, theme-aware via --primary. */
-const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #8AA6FF 100%)';
+const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #9DCAFF 100%)';
 
 /** Real product screenshot, framed like a browser window. Used for both dashboards. */
 const BrowserFrame = ({ src, alt, url }: { src: string; alt: string; url: string }) => (

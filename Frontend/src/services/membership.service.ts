@@ -55,7 +55,7 @@ export async function startSubscription(
       name: 'TapByWisein',
       description: 'Plan subscription',
       prefill,
-      theme: { color: '#3B6FF0' },
+      theme: { color: '#1981FE' },
       handler: (resp: RzpSubResponse) => {
         membershipService
           .verify({

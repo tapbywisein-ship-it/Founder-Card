@@ -34,7 +34,7 @@ export class PublicService {
         <h2 style="color:#0A0E2E;margin-bottom:16px">New Demo Request</h2>
         <table style="width:100%;border-collapse:collapse">
           <tr><td style="padding:8px 0;font-weight:600;color:#374151;width:120px">Name</td><td style="padding:8px 0;color:#111827">${name}</td></tr>
-          <tr><td style="padding:8px 0;font-weight:600;color:#374151">Email</td><td style="padding:8px 0;color:#111827"><a href="mailto:${email}" style="color:#3B6FF0">${email}</a></td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;color:#374151">Email</td><td style="padding:8px 0;color:#111827"><a href="mailto:${email}" style="color:#1981FE">${email}</a></td></tr>
           ${company ? `<tr><td style="padding:8px 0;font-weight:600;color:#374151">Company</td><td style="padding:8px 0;color:#111827">${company}</td></tr>` : ''}
           ${message ? `<tr><td style="padding:8px 0;font-weight:600;color:#374151;vertical-align:top">Message</td><td style="padding:8px 0;color:#111827;white-space:pre-wrap">${message}</td></tr>` : ''}
         </table>

@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 
 /* Luma-style accent word — brand-blue gradient on the Instrument Serif display face.
  * Uses the --primary token so it stays on-brand and theme-aware. */
-const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #8AA6FF 100%)';
+const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #9DCAFF 100%)';
 
 const LandingPage = () => {
   const navigate = useNavigate();

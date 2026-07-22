@@ -75,7 +75,7 @@ export function useBuyCard(prefill?: { name?: string; email?: string }) {
           description: 'NFC Tap Card',
           order_id: order.orderId,
           prefill: { name: prefill?.name, email: prefill?.email },
-          theme: { color: '#3B6FF0' },
+          theme: { color: '#1981FE' },
           handler: (resp) => {
             paymentsService
               .verifyCard({

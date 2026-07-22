@@ -53,11 +53,11 @@ const baseTemplate = (content: string): string => `
     .body h2 { color: #0A0E2E; font-size: 22px; margin: 0 0 16px; font-weight: 700; letter-spacing: -0.3px; }
     .body p { color: #4a4a6a; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
     .body ul { color: #4a4a6a; line-height: 1.8; margin: 0 0 16px; padding-left: 20px; font-size: 15px; }
-    .button { display: inline-block; background: #3B6FF0; color: #ffffff !important; text-decoration: none; padding: 14px 34px; border-radius: 9999px; font-weight: 600; font-size: 15px; margin: 8px 0; }
+    .button { display: inline-block; background: #1981FE; color: #ffffff !important; text-decoration: none; padding: 14px 34px; border-radius: 9999px; font-weight: 600; font-size: 15px; margin: 8px 0; }
     .code-box { background: #f6f8fc; border: 1px solid #e3e9f5; border-radius: 12px; padding: 20px 22px; margin: 20px 0; }
     .code { font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0A0E2E; font-family: 'SF Mono', Menlo, monospace; }
     .divider { height: 1px; background: #eef1f6; margin: 24px 0; line-height: 1px; }
-    .warning { background: #EAF1FF; border-left: 4px solid #3B6FF0; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #1a3a8f; margin: 16px 0; }
+    .warning { background: #EAF1FF; border-left: 4px solid #1981FE; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #1a3a8f; margin: 16px 0; }
     @media (max-width: 620px) { .card { width: 100% !important; } .pad { padding: 28px 24px !important; } }
   </style>
 </head>
@@ -74,7 +74,7 @@ const baseTemplate = (content: string): string => `
         <tr><td class="body pad" style="padding:36px 40px;">${content}</td></tr>
         <tr><td align="center" bgcolor="#f6f8fc" style="background:#f6f8fc;padding:26px 40px;border-top:1px solid #eef1f6;">
           <div style="color:#8a93a6;font-size:12px;line-height:1.6;">&copy; ${new Date().getFullYear()} TapByWisein · Made for founders, by founders.</div>
-          <div style="color:#8a93a6;font-size:12px;line-height:1.6;margin-top:4px;">Questions? <a href="mailto:${env.SUPPORT_EMAIL}" style="color:#3B6FF0;text-decoration:none;">${env.SUPPORT_EMAIL}</a></div>
+          <div style="color:#8a93a6;font-size:12px;line-height:1.6;margin-top:4px;">Questions? <a href="mailto:${env.SUPPORT_EMAIL}" style="color:#1981FE;text-decoration:none;">${env.SUPPORT_EMAIL}</a></div>
         </td></tr>
       </table>
     </td></tr>
