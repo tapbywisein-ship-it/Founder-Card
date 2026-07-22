@@ -74,7 +74,7 @@ const baseTemplate = (content: string): string => `
         <tr><td class="body pad" style="padding:36px 40px;">${content}</td></tr>
         <tr><td align="center" bgcolor="#f6f8fc" style="background:#f6f8fc;padding:26px 40px;border-top:1px solid #eef1f6;">
           <div style="color:#8a93a6;font-size:12px;line-height:1.6;">&copy; ${new Date().getFullYear()} TapByWisein · Made for founders, by founders.</div>
-          <div style="color:#8a93a6;font-size:12px;line-height:1.6;margin-top:4px;">Questions? <a href="mailto:support@tapbywisein.com" style="color:#3B6FF0;text-decoration:none;">support@tapbywisein.com</a></div>
+          <div style="color:#8a93a6;font-size:12px;line-height:1.6;margin-top:4px;">Questions? <a href="mailto:${env.SUPPORT_EMAIL}" style="color:#3B6FF0;text-decoration:none;">${env.SUPPORT_EMAIL}</a></div>
         </td></tr>
       </table>
     </td></tr>

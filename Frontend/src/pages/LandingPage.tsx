@@ -9,7 +9,7 @@ const HOME_BY_ROLE: Record<string, string> = {
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BadgeCheck, ArrowRight, ArrowDown, Calendar, Users, ScanLine } from 'lucide-react';
-import { LandingNav } from '@/components/LandingNav';
+import { PublicNav } from '@/components/PublicNav';
 import { FeatureBento } from '@/components/FeatureBento';
 import { TapCardSection } from '@/components/TapCardSection';
 import { ParticleWordmark } from '@/components/ParticleWordmark';
@@ -49,10 +49,10 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: '#050612' }}>
-      <LandingNav />
+      <PublicNav />
 
       {/* ── Hero (video background + grain) ───────────────────────────────── */}
-      <section className="bg-grain relative overflow-hidden pt-16 min-h-screen min-h-[100dvh]" style={{ background: NAVY }}>
+      <section className="bg-grain relative overflow-hidden min-h-screen min-h-[100dvh]" style={{ background: NAVY }}>
         {/* Ambient video background */}
         <video
           aria-hidden

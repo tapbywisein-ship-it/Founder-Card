@@ -25,7 +25,7 @@ const swaggerDefinition = {
     `,
     contact: {
       name: 'TapByWisein API Support',
-      email: 'api@tapbywisein.com',
+      email: 'tapbywisein@gmail.com',
     },
     license: {
       name: 'MIT',

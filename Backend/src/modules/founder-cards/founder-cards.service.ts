@@ -1,6 +1,6 @@
 import prisma from '@config/database';
-import { assertEntitled } from '@config/entitlements';
-import { NotFoundError, ConflictError, BadRequestError, ForbiddenError } from '@utils/errors';
+import { assertEntitled, entitlements } from '@config/entitlements';
+import { NotFoundError, ConflictError, BadRequestError, ForbiddenError, MembershipRequiredError } from '@utils/errors';
 import { generateQRCode } from '@utils/qrcode';
 import { cardIdToSlug } from '@utils/slug';
 import { SCORE_VALUES } from '@config/constants';
@@ -221,6 +221,38 @@ export class FounderCardsService {
       );
     } catch {
       /* best-effort, never block the page render */
+    }
+  }
+
+  /**
+   * Enforce the monthly card-view consumption cap for the viewer's tier
+   * (FREE = 100 distinct cards/month, paid = unlimited). Re-viewing a card
+   * already seen this month is free — only distinct owners count. No-op while
+   * billing is off. Throws MembershipRequiredError once the cap is hit.
+   */
+  private async assertViewQuota(ownerId: string, viewerId?: string): Promise<void> {
+    if (!env.BILLING_ENABLED || !viewerId || viewerId === ownerId) return;
+    const viewer = await prisma.user.findUnique({ where: { id: viewerId }, select: { tier: true } });
+    const limit = entitlements(viewer?.tier ?? 'FREE').monthlyProfileViews;
+    if (limit === Infinity) return;
+
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    // Already viewed this owner this month → doesn't consume a new slot.
+    const seen = await prisma.cardView.findFirst({
+      where: { viewerId, ownerId, createdAt: { gte: monthStart } },
+      select: { id: true },
+    });
+    if (seen) return;
+
+    const distinct = await prisma.cardView.groupBy({
+      by: ['ownerId'],
+      where: { viewerId, createdAt: { gte: monthStart } },
+    });
+    if (distinct.length >= limit) {
+      throw new MembershipRequiredError(
+        `You've reached your monthly limit of ${limit} card views. Upgrade to view unlimited cards.`
+      );
     }
   }
 
@@ -708,6 +740,7 @@ export class FounderCardsService {
       }
     }
 
+    await this.assertViewQuota(card.userId, viewerId);
     void this.notifyCardViewed(card.userId, viewerId);
     void this.recordCardView(card.userId, viewerId);
     const [blocks, contactUnlocked, organizerStats, endorsements] = await Promise.all([

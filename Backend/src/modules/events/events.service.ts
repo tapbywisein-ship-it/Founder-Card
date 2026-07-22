@@ -1189,10 +1189,13 @@ export class EventsService {
         locationType: true,
         coverImage: true,
         theme: true,
+        organizerId: true,
         organizer: { select: PUBLIC_ORGANIZER_SELECT },
       },
     });
     if (!event) throw new NotFoundError('Event');
+    // Impact reports are a paid organizer feature (no-op while billing is off).
+    await assertEntitled(event.organizerId, 'impactReports');
 
     const [connections, taps, registrations, connectionRows] = await Promise.all([
       prisma.connection.count({ where: { eventId } }),

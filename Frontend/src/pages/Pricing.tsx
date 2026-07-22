@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Check, ArrowLeft, CreditCard } from 'lucide-react';
-import { Logo } from '@/components/Logo';
+import { Check, CreditCard } from 'lucide-react';
+import { PublicNav } from '@/components/PublicNav';
 import { Button } from '@/components/ui/button';
 import { RequestDemoModal } from '@/components/RequestDemoModal';
 import { FeatureBento } from '@/components/FeatureBento';
@@ -241,12 +241,7 @@ const Pricing = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="px-6 py-5 flex items-center justify-between max-w-xwide mx-auto w-full">
-        <Logo size="md" />
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4" /> Home
-        </Link>
-      </header>
+      <PublicNav />
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-10">{body}</main>
       <FeatureBento />
       <RequestDemoModal open={demoOpen} onOpenChange={setDemoOpen} />
