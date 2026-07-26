@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, Sparkles } from 'lucide-react';
 import { publicService } from '@/services/public.service';
+import { EASE_PREMIUM } from '@/lib/motion';
 
 /* Luma-style accent word — brand-blue gradient, theme-aware via --primary. */
 const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #9DCAFF 100%)';
 
 /** Real product screenshot, framed like a browser window. Used for both dashboards. */
 const BrowserFrame = ({ src, alt, url }: { src: string; alt: string; url: string }) => (
-  <div className="relative rounded-2xl border border-border bg-card p-2.5 shadow-card">
+  <div className="relative rounded-2xl border border-border bg-card p-2.5">
     <div className="flex items-center gap-1.5 px-1.5 pb-2">
       <span className="h-2 w-2 rounded-full bg-muted-foreground/25" />
       <span className="h-2 w-2 rounded-full bg-muted-foreground/25" />
@@ -39,8 +40,8 @@ const BentoCard = ({ className = '', children, delay = 0 }: { className?: string
     initial={{ opacity: 0, y: 16 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true, margin: '200px' }}
-    transition={{ duration: 0.45, delay }}
-    className={`rounded-card p-7 md:p-9 ${className}`}
+    transition={{ duration: 0.6, delay, ease: EASE_PREMIUM }}
+    className={`rounded-card p-7 md:p-9 transition-transform duration-300 hover:-translate-y-1 ${className}`}
   >
     {children}
   </motion.div>
@@ -57,8 +58,8 @@ export const FeatureBento = () => {
   const connections = stats?.connections ?? 0;
 
   return (
-    <section className="bg-muted/40 border-y border-border">
-      <div className="max-w-content mx-auto px-6 py-24">
+    <section className="bg-[#e7e5e3] border-y border-border">
+      <div className="max-w-xwide mx-auto px-6 py-24">
         <div className="text-center mb-12">
           <h2 className="font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', lineHeight: 1.08 }}>
             Built for how founders{' '}
@@ -76,10 +77,10 @@ export const FeatureBento = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
           {/* Left — tall card, organizer side (portrait screenshot fills the height naturally) */}
-          <BentoCard className="flex flex-col h-full items-center text-center bg-primary text-primary-foreground shadow-card">
+          <BentoCard className="flex flex-col h-full items-center text-center bg-primary text-primary-foreground">
             <h3 className="text-2xl font-bold max-w-xs">Run the whole event, end to end</h3>
             <p className="mt-3 text-sm max-w-xs text-primary-foreground/85" style={{ lineHeight: 1.6 }}>
-              Ticket tiers, guest lists, check-in, and live analytics — all from one organizer dashboard.
+              Ticket tiers, guest lists, check-in, and live analytics - all from one organizer dashboard.
             </p>
             <div className="mt-6 flex-1 flex items-end w-full max-w-[280px]">
               <BrowserFrame src="/organiser.png" alt="TapByWisein organizer dashboard" url="tapbywisein.com/organizer/dashboard" />
@@ -122,7 +123,7 @@ export const FeatureBento = () => {
                 </div>
               </BentoCard>
 
-              <BentoCard className="bg-primary text-primary-foreground shadow-card" delay={0.18}>
+              <BentoCard className="bg-primary text-primary-foreground" delay={0.18}>
                 <p className="text-lg font-bold leading-snug">
                   {connections > 0 ? `${connections.toLocaleString('en-IN')}+ connections` : 'Real connections'}
                   <br />

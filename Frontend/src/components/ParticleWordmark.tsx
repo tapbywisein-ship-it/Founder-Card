@@ -5,6 +5,7 @@ interface Particle {
   y: number;
   homeX: number;
   homeY: number;
+  accent: boolean;
 }
 
 const DOT_SPACING = 6;
@@ -22,10 +23,15 @@ export const ParticleWordmark = ({
   text,
   className = '',
   dotColor = 'rgba(255,255,255,0.4)',
+  accentText,
+  accentColor = 'rgba(25,129,254,0.9)',
 }: {
   text: string;
   className?: string;
   dotColor?: string;
+  /** Substring of `text` to render in `accentColor` instead of `dotColor`. */
+  accentText?: string;
+  accentColor?: string;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -78,14 +84,20 @@ export const ParticleWordmark = ({
         octx.font = `800 ${size}px Inter, sans-serif`;
         textWidth = octx.measureText(text).width;
       }
-      octx.fillText(text, (width - textWidth) / 2, height / 2);
+      const startX = (width - textWidth) / 2;
+      octx.fillText(text, startX, height / 2);
+
+      const accentIndex = accentText ? text.indexOf(accentText) : -1;
+      const accentStartX = accentIndex >= 0
+        ? startX + octx.measureText(text.slice(0, accentIndex)).width
+        : Infinity;
 
       const { data } = octx.getImageData(0, 0, width, height);
       const particles: Particle[] = [];
       for (let y = 0; y < height; y += DOT_SPACING) {
         for (let x = 0; x < width; x += DOT_SPACING) {
           const alpha = data[(y * width + x) * 4 + 3];
-          if (alpha > 128) particles.push({ x, y, homeX: x, homeY: y });
+          if (alpha > 128) particles.push({ x, y, homeX: x, homeY: y, accent: x >= accentStartX });
         }
       }
       particlesRef.current = particles;
@@ -96,10 +108,10 @@ export const ParticleWordmark = ({
     let rafId: number;
     const animate = () => {
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = dotColor;
       const mouse = mouseRef.current;
 
       for (const p of particlesRef.current) {
+        ctx.fillStyle = p.accent ? accentColor : dotColor;
         const dx = p.homeX - mouse.x;
         const dy = p.homeY - mouse.y;
         const dist = Math.hypot(dx, dy);
@@ -144,7 +156,7 @@ export const ParticleWordmark = ({
       canvas.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('resize', handleResize);
     };
-  }, [text, dotColor]);
+  }, [text, dotColor, accentText, accentColor]);
 
   return (
     <div ref={containerRef} className={className}>

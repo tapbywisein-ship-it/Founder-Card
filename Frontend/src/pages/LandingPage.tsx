@@ -16,6 +16,7 @@ import { TapCardSection } from '@/components/TapCardSection';
 import { RequestDemoModal } from '@/components/RequestDemoModal';
 import { ExitIntentPopup } from '@/components/ExitIntentPopup';
 import { Button } from '@/components/ui/button';
+import { fadeUp, EASE_PREMIUM } from '@/lib/motion';
 
 /* Luma-style accent word — brand-blue gradient on the Instrument Serif display face.
  * Uses the --primary token so it stays on-brand and theme-aware. */
@@ -36,68 +37,75 @@ const LandingPage = () => {
   const [demoOpen, setDemoOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#e7e5e3]">
       <PublicNav />
 
-      {/* ── Hero (light, minimal) ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        {/* Soft ambient tint at the top — Luma's understated hero glow. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_100%_at_50%_0%,hsl(var(--primary)/0.08),transparent)]"
-        />
-        <div className="relative max-w-content mx-auto px-6 pt-20 pb-24 sm:pt-28 sm:pb-32 text-center">
-          <motion.h1
+      {/* ── Hero (split layout: copy left, product photo right) ────────────── */}
+      <section className="relative overflow-hidden bg-[#e7e5e3]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch lg:min-h-[92vh]">
+          {/* Left — copy, vertically centered within the hero */}
+          <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05 }}
-            className="mx-auto max-w-3xl font-extrabold tracking-tight text-foreground"
-            style={{ fontSize: 'clamp(2.75rem, 6vw, 5.5rem)', lineHeight: 1.02, letterSpacing: '-0.02em' }}
+            transition={{ duration: 0.7, ease: EASE_PREMIUM }}
+            className="flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-16 lg:py-0"
           >
-            Your Network Starts{' '}
-            <span
-              className="font-serif-display bg-clip-text text-transparent"
-              style={{ backgroundImage: ACCENT_GRADIENT }}
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary mb-4">
+              NFC Tap Card
+            </p>
+            <h1
+              className="font-extrabold tracking-tight text-foreground"
+              style={{ fontSize: 'clamp(2.5rem, 5.5vw, 4.25rem)', lineHeight: 1.05, letterSpacing: '-0.02em' }}
             >
-              With a Tap.
-            </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.1 }}
-            className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground"
-            style={{ lineHeight: 1.65 }}
-          >
-            TapByWisein helps founders, professionals, and event attendees instantly exchange
-            details, build meaningful connections, and grow their network with NFC-powered smart
-            cards.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.15 }}
-            className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-end justify-center gap-4"
-          >
-            <div className="flex flex-col items-center sm:items-start gap-1.5">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Organizing an event?
+              Your network{' '}
+              <span
+                className="font-serif-display bg-clip-text text-transparent"
+                style={{ backgroundImage: ACCENT_GRADIENT }}
+              >
+                starts with a tap.
               </span>
-              <Button size="lg" className="w-full sm:w-auto" onClick={goCreate}>
+            </h1>
+            <p className="mt-6 max-w-md text-lg text-muted-foreground" style={{ lineHeight: 1.65 }}>
+              TapByWisein helps founders, professionals, and event attendees instantly exchange
+              details, build meaningful connections, and grow their network with NFC-powered smart
+              cards.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button size="lg" onClick={goCreate}>
                 Create Event <ArrowRight className="w-4 h-4" />
               </Button>
-            </div>
-            <div className="flex flex-col items-center sm:items-start gap-1.5">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Just attending?
-              </span>
-              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+              <Button asChild size="lg" variant="outline">
                 <Link to="/discover">
                   Explore events <ArrowDown className="w-4 h-4" />
                 </Link>
               </Button>
+            </div>
+          </motion.div>
+
+          {/* Right — product photo anchored bottom-right, rising from the base of the hero.
+              Empty hand first, then a one-time crossfade to the hand holding the Tap Card —
+              plays once on load and stays on the card. */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: EASE_PREMIUM }}
+            className="relative flex justify-end items-end min-h-[360px] lg:min-h-0 overflow-hidden"
+          >
+            <div className="relative w-full max-w-[1050px]" style={{ aspectRatio: '2048 / 1168' }}>
+              <motion.img
+                src="/hero-hand-plain.png"
+                alt="Empty hand, about to hold a TapByWisein NFC Tap Card"
+                className="absolute inset-0 w-full h-full object-contain object-bottom"
+                animate={{ opacity: [1, 1, 0] }}
+                transition={{ duration: 3, times: [0, 0.5, 1], ease: 'easeInOut' }}
+              />
+              <motion.img
+                src="/hero-card-glow.png"
+                alt="Hand holding a glowing TapByWisein NFC Tap Card"
+                className="absolute inset-0 w-full h-full object-contain object-bottom"
+                animate={{ opacity: [0, 0, 1] }}
+                transition={{ duration: 3, times: [0, 0.5, 1], ease: 'easeInOut' }}
+              />
             </div>
           </motion.div>
         </div>
@@ -106,8 +114,8 @@ const LandingPage = () => {
       <FeatureBento />
 
       {/* ── How it works ──────────────────────────────────────────────────── */}
-      <section className="bg-background">
-        <div className="max-w-content mx-auto px-6 py-24">
+      <section className="bg-[#e7e5e3]">
+        <div className="max-w-xwide mx-auto px-6 py-24">
           <h2 className="text-center font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.1 }}>
             Networking in <span className="font-serif-display text-primary">three taps.</span>
           </h2>
@@ -125,10 +133,7 @@ const LandingPage = () => {
               return (
                 <motion.div
                   key={s.t}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '200px' }}
-                  transition={{ duration: 0.45, delay: i * 0.08 }}
+                  {...fadeUp(i * 0.08)}
                   className={`rounded-card p-8 md:p-10 shadow-card-xs transition-transform duration-300 hover:-translate-y-1 ${
                     solid ? 'bg-primary text-primary-foreground' : 'bg-card border border-border'
                   }`}
@@ -148,8 +153,8 @@ const LandingPage = () => {
       </section>
 
       {/* ── Use cases strip ───────────────────────────────────────────────── */}
-      <section className="bg-muted/40 border-y border-border">
-        <div className="max-w-content mx-auto px-6 py-10">
+      <section className="bg-[#e7e5e3] border-y border-border">
+        <motion.div {...fadeUp()} className="max-w-xwide mx-auto px-6 py-10">
           <p className="text-center text-xs uppercase tracking-[0.05em] mb-5 text-muted-foreground">
             Built for founder meetups, demo days &amp; conferences
           </p>
@@ -157,20 +162,20 @@ const LandingPage = () => {
             {['Demo Day', 'Founder Meetup', 'Startup Summit', 'Pitch Night', 'TechConf'].map((n) => (
               <span
                 key={n}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-foreground transition-transform duration-300 hover:-translate-y-0.5"
               >
                 <BadgeCheck className="w-3.5 h-3.5 text-primary" />
                 {n}
               </span>
             ))}
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ── Organizer CTA ─────────────────────────────────────────────────── */}
-      <section className="bg-background">
-        <div className="max-w-content mx-auto px-6 py-24">
-          <div className="relative overflow-hidden rounded-card border border-border bg-card px-8 py-14 md:px-16 md:py-20 text-center shadow-card">
+      <section className="bg-[#e7e5e3]">
+        <motion.div {...fadeUp()} className="max-w-xwide mx-auto px-6 py-24">
+          <div className="relative overflow-hidden rounded-card border border-border bg-card px-8 py-14 md:px-16 md:py-20 text-center">
             <span className="inline-flex items-center justify-center h-12 w-12 rounded-2xl mb-5 bg-primary/10">
               <Calendar className="w-6 h-6 text-primary" />
             </span>
@@ -198,7 +203,7 @@ const LandingPage = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ── NFC Tap Card story ──────────────────────────────────────────────

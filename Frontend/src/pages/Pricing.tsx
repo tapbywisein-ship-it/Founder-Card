@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Check, CreditCard } from 'lucide-react';
+import { fadeUp } from '@/lib/motion';
 import { PublicNav } from '@/components/PublicNav';
 import { PublicFooter } from '@/components/PublicFooter';
 import { Surface } from '@/components/Surface';
@@ -11,6 +13,9 @@ import { FeatureBento } from '@/components/FeatureBento';
 import { useAppStore } from '@/store/appStore';
 import { PortalLayout } from '@/components/PortalLayout';
 import { startSubscription, type PlanKey } from '@/services/membership.service';
+
+/* Same accent treatment as LandingPage / TapCardSection — keeps pricing on-brand. */
+const ACCENT_GRADIENT = 'linear-gradient(100deg, hsl(var(--primary)) 0%, #9DCAFF 100%)';
 
 type Tier = {
   name: string;
@@ -125,7 +130,7 @@ const Pricing = () => {
     setBusy(plan);
     try {
       const ok = await startSubscription(plan, { email: user?.email });
-      if (ok) toast.success('You’re subscribed — enjoy your new plan!');
+      if (ok) toast.success('You’re subscribed - enjoy your new plan!');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not start checkout');
     } finally {
@@ -135,21 +140,27 @@ const Pricing = () => {
 
   const body = (
     <>
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-semibold text-foreground">Pricing</h1>
-          <p className="mt-2 text-muted-foreground">
+        <motion.div {...fadeUp()} className="text-center mb-12">
+          <h1 className="font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(2.25rem, 4.5vw, 3.5rem)', lineHeight: 1.06 }}>
+            Simple, honest{' '}
+            <span className="font-serif-display bg-clip-text text-transparent" style={{ backgroundImage: ACCENT_GRADIENT }}>
+              pricing.
+            </span>
+          </h1>
+          <p className="mt-3 text-lg text-muted-foreground">
             Free to join. Upgrade to network better, or host with organizer tools.
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {TIERS.map((t) => (
-            <Surface
-              key={t.name}
-              elevated={t.highlight}
-              padding="none"
-              className={`p-6 flex flex-col ${t.highlight ? 'border-primary ring-1 ring-primary/30' : ''}`}
-            >
+          {TIERS.map((t, i) => (
+            <motion.div key={t.name} {...fadeUp(i * 0.06)}>
+              <Surface
+                elevated={t.highlight}
+                hover
+                padding="none"
+                className={`h-full p-6 flex flex-col ${t.highlight ? 'border-primary ring-1 ring-primary/30' : ''}`}
+              >
               {t.highlight && (
                 <span className="self-start mb-2 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                   Most popular
@@ -193,38 +204,41 @@ const Pricing = () => {
                   {t.cta}
                 </Button>
               )}
-            </Surface>
+              </Surface>
+            </motion.div>
           ))}
         </div>
 
         {/* NFC Founder Card — one-time product, the easiest upsell */}
-        <Surface padding="none" className="mt-6 p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-              <CreditCard className="w-5 h-5 text-primary" />
+        <motion.div {...fadeUp(0.1)}>
+          <Surface hover padding="none" className="mt-6 p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <CreditCard className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">NFC Founder Card</h3>
+                <p className="text-sm text-muted-foreground">
+                  Physical tap-to-connect card with QR fallback, dashboard & unlimited scans.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">NFC Founder Card</h3>
-              <p className="text-sm text-muted-foreground">
-                Physical tap-to-connect card with QR fallback, dashboard & unlimited scans.
+            <div className="flex items-center gap-3 shrink-0">
+              <p className="text-sm text-foreground">
+                <span className="font-bold">₹499</span> one-time
+                <span className="text-muted-foreground"> · ₹999 metal</span>
               </p>
+              <Button asChild size="sm">
+                <Link to="/apply-card">Get a card</Link>
+              </Button>
             </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <p className="text-sm text-foreground">
-              <span className="font-bold">₹499</span> one-time
-              <span className="text-muted-foreground"> · ₹999 metal</span>
-            </p>
-            <Button asChild size="sm">
-              <Link to="/apply-card">Get a card</Link>
-            </Button>
-          </div>
-        </Surface>
+          </Surface>
+        </motion.div>
 
-        <p className="text-center text-xs text-muted-foreground mt-8">
+        <motion.p {...fadeUp(0.15)} className="text-center text-xs text-muted-foreground mt-8">
           Paid ticket sales carry a 5–8% platform fee (free events are always free). Featured
           placement & sponsored networking available on request.
-        </p>
+        </motion.p>
     </>
   );
 

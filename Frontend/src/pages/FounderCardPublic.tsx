@@ -231,7 +231,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
             (profile.bio ?? '').replace(/\s+/g, ' ').trim().slice(0, 160) ||
             `${fullName}${profile.position ? `, ${profile.position}` : ''}${
               profile.company ? ` at ${profile.company}` : ''
-            } — connect on TapByWisein.`,
+            } - connect on TapByWisein.`,
           canonical: card.slug ? `/c/${card.slug}` : undefined,
           image: profile.avatar ?? undefined,
           type: 'profile',
@@ -261,7 +261,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
             <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
               <span className="flex items-center gap-2">
                 <Lock className="h-4 w-4 shrink-0" />
-                Viewing as a visitor — this is what people see before connecting.
+                Viewing as a visitor - this is what people see before connecting.
               </span>
               <button
                 type="button"
@@ -542,7 +542,7 @@ const FounderCardPublic = ({ mode }: FounderCardPublicProps) => {
                           type="button"
                           onClick={() => endorseMutation.mutate({ skill: s, endorse: !mine })}
                           disabled={endorseMutation.isPending}
-                          title={mine ? `You endorsed ${s} — tap to withdraw` : `Endorse ${s}`}
+                          title={mine ? `You endorsed ${s} - tap to withdraw` : `Endorse ${s}`}
                           className={`chip inline-flex items-center gap-1 transition-all ${
                             mine
                               ? 'ring-1 ring-primary text-primary'
