@@ -51,7 +51,7 @@ export function PublicNav({ loginFrom }: { loginFrom?: string }) {
 
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-content mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-xwide mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo renders its own link (home for anon) — don't wrap it in another. */}
         <Logo />
         <div className="hidden md:flex items-center gap-6">{links}</div>

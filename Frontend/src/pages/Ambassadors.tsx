@@ -46,7 +46,7 @@ const AmbassadorsPage = () => {
     ) : (
       <div className="min-h-screen bg-background">
         <PublicNav />
-        <main className="max-w-content mx-auto px-4 py-6 md:py-10">{children}</main>
+        <main className="max-w-xwide mx-auto px-4 py-6 md:py-10">{children}</main>
       </div>
     );
 
@@ -89,7 +89,7 @@ const AmbassadorsPage = () => {
       ) : !directory?.length ? (
         <Surface className="text-center py-10">
           <p className="text-sm text-muted-foreground">
-            {city ? `No ambassadors in “${city}” yet.` : 'No active ambassadors yet — apply to be the first.'}
+            {city ? `No ambassadors in “${city}” yet.` : 'No active ambassadors yet - apply to be the first.'}
           </p>
         </Surface>
       ) : (

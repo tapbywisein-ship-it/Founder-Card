@@ -27,8 +27,8 @@ export default {
           light: "#131A52",
         },
         "brand-blue": {
-          DEFAULT: "#3B6FF0",
-          light: "#D6E4FF",
+          DEFAULT: "#1981FE",
+          light: "#9DCAFF",
           lighter: "#EAF1FF",
         },
         border: "hsl(var(--border))",

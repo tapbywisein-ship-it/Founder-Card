@@ -4,30 +4,31 @@
 
 @layer base {
   :root {
-    /* ── TapByWisein Design Tokens — Light mode ─────────────────────────── */
-    /* Primary accent: #3B6FF0 → hsl(224, 85%, 58%) */
-    /* Secondary accent (light blue tint): #D6E4FF → hsl(217, 100%, 92%) */
+    /* ── TapByWisein Brand Tokens — Light mode ──────────────────────────────
+       Primary   #1981FE  hsl(213 99% 55%)   Secondary  #9DCAFF  hsl(212 100% 81%)
+       Text-1    #14171F  hsl(224 22% 10%)   Text-2     #FFFFFF  hsl(0 0% 100%)
+       Text var  #808080  hsl(0 0% 50%)      Line/var   #EAEAEA  hsl(0 0% 92%) */
 
     --background: 0 0% 100%;
-    --foreground: 0 0% 4%;               /* #0A0A0A near-black */
+    --foreground: 224 22% 10%;           /* #14171F */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
+    --card-foreground: 224 22% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
+    --popover-foreground: 224 22% 10%;
 
-    --primary: 224 85% 58%;              /* #3B6FF0 vibrant blue */
-    --primary-foreground: 0 0% 100%;
+    --primary: 213 99% 55%;              /* #1981FE brand blue */
+    --primary-foreground: 0 0% 100%;     /* #FFFFFF */
 
-    --secondary: 217 100% 95%;           /* #EAF1FF light blue tint */
-    --secondary-foreground: 224 85% 30%;
+    --secondary: 212 100% 81%;           /* #9DCAFF brand light blue */
+    --secondary-foreground: 224 22% 10%; /* #14171F — dark text on light blue */
 
-    --muted: 217 100% 95%;
-    --muted-foreground: 220 9% 46%;      /* #6B7280 */
+    --muted: 0 0% 96%;                   /* #F5F5F5 neutral surface */
+    --muted-foreground: 0 0% 50%;        /* #808080 */
 
-    --accent: 217 100% 92%;              /* #D6E4FF */
-    --accent-foreground: 224 85% 30%;
+    --accent: 213 100% 94%;              /* pale primary tint for hovers */
+    --accent-foreground: 213 99% 40%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -35,20 +36,20 @@
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --border: 0 0% 91%;                  /* rgba(0,0,0,0.06) equivalent */
-    --input: 0 0% 91%;
-    --ring: 224 85% 58%;
+    --border: 0 0% 92%;                  /* #EAEAEA */
+    --input: 0 0% 92%;
+    --ring: 213 99% 55%;
 
     --radius: 1rem;                      /* 16px base card radius */
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 4%;
-    --sidebar-primary: 224 85% 58%;
+    --sidebar-foreground: 224 22% 10%;
+    --sidebar-primary: 213 99% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 100% 95%;
-    --sidebar-accent-foreground: 0 0% 4%;
-    --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 224 85% 58%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 224 22% 10%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 213 99% 55%;
   }
 
   .dark {
@@ -65,7 +66,7 @@
     --popover: 0 0% 7%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 224 85% 58%;              /* #3B6FF0 same vibrant blue */
+    --primary: 213 99% 55%;              /* #1981FE same brand blue */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 12%;               /* neutral gray secondary surfaces */
@@ -74,7 +75,7 @@
     --muted: 0 0% 12%;
     --muted-foreground: 0 0% 64%;        /* #A3A3A3 neutral gray */
 
-    --accent: 224 85% 25%;              /* dark blue tint for accent backgrounds */
+    --accent: 213 99% 25%;              /* dark brand-blue tint for accent backgrounds */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 56%;
@@ -85,16 +86,16 @@
 
     --border: 0 0% 15%;                 /* #262626 neutral hairline */
     --input: 0 0% 15%;
-    --ring: 224 85% 58%;
+    --ring: 213 99% 55%;
 
     --sidebar-background: 0 0% 0%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 224 85% 58%;
+    --sidebar-primary: 213 99% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 12%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 224 85% 58%;
+    --sidebar-ring: 213 99% 55%;
   }
 }
 
