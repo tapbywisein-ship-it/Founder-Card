@@ -103,7 +103,7 @@ const CommunityPublicPage = () => {
           {events.length === 0 ? (
             <Surface className="text-center py-10">
               <Calendar className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No events yet — follow to hear about the next one.</p>
+              <p className="text-sm text-muted-foreground">No events yet - follow to hear about the next one.</p>
             </Surface>
           ) : (
             <div className="space-y-3">

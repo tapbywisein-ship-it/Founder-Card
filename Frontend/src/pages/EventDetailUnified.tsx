@@ -146,7 +146,7 @@ const EventDetailUnified = () => {
           title: event.title,
           description:
             (event.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 160) ||
-            `${event.title} — a networking event on TapByWisein.`,
+            `${event.title} - a networking event on TapByWisein.`,
           canonical: `/e/${event.slug ?? event.id}`,
           image: event.coverImage ?? undefined,
           type: 'article',
@@ -709,7 +709,7 @@ const EventDetailUnified = () => {
               {couponApplied ? (
                 <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm">
                   <span className="text-emerald-600">
-                    Coupon <span className="font-semibold">{couponApplied.code}</span> — {couponApplied.discountPct}% off
+                    Coupon <span className="font-semibold">{couponApplied.code}</span> - {couponApplied.discountPct}% off
                   </span>
                   <button type="button" onClick={clearCoupon} className="text-xs text-muted-foreground hover:text-foreground underline">
                     Remove
@@ -928,13 +928,13 @@ const EventDetailUnified = () => {
           <DialogHeader>
             <DialogTitle className="text-center">You're in! 🎉</DialogTitle>
             <DialogDescription className="text-center">
-              Payment successful — your spot for <strong>{event.title}</strong> is confirmed.
+              Payment successful - your spot for <strong>{event.title}</strong> is confirmed.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground flex items-start gap-2.5 text-left">
             <Mail className="w-4 h-4 text-primary mt-0.5 shrink-0" />
             <span>
-              We've emailed your ticket — with a <strong>QR code to check in</strong> —
+              We've emailed your ticket - with a <strong>QR code to check in</strong> -
               {user?.email ? <> to <strong className="text-foreground">{user.email}</strong></> : ' to your inbox'}.
               Look for “You're in: {event.title}” (check spam too).
             </span>
