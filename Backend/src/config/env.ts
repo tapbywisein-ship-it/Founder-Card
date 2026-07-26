@@ -24,12 +24,16 @@ const envSchema = z.object({
   // other than the account owner get a 403), so a missing EMAIL_FROM env var
   // must not silently drop us back into that. Override per-env as needed.
   RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  // Sending identity — MUST be a Resend-verified domain, so this stays on the
+  // tapbywisein.com domain (gmail can't be a verified sender).
   EMAIL_FROM: z.string().default('no-reply@tapbywisein.com'),
+  // The single human inbox for everything inbound: support, demo leads, contact.
+  SUPPORT_EMAIL: z.string().default('tapbywisein@gmail.com'),
 
   // Web Push (VAPID). Optional — when unset, browser push silently no-ops.
   VAPID_PUBLIC_KEY: z.string().default(''),
   VAPID_PRIVATE_KEY: z.string().default(''),
-  VAPID_SUBJECT: z.string().default('mailto:hello@tapbywisein.com'),
+  VAPID_SUBJECT: z.string().default('mailto:tapbywisein@gmail.com'),
 
   // Supabase Storage buckets
   SUPABASE_STORAGE_AVATAR_BUCKET: z.string().default('avatars'),

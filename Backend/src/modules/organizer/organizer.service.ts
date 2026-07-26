@@ -1,4 +1,5 @@
 import prisma from '@config/database';
+import { assertEntitled } from '@config/entitlements';
 import { NotFoundError, ForbiddenError, BadRequestError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { parseAttendeeCsv } from '@utils/csvImport';
@@ -181,6 +182,7 @@ export class OrganizerService {
   }
 
   async exportLeads(organizerId: string, eventId?: string) {
+    await assertEntitled(organizerId, 'contactExport');
     const where: Record<string, unknown> = { organizerId };
     if (eventId) where.eventId = eventId;
 
@@ -1584,6 +1586,7 @@ export class OrganizerService {
       const ok = await this.isEventManager(callerId, eventId);
       if (!ok) throw new ForbiddenError('You cannot export attendees for this event');
     }
+    await assertEntitled(event.organizerId, 'contactExport');
 
     const registrations = await prisma.eventRegistration.findMany({
       where: { eventId, status: { not: 'CANCELLED' } },

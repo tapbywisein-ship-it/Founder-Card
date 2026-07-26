@@ -3,7 +3,8 @@ import logger from '@utils/logger';
 import { sendEmail } from '@utils/email';
 import { env } from '@config/env';
 
-const ADMIN_EMAIL = env.EMAIL_FROM.replace(/^.*<(.+)>$/, '$1');
+// Leads go to the human support inbox, not the no-reply sending address.
+const ADMIN_EMAIL = env.SUPPORT_EMAIL;
 
 export class PublicService {
   /** Lightweight public counters for landing-page + community social proof. */
