@@ -86,7 +86,7 @@ export const TapCardSection = () => {
   return (
     <>
       {/* ── Hero strip ─────────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-t border-border">
+      <section className="bg-background border-t border-border">
         <div className="max-w-xwide mx-auto px-6 py-24 text-center">
           <motion.span
             {...fadeUp()}
@@ -123,7 +123,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── Problem / agitator ─────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-t border-border">
+      <section className="bg-background border-t border-border">
         <div className="max-w-2xl mx-auto px-6 py-16 text-center">
           <motion.h3
             {...fadeUp()}
@@ -144,7 +144,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── Product intro ──────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-t border-border">
+      <section className="bg-background border-t border-border">
         <div className="max-w-xwide mx-auto px-6 py-20 text-center">
           {/* Real card art — front + back, gently fanned. drop-shadow (not
               box-shadow) so it follows the PNG's rounded-corner alpha. */}
@@ -185,7 +185,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── How it works (3 numbered steps) ────────────────────────────── */}
-      <section className="bg-[#e7e5e3]">
+      <section className="bg-background">
         <div className="max-w-xwide mx-auto px-6 py-24">
           <h3 className="text-center font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
             It's almost embarrassingly simple.
@@ -214,7 +214,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── Benefits ───────────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-y border-border">
+      <section className="bg-background border-y border-border">
         <div className="max-w-xwide mx-auto px-6 py-24">
           <h3 className="text-center font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)' }}>
             Why the Tap Card {accentSpan('changes everything.')}
@@ -261,7 +261,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── Use cases ───────────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3]">
+      <section className="bg-background">
         <div className="max-w-xwide mx-auto px-6 py-24">
           <h3 className="text-center font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
             Built for the moments that matter.
@@ -285,7 +285,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── Honest / trust note ─────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-t border-border">
+      <section className="bg-background border-t border-border">
         <div className="max-w-2xl mx-auto px-6 py-16">
           <motion.div
             {...fadeUp()}
@@ -315,7 +315,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── Pricing CTA ─────────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-t border-border">
+      <section className="bg-background border-t border-border">
         <div className="max-w-xwide mx-auto px-6 py-24">
           <h3 className="text-center font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
             Ready to {accentSpan('tap in?')}
@@ -358,7 +358,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── FAQ ─────────────────────────────────────────────────────────── */}
-      <section id="faq" className="bg-[#e7e5e3] border-t border-border scroll-mt-20">
+      <section id="faq" className="bg-background border-t border-border scroll-mt-20">
         <div className="max-w-2xl mx-auto px-6 py-24">
           <h3 className="text-center font-extrabold tracking-tight text-foreground mb-10" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
             Frequently asked
@@ -381,7 +381,7 @@ export const TapCardSection = () => {
       </section>
 
       {/* ── Footer CTA strip ────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-t border-border">
+      <section className="bg-background border-t border-border">
         <div className="max-w-xwide mx-auto px-6 py-16 text-center">
           <h3 className="font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)' }}>
             Stop handing out paper.

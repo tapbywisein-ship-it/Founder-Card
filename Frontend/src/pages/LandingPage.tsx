@@ -37,11 +37,11 @@ const LandingPage = () => {
   const [demoOpen, setDemoOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#e7e5e3]">
+    <div className="min-h-screen bg-background">
       <PublicNav />
 
       {/* ── Hero (split layout: copy left, product photo right) ────────────── */}
-      <section className="relative overflow-hidden bg-[#e7e5e3]">
+      <section className="relative overflow-hidden bg-background">
         <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch lg:min-h-[92vh]">
           {/* Left — copy, vertically centered within the hero */}
           <motion.div
@@ -114,7 +114,7 @@ const LandingPage = () => {
       <FeatureBento />
 
       {/* ── How it works ──────────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3]">
+      <section className="bg-background">
         <div className="max-w-xwide mx-auto px-6 py-24">
           <h2 className="text-center font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.1 }}>
             Networking in <span className="font-serif-display text-primary">three taps.</span>
@@ -153,7 +153,7 @@ const LandingPage = () => {
       </section>
 
       {/* ── Use cases strip ───────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3] border-y border-border">
+      <section className="bg-background border-y border-border">
         <motion.div {...fadeUp()} className="max-w-xwide mx-auto px-6 py-10">
           <p className="text-center text-xs uppercase tracking-[0.05em] mb-5 text-muted-foreground">
             Built for founder meetups, demo days &amp; conferences
@@ -173,7 +173,7 @@ const LandingPage = () => {
       </section>
 
       {/* ── Organizer CTA ─────────────────────────────────────────────────── */}
-      <section className="bg-[#e7e5e3]">
+      <section className="bg-background">
         <motion.div {...fadeUp()} className="max-w-xwide mx-auto px-6 py-24">
           <div className="relative overflow-hidden rounded-card border border-border bg-card px-8 py-14 md:px-16 md:py-20 text-center">
             <span className="inline-flex items-center justify-center h-12 w-12 rounded-2xl mb-5 bg-primary/10">

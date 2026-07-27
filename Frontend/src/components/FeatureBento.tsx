@@ -58,7 +58,7 @@ export const FeatureBento = () => {
   const connections = stats?.connections ?? 0;
 
   return (
-    <section className="bg-[#e7e5e3] border-y border-border">
+    <section className="bg-background border-y border-border">
       <div className="max-w-xwide mx-auto px-6 py-24">
         <div className="text-center mb-12">
           <h2 className="font-extrabold tracking-tight text-foreground" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', lineHeight: 1.08 }}>
