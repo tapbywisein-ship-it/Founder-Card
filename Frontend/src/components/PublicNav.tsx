@@ -30,7 +30,6 @@ export function PublicNav({ loginFrom }: { loginFrom?: string }) {
       <Link to="/communities" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" onClick={() => setOpen(false)}>Communities</Link>
       <Link to="/ambassadors" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" onClick={() => setOpen(false)}>Ambassadors</Link>
       <Link to="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" onClick={() => setOpen(false)}>Pricing</Link>
-      <a href="/#faq" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" onClick={() => setOpen(false)}>FAQ</a>
     </>
   );
 

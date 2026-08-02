@@ -14,14 +14,14 @@ import { registrationCountdown } from '@/lib/eventCountdown';
 import { Calendar, MapPin, Users, Tag, Search, Sparkles, AlertCircle, CheckCircle2, Clock, Cpu, TrendingUp, Palette, Heart, PartyPopper, Music, Dumbbell, UtensilsCrossed } from 'lucide-react';
 
 const CATEGORIES = [
-  { id: 'tech',     label: 'Tech',     icon: Cpu,             color: 'from-blue-600/30 to-blue-800/10' },
-  { id: 'business', label: 'Business', icon: TrendingUp,      color: 'from-amber-600/30 to-amber-800/10' },
-  { id: 'design',   label: 'Design',   icon: Palette,         color: 'from-purple-600/30 to-purple-800/10' },
-  { id: 'health',   label: 'Health',   icon: Heart,           color: 'from-emerald-600/30 to-emerald-800/10' },
-  { id: 'social',   label: 'Social',   icon: PartyPopper,     color: 'from-rose-600/30 to-rose-800/10' },
-  { id: 'arts',     label: 'Arts',     icon: Music,           color: 'from-pink-600/30 to-pink-800/10' },
-  { id: 'sports',   label: 'Sports',   icon: Dumbbell,        color: 'from-orange-600/30 to-orange-800/10' },
-  { id: 'food',     label: 'Food',     icon: UtensilsCrossed, color: 'from-yellow-600/30 to-yellow-800/10' },
+  { id: 'tech',     label: 'Tech',     icon: Cpu },
+  { id: 'business', label: 'Business', icon: TrendingUp },
+  { id: 'design',   label: 'Design',   icon: Palette },
+  { id: 'health',   label: 'Health',   icon: Heart },
+  { id: 'social',   label: 'Social',   icon: PartyPopper },
+  { id: 'arts',     label: 'Arts',     icon: Music },
+  { id: 'sports',   label: 'Sports',   icon: Dumbbell },
+  { id: 'food',     label: 'Food',     icon: UtensilsCrossed },
 ];
 
 const DiscoverPage = () => {
@@ -126,7 +126,7 @@ const DiscoverPage = () => {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(selectedCategory === cat.id ? '' : cat.id)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all bg-gradient-to-br ${cat.color} ${
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all bg-card ${
                   selectedCategory === cat.id
                     ? 'border-primary scale-95'
                     : 'border-border hover:border-primary/40 hover:scale-95'
