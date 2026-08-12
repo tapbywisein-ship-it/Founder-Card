@@ -515,7 +515,7 @@ const AttendeeDashboard = () => {
                     <UserPlus className="w-4 h-4 text-muted-foreground" />
                     <span className="section-label">People You May Know</span>
                   </div>
-                  <Link to="/discover" className="flex items-center gap-0.5 text-[11px] text-primary font-medium hover:underline">
+                  <Link to="/people" className="flex items-center gap-0.5 text-[11px] text-primary font-medium hover:underline">
                     See more <ArrowUpRight className="w-3 h-3" />
                   </Link>
                 </div>
