@@ -381,12 +381,12 @@ const EventDetailUnified = () => {
         )}
 
         {/* Cover */}
-        <div className="aspect-[16/9] rounded-card overflow-hidden border border-border">
+        <div className="aspect-[16/9] rounded-card overflow-hidden border border-border bg-muted">
           {event.coverImage ? (
             <img
               src={event.coverImage}
               alt={event.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <div
