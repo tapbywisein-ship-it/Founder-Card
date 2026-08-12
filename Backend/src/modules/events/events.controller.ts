@@ -90,9 +90,12 @@ export class EventsController {
   async registerForEvent(req: Request, res: Response): Promise<void> {
     const userId = req.user!.userId;
     const { id } = req.params as Record<string, string>;
-    const { answers } =
-      (req.body as { answers?: Array<{ questionId: string; answer: string }> }) ?? {};
-    const result = await eventsService.registerForEvent(id, userId, answers);
+    const { answers, referralCode } =
+      (req.body as {
+        answers?: Array<{ questionId: string; answer: string }>;
+        referralCode?: string;
+      }) ?? {};
+    const result = await eventsService.registerForEvent(id, userId, answers, referralCode);
     sendSuccess(res, result.registration, result.message);
   }
 

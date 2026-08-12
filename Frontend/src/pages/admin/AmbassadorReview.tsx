@@ -6,7 +6,7 @@ import { Award, AlertCircle, MapPin, Check, X, ArrowRight, RotateCcw, Loader2 } 
 import { AdminLayout } from '@/components/AdminLayout';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
-import { ambassadorsService, type AmbassadorStatus } from '@/services/ambassadors.service';
+import { ambassadorsService, type AmbassadorStatus, LEVEL_LABELS } from '@/services/ambassadors.service';
 
 const TABS: { key: AmbassadorStatus; label: string }[] = [
   { key: 'APPLIED', label: 'Applied' },
@@ -131,6 +131,11 @@ const AmbassadorReviewPage = () => {
                       <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${STATUS_PILL[a.status]}`}>
                         {a.status.toLowerCase()}
                       </span>
+                      {a.status === 'ACTIVE' && a.level && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                          {LEVEL_LABELS[a.level]} · {a.bookingCount ?? 0} booking{a.bookingCount === 1 ? '' : 's'}
+                        </span>
+                      )}
                     </div>
                     {(p?.position || p?.company) && (
                       <p className="text-xs text-muted-foreground">{[p?.position, p?.company].filter(Boolean).join(' · ')}</p>

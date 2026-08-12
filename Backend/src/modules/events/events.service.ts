@@ -10,6 +10,7 @@ import { sendEmail, eventRsvpConfirmationEmail, escapeHtml } from '@utils/email'
 import { env } from '@config/env';
 import logger from '@utils/logger';
 import gamificationService from '@modules/gamification/gamification.service';
+import ambassadorsService from '@modules/ambassadors/ambassadors.service';
 import notificationsService from '@modules/notifications/notifications.service';
 import { hasFreeOption, resolveTiers } from '@utils/ticketPricing';
 import { buildEventIcs } from '@utils/calendar';
@@ -448,8 +449,11 @@ export class EventsService {
   async registerForEvent(
     eventId: string,
     userId: string,
-    answers?: Array<{ questionId: string; answer: string }>
+    answers?: Array<{ questionId: string; answer: string }>,
+    referralCode?: string
   ) {
+    const referredByAmbassadorId = await ambassadorsService.resolveReferralCode(referralCode);
+
     // PENDING_APPROVAL doesn't occupy a slot until accepted, so it must be
     // excluded from the count along with CANCELLED.
     const event = await prisma.event.findFirst({
@@ -483,7 +487,7 @@ export class EventsService {
     if (event._count.registrations >= event.capacity && !requiresApproval) {
       // Add to waitlist instead — no capacity check needed, waitlist is unbounded.
       const registration = await prisma.eventRegistration.create({
-        data: { eventId, userId, status: 'WAITLISTED' },
+        data: { eventId, userId, status: 'WAITLISTED', referredByAmbassadorId },
       });
       return { registration, message: 'You have been added to the waitlist' };
     }
@@ -523,11 +527,11 @@ export class EventsService {
       });
       if (!requiresApproval && currentCount >= event.capacity) {
         return tx.eventRegistration.create({
-          data: { eventId, userId, status: 'WAITLISTED' },
+          data: { eventId, userId, status: 'WAITLISTED', referredByAmbassadorId },
         });
       }
       return tx.eventRegistration.create({
-        data: { eventId, userId, status: initialStatus },
+        data: { eventId, userId, status: initialStatus, referredByAmbassadorId },
       });
     });
 
@@ -626,8 +630,9 @@ export class EventsService {
     ticketTierId?: string;
     ticketTierName?: string;
     couponCode?: string;
+    referredByAmbassadorId?: string | null;
   }) {
-    const { eventId, userId, amountPaid, ticketTierId, ticketTierName, couponCode } = args;
+    const { eventId, userId, amountPaid, ticketTierId, ticketTierName, couponCode, referredByAmbassadorId } = args;
     const event = await prisma.event.findFirst({ where: { id: eventId, deletedAt: null } });
     if (!event) throw new NotFoundError('Event');
 
@@ -644,9 +649,18 @@ export class EventsService {
       couponCode: couponCode ?? null,
     };
 
+    // Attribution is set once and never overwritten by a later payment finalize.
     const registration = existing
-      ? await prisma.eventRegistration.update({ where: { id: existing.id }, data })
-      : await prisma.eventRegistration.create({ data: { eventId, userId, ...data } });
+      ? await prisma.eventRegistration.update({
+          where: { id: existing.id },
+          data: {
+            ...data,
+            ...(!existing.referredByAmbassadorId && referredByAmbassadorId ? { referredByAmbassadorId } : {}),
+          },
+        })
+      : await prisma.eventRegistration.create({
+          data: { eventId, userId, referredByAmbassadorId: referredByAmbassadorId ?? null, ...data },
+        });
 
     // Award score + lead once — skip if the user was already a confirmed attendee.
     const wasUnconfirmed =

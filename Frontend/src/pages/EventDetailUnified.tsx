@@ -33,6 +33,7 @@ import {
 } from '@/hooks/useEvents';
 import { useQueryClient } from '@tanstack/react-query';
 import { injectThemeVars } from '@/lib/eventThemes';
+import { getReferralCode } from '@/lib/referral';
 import { useJsonLd } from '@/lib/useJsonLd';
 import { useSeo } from '@/lib/useSeo';
 import { getRegistrationPricing } from '@/lib/ticketPricing';
@@ -308,7 +309,8 @@ const EventDetailUnified = () => {
       const { data: order } = await paymentsService.createOrder(
         event.id,
         effectiveTier.id,
-        couponApplied?.code
+        couponApplied?.code,
+        getReferralCode()
       );
       openRazorpayCheckout({
         key: order.keyId,

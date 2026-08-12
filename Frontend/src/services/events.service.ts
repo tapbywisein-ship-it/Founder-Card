@@ -284,13 +284,17 @@ export const eventsService = {
 
   async registerForEvent(
     id: string,
-    answers?: Array<{ questionId: string; answer: string }>
+    answers?: Array<{ questionId: string; answer: string }>,
+    referralCode?: string
   ) {
+    const body: { answers?: typeof answers; referralCode?: string } = {};
+    if (answers && answers.length > 0) body.answers = answers;
+    if (referralCode) body.referralCode = referralCode;
     return apiFetch<{ data: { registration: EventRegistration; message: string } }>(
       `/events/${id}/register`,
       {
         method: 'POST',
-        body: answers && answers.length > 0 ? JSON.stringify({ answers }) : undefined,
+        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
       }
     );
   },

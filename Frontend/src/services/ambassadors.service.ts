@@ -1,12 +1,31 @@
 import { apiFetch } from './api';
 
 export type AmbassadorStatus = 'APPLIED' | 'INTERVIEW' | 'ACTIVE' | 'REJECTED';
+export type AmbassadorLevel = 'INSIDER' | 'AMBASSADOR' | 'LEADER' | 'ELITE';
+
+export const AMBASSADOR_LEVEL_ORDER: AmbassadorLevel[] = ['INSIDER', 'AMBASSADOR', 'LEADER', 'ELITE'];
+
+export const LEVEL_LABELS: Record<AmbassadorLevel, string> = {
+  INSIDER: 'Insider',
+  AMBASSADOR: 'Ambassador',
+  LEADER: 'Leader',
+  ELITE: 'Elite',
+};
+
+export const LEVEL_REWARDS: Record<AmbassadorLevel, string> = {
+  INSIDER: 'Digital ID + stickers',
+  AMBASSADOR: 'T-shirt + physical ID',
+  LEADER: 'Hoodie + cap',
+  ELITE: 'Limited-edition jacket + exclusive swag box',
+};
 
 export interface AmbassadorPublic {
   id: string;
   city: string;
   region?: string | null;
   createdAt: string;
+  bookingCount: number;
+  level: AmbassadorLevel;
   user: {
     id: string;
     username?: string | null;
@@ -27,6 +46,10 @@ export interface MyAmbassador {
   motivation: string;
   status: AmbassadorStatus;
   reviewNote?: string | null;
+  referralCode?: string | null;
+  bookingCount?: number;
+  level?: AmbassadorLevel;
+  nextLevel?: { level: AmbassadorLevel; remaining: number } | null;
   createdAt: string;
   updatedAt: string;
 }

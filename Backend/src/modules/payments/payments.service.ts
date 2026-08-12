@@ -12,6 +12,7 @@ import logger from '@utils/logger';
 import { findTier } from '@utils/ticketPricing';
 import { sendEmail, refundConfirmationEmail } from '@utils/email';
 import razorpayRouteService from './razorpay-route.service';
+import ambassadorsService from '@modules/ambassadors/ambassadors.service';
 
 const RAZORPAY_API = 'https://api.razorpay.com/v1';
 const DEFAULT_FEE_PERCENT = 5;
@@ -51,7 +52,13 @@ export class PaymentsService {
    * Create a Razorpay order for one paid ticket tier and persist a CREATED
    * Payment row. Returns the data the frontend Checkout widget needs.
    */
-  async createOrder(userId: string, eventId: string, ticketTierId: string, couponCode?: string) {
+  async createOrder(
+    userId: string,
+    eventId: string,
+    ticketTierId: string,
+    couponCode?: string,
+    referralCode?: string
+  ) {
     if (!paymentsConfigured()) {
       throw new ServiceUnavailableError('Payments are not configured');
     }
@@ -125,6 +132,8 @@ export class PaymentsService {
       throw new ServiceUnavailableError('Payment provider is unavailable. Please try again.');
     }
 
+    const referredByAmbassadorId = await ambassadorsService.resolveReferralCode(referralCode);
+
     await prisma.payment.create({
       data: {
         userId,
@@ -135,6 +144,7 @@ export class PaymentsService {
         ticketTierId,
         ticketTierName: tier.name,
         couponCode: appliedCoupon ?? null,
+        referredByAmbassadorId,
         status: 'CREATED',
       },
     });
@@ -212,6 +222,7 @@ export class PaymentsService {
       ticketTierId: payment.ticketTierId ?? undefined,
       ticketTierName: payment.ticketTierName ?? undefined,
       couponCode: payment.couponCode ?? undefined,
+      referredByAmbassadorId: payment.referredByAmbassadorId,
     });
 
     // Count the coupon use now that payment succeeded (best-effort — never fail
@@ -634,6 +645,7 @@ export class PaymentsService {
           ticketTierId: payment.ticketTierId ?? undefined,
           ticketTierName: payment.ticketTierName ?? undefined,
           couponCode: payment.couponCode ?? undefined,
+          referredByAmbassadorId: payment.referredByAmbassadorId,
         });
 
         // Same bookkeeping as the verify path — webhook-recovered payments must

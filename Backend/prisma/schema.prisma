@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -164,57 +164,57 @@ model User {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  profile             Profile?
-  founderCard         FounderCard?
-  gamification        Gamification?
-  sentConnections     Connection[]        @relation("Requester")
-  receivedConnections Connection[]        @relation("Receiver")
-  registrations       EventRegistration[]
-  organizedEvents     Event[]             @relation("Organizer")
-  notifications       Notification[]
-  userBadges          UserBadge[]
-  scoreHistory        ScoreHistory[]
-  leads               Lead[]              @relation("AttendeeLead")
-  organizedLeads      Lead[]              @relation("OrganizerLead")
-  auditLogs           AuditLog[]
-  refreshTokens       RefreshToken[]
-  eventMessages       EventMessage[]
-  reportsFiled        Report[]            @relation("ReportsFiled")
-  reportsReviewed     Report[]            @relation("ReportsReviewed")
-  tapsInitiated       EventTap[]          @relation("TapsInitiated")
-  tapsReceived        EventTap[]          @relation("TapsReceived")
-  claimTokens         ClaimToken[]
-  connectionNotes     ConnectionNote[]
-  savedEvents         SavedEvent[]
-  conversationsAsA    Conversation[]      @relation("ConvUserA")
-  conversationsAsB    Conversation[]      @relation("ConvUserB")
-  messagesSent        Message[]
-  coorganizedEvents   EventCoorganizer[]
-  pageViews           EventPageView[]
-  payments            Payment[]
-  cardPurchases       CardPurchase[]
-  cardViewsReceived   CardView[]          @relation("CardViewsReceived")
-  cardViewsMade       CardView[]          @relation("CardViewsMade")
-  connectionMeta      ConnectionMeta[]
-  cardBlocks          CardBlock[]
-  cardLeads           CardLead[]          @relation("CardLeadsReceived")
-  payouts             Payout[]
-  blocksMade          BlockedUser[]       @relation("BlocksMade")
-  blocksReceived      BlockedUser[]       @relation("BlocksReceived")
-  membership          Membership?
-  ownedCommunities    Community[]         @relation("CommunityOwner")
-  communityMemberships CommunityMember[]
-  communityPosts      CommunityPost[]
+  profile               Profile?
+  founderCard           FounderCard?
+  gamification          Gamification?
+  sentConnections       Connection[]           @relation("Requester")
+  receivedConnections   Connection[]           @relation("Receiver")
+  registrations         EventRegistration[]
+  organizedEvents       Event[]                @relation("Organizer")
+  notifications         Notification[]
+  userBadges            UserBadge[]
+  scoreHistory          ScoreHistory[]
+  leads                 Lead[]                 @relation("AttendeeLead")
+  organizedLeads        Lead[]                 @relation("OrganizerLead")
+  auditLogs             AuditLog[]
+  refreshTokens         RefreshToken[]
+  eventMessages         EventMessage[]
+  reportsFiled          Report[]               @relation("ReportsFiled")
+  reportsReviewed       Report[]               @relation("ReportsReviewed")
+  tapsInitiated         EventTap[]             @relation("TapsInitiated")
+  tapsReceived          EventTap[]             @relation("TapsReceived")
+  claimTokens           ClaimToken[]
+  connectionNotes       ConnectionNote[]
+  savedEvents           SavedEvent[]
+  conversationsAsA      Conversation[]         @relation("ConvUserA")
+  conversationsAsB      Conversation[]         @relation("ConvUserB")
+  messagesSent          Message[]
+  coorganizedEvents     EventCoorganizer[]
+  pageViews             EventPageView[]
+  payments              Payment[]
+  cardPurchases         CardPurchase[]
+  cardViewsReceived     CardView[]             @relation("CardViewsReceived")
+  cardViewsMade         CardView[]             @relation("CardViewsMade")
+  connectionMeta        ConnectionMeta[]
+  cardBlocks            CardBlock[]
+  cardLeads             CardLead[]             @relation("CardLeadsReceived")
+  payouts               Payout[]
+  blocksMade            BlockedUser[]          @relation("BlocksMade")
+  blocksReceived        BlockedUser[]          @relation("BlocksReceived")
+  membership            Membership?
+  ownedCommunities      Community[]            @relation("CommunityOwner")
+  communityMemberships  CommunityMember[]
+  communityPosts        CommunityPost[]
   communityPostComments CommunityPostComment[]
-  pushSubscriptions   PushSubscription[]
-  eventBlasts         EventBlast[]
-  introRequestsMade   IntroRequest[]      @relation("IntroRequester")
-  introRequestsAbout  IntroRequest[]      @relation("IntroTarget")
-  introRequestsVia    IntroRequest[]      @relation("IntroVia")
-  eventFeedback       EventFeedback[]
-  endorsementsGiven   SkillEndorsement[] @relation("EndorsementsGiven")
-  endorsementsReceived SkillEndorsement[] @relation("EndorsementsReceived")
-  ambassador          Ambassador?
+  pushSubscriptions     PushSubscription[]
+  eventBlasts           EventBlast[]
+  introRequestsMade     IntroRequest[]         @relation("IntroRequester")
+  introRequestsAbout    IntroRequest[]         @relation("IntroTarget")
+  introRequestsVia      IntroRequest[]         @relation("IntroVia")
+  eventFeedback         EventFeedback[]
+  endorsementsGiven     SkillEndorsement[]     @relation("EndorsementsGiven")
+  endorsementsReceived  SkillEndorsement[]     @relation("EndorsementsReceived")
+  ambassador            Ambassador?
 
   @@index([email])
   @@index([supabaseId])
@@ -226,43 +226,43 @@ model User {
 }
 
 model Profile {
-  id         String   @id @default(uuid())
-  userId     String   @unique
-  firstName  String
-  lastName   String
-  bio        String?  @db.Text
-  status     String?
-  company    String?
-  position   String?
-  location   String?
-  avatar     String?
-  skills     String[]
-  interests  String[]
-  lookingFor String[]
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  firstName             String
+  lastName              String
+  bio                   String?  @db.Text
+  status                String?
+  company               String?
+  position              String?
+  location              String?
+  avatar                String?
+  skills                String[]
+  interests             String[]
+  lookingFor            String[]
   /// "Open to" badges shown on the public card: HIRING / INVESTING / COFOUNDER / MENTORING
-  openTo     String[] @default([])
+  openTo                String[] @default([])
   /// Pitch spotlight — the featured "what I'm building" block on the public card
-  pitchName    String?
-  pitchTagline String?
-  pitchStage   String?
-  pitchUrl     String?
-  phone      String?
-  twitter    String?
-  linkedin   String?
-  website    String?
-  instagram  String?
-  email      String?
+  pitchName             String?
+  pitchTagline          String?
+  pitchStage            String?
+  pitchUrl              String?
+  phone                 String?
+  twitter               String?
+  linkedin              String?
+  website               String?
+  instagram             String?
+  email                 String?
   // Organizer payout account (legacy manual fields kept for migration safety).
-  payoutUpiId         String?
-  payoutAccountName   String?
-  payoutBankName      String?
-  payoutAccountNumber String?
-  payoutIfsc          String?
+  payoutUpiId           String?
+  payoutAccountName     String?
+  payoutBankName        String?
+  payoutAccountNumber   String?
+  payoutIfsc            String?
   // Razorpay Route linked account for automated splits.
   razorpayAccountId     String?
   razorpayAccountStatus String? // created | activated | suspended
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -357,44 +357,44 @@ model IntroRequest {
 }
 
 model Event {
-  id               String          @id @default(uuid())
-  organizerId      String
-  title            String
-  description      String          @db.Text
-  startDate        DateTime
-  endDate          DateTime
-  locationType     EventType       @default(IN_PERSON)
-  address          String?
-  city             String?
-  state            String?
-  country          String?
-  pincode          String?
-  meetingUrl       String?
-  latitude         Float?
-  longitude        Float?
-  placeId          String?
-  capacity         Int             @default(100)
-  ticketPrice      Decimal?        @db.Decimal(10, 2)
-  coverImage       String?
-  tags             String[]
-  status           EventStatus     @default(DRAFT)
-  category         String?
-  theme            String?         @default("default")
-  slug             String?         @unique
-  requiresApproval Boolean         @default(false)
-  waitlistEnabled  Boolean         @default(true)
-  visibility       EventVisibility @default(PUBLIC)
-  timezone         String?         @default("UTC")
-  ticketTypes      Json?
-  checkInToken     String?         @unique
+  id                    String          @id @default(uuid())
+  organizerId           String
+  title                 String
+  description           String          @db.Text
+  startDate             DateTime
+  endDate               DateTime
+  locationType          EventType       @default(IN_PERSON)
+  address               String?
+  city                  String?
+  state                 String?
+  country               String?
+  pincode               String?
+  meetingUrl            String?
+  latitude              Float?
+  longitude             Float?
+  placeId               String?
+  capacity              Int             @default(100)
+  ticketPrice           Decimal?        @db.Decimal(10, 2)
+  coverImage            String?
+  tags                  String[]
+  status                EventStatus     @default(DRAFT)
+  category              String?
+  theme                 String?         @default("default")
+  slug                  String?         @unique
+  requiresApproval      Boolean         @default(false)
+  waitlistEnabled       Boolean         @default(true)
+  visibility            EventVisibility @default(PUBLIC)
+  timezone              String?         @default("UTC")
+  ticketTypes           Json?
+  checkInToken          String?         @unique
   checkInTokenExpiresAt DateTime?
-  recapSentAt      DateTime?
-  registrationDeadline DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  deletedAt        DateTime?
+  recapSentAt           DateTime?
+  registrationDeadline  DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  deletedAt             DateTime?
 
-  communityId      String?
+  communityId String?
 
   organizer     User                @relation("Organizer", fields: [organizerId], references: [id])
   community     Community?          @relation(fields: [communityId], references: [id])
@@ -426,17 +426,17 @@ model Event {
 // A recurring community an organizer runs — persistent member network across
 // events. Events optionally belong to a community (Event.communityId).
 model Community {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   organizerId String
   name        String
-  slug        String   @unique
-  description String?  @db.Text
+  slug        String    @unique
+  description String?   @db.Text
   avatar      String?
   coverImage  String?
   category    String?
-  isPublic    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPublic    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   organizer User              @relation("CommunityOwner", fields: [organizerId], references: [id], onDelete: Cascade)
@@ -628,59 +628,68 @@ model EventPageView {
 }
 
 model EventRegistration {
-  id             String             @id @default(uuid())
-  eventId        String
-  userId         String
-  status         RegistrationStatus @default(REGISTERED)
-  eventRole      EventRole          @default(ATTENDEE)
-  checkedIn      Boolean            @default(false)
-  checkedInAt    DateTime?
-  amountPaid     Decimal?           @db.Decimal(10, 2)
-  paymentStatus  PaymentStatus?
-  ticketTierId   String?
-  ticketTierName String?
-  couponCode     String?
-  guestNote      String?            @db.Text
-  registeredAt   DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id                     String             @id @default(uuid())
+  eventId                String
+  userId                 String
+  status                 RegistrationStatus @default(REGISTERED)
+  eventRole              EventRole          @default(ATTENDEE)
+  checkedIn              Boolean            @default(false)
+  checkedInAt            DateTime?
+  amountPaid             Decimal?           @db.Decimal(10, 2)
+  paymentStatus          PaymentStatus?
+  ticketTierId           String?
+  ticketTierName         String?
+  couponCode             String?
+  guestNote              String?            @db.Text
+  /// Ambassador whose referral link (?ref=<code>) this booking came through,
+  /// if any. Set once at creation and never overwritten.
+  referredByAmbassadorId String?
+  registeredAt           DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
-  event    Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers  RegistrationAnswer[]
-  payments Payment[]
+  event                Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers              RegistrationAnswer[]
+  payments             Payment[]
+  referredByAmbassador Ambassador?          @relation(fields: [referredByAmbassadorId], references: [id], onDelete: SetNull)
 
   @@unique([eventId, userId])
   @@index([eventId])
   @@index([userId])
   // Serves "my registrations filtered by status" in a single index scan.
   @@index([userId, status])
+  // Powers ambassador booking counts (level computation).
+  @@index([referredByAmbassadorId, status])
   @@map("event_registrations")
 }
 
 model Payment {
-  id                String        @id @default(uuid())
-  userId            String
-  eventId           String
-  registrationId    String?
-  razorpayOrderId   String        @unique
-  razorpayPaymentId String?
-  razorpaySignature String?
-  amount            Decimal       @db.Decimal(10, 2)
-  platformFee       Decimal?      @db.Decimal(10, 2)
-  organizerEarning  Decimal?      @db.Decimal(10, 2)
-  currency          String        @default("INR")
-  ticketTierId      String?
-  ticketTierName    String?
-  couponCode        String?
-  status            PaymentStatus @default(CREATED)
-  notes             Json?
+  id                     String        @id @default(uuid())
+  userId                 String
+  eventId                String
+  registrationId         String?
+  razorpayOrderId        String        @unique
+  razorpayPaymentId      String?
+  razorpaySignature      String?
+  amount                 Decimal       @db.Decimal(10, 2)
+  platformFee            Decimal?      @db.Decimal(10, 2)
+  organizerEarning       Decimal?      @db.Decimal(10, 2)
+  currency               String        @default("INR")
+  ticketTierId           String?
+  ticketTierName         String?
+  couponCode             String?
+  /// Carries the ambassador referral (resolved from ?ref=<code> at checkout)
+  /// through to the registration created once payment is verified.
+  referredByAmbassadorId String?
+  status                 PaymentStatus @default(CREATED)
+  notes                  Json?
   // Razorpay Route transfer to organizer's linked account.
-  transferId        String?
-  transferStatus    String?  // pending | processed | failed
-  transferAmount    Decimal? @db.Decimal(10, 2)
-  transferredAt     DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  transferId             String?
+  transferStatus         String? // pending | processed | failed
+  transferAmount         Decimal?      @db.Decimal(10, 2)
+  transferredAt          DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   event        Event              @relation(fields: [eventId], references: [id], onDelete: Restrict)
@@ -748,22 +757,22 @@ model CardView {
 /// One-time purchase of the physical NFC Tap Card. Kept separate from Payment
 /// (which is event-ticket-specific and requires an eventId).
 model CardPurchase {
-  id                String        @id @default(uuid())
+  id                String            @id @default(uuid())
   userId            String
-  razorpayOrderId   String        @unique
+  razorpayOrderId   String            @unique
   razorpayPaymentId String?
   razorpaySignature String?
-  amount            Decimal       @db.Decimal(10, 2)
-  currency          String        @default("INR")
-  status              PaymentStatus    @default(CREATED)
-  shippingAddress     Json?
-  fulfillmentStatus   FulfillmentStatus @default(PENDING)
-  trackingId          String?
-  trackingProvider    String?
-  dispatchedAt        DateTime?
-  deliveredAt         DateTime?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  amount            Decimal           @db.Decimal(10, 2)
+  currency          String            @default("INR")
+  status            PaymentStatus     @default(CREATED)
+  shippingAddress   Json?
+  fulfillmentStatus FulfillmentStatus @default(PENDING)
+  trackingId        String?
+  trackingProvider  String?
+  dispatchedAt      DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -780,7 +789,7 @@ model Membership {
   id                     String           @id @default(uuid())
   userId                 String           @unique
   status                 MembershipStatus @default(NONE)
-  plan                   String?          // 'monthly' | 'annual'
+  plan                   String? // 'monthly' | 'annual'
   razorpaySubscriptionId String?          @unique
   razorpayPlanId         String?
   currentPeriodEnd       DateTime?
@@ -1213,18 +1222,23 @@ enum AmbassadorStatus {
 /// Pipeline: APPLIED → INTERVIEW → ACTIVE (or REJECTED). ACTIVE rows power the
 /// public directory and the live "ambassadors" stat.
 model Ambassador {
-  id         String           @id @default(uuid())
-  userId     String           @unique
-  city       String
-  region     String?
-  motivation String           @db.Text
-  status     AmbassadorStatus @default(APPLIED)
-  reviewedBy String?
-  reviewNote String?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  id           String           @id @default(uuid())
+  userId       String           @unique
+  city         String
+  region       String?
+  motivation   String           @db.Text
+  status       AmbassadorStatus @default(APPLIED)
+  reviewedBy   String?
+  reviewNote   String?
+  /// Short referral code, minted the moment status flips to ACTIVE (Level 1 —
+  /// Insider). Bookings made via ?ref=<code> attribute to this ambassador and
+  /// roll up into their level (Insider/Ambassador/Leader/Elite).
+  referralCode String?          @unique
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referredRegistrations EventRegistration[]
 
   @@index([status])
   @@index([city])

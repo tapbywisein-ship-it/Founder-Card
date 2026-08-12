@@ -2,14 +2,22 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Award, MapPin, Search, Check, Clock, X, Loader2 } from 'lucide-react';
+import { Award, MapPin, Search, Check, Clock, X, Loader2, Copy, Gift } from 'lucide-react';
 import { PortalLayout } from '@/components/PortalLayout';
 import { PublicNav } from '@/components/PublicNav';
 import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAppStore } from '@/store/appStore';
-import { ambassadorsService, type AmbassadorStatus } from '@/services/ambassadors.service';
+import { toast } from 'sonner';
+import {
+  ambassadorsService,
+  type AmbassadorStatus,
+  type MyAmbassador,
+  AMBASSADOR_LEVEL_ORDER,
+  LEVEL_LABELS,
+  LEVEL_REWARDS,
+} from '@/services/ambassadors.service';
 
 const STEPS: { key: AmbassadorStatus; label: string }[] = [
   { key: 'APPLIED', label: 'Applied' },
@@ -106,8 +114,13 @@ const AmbassadorsPage = () => {
                     {name[0]?.toUpperCase()}
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                    <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {LEVEL_LABELS[a.level]}
+                    </span>
+                  </div>
                   {sub && <p className="text-[11px] text-muted-foreground truncate">{sub}</p>}
                   <p className="text-[11px] text-primary flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3 h-3" /> {a.city}{a.region ? `, ${a.region}` : ''}
@@ -130,7 +143,7 @@ function ApplyPanel({
   onApplied,
 }: {
   isAuthenticated: boolean;
-  mine: { status: AmbassadorStatus; reviewNote?: string | null } | null;
+  mine: MyAmbassador | null;
   onSignIn: () => void;
   onApplied: () => void;
 }) {
@@ -158,7 +171,12 @@ function ApplyPanel({
     );
   }
 
-  // Already applied → show status tracker.
+  // ACTIVE → show the referral link + level ladder instead of the pipeline tracker.
+  if (mine && mine.status === 'ACTIVE') {
+    return <LevelPanel mine={mine} />;
+  }
+
+  // Applied / interview → show status tracker.
   if (mine && mine.status !== 'REJECTED') {
     const activeIdx = STEPS.findIndex((s) => s.key === mine.status);
     return (
@@ -212,6 +230,62 @@ function ApplyPanel({
       >
         {apply.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Submit application'}
       </Button>
+    </Surface>
+  );
+}
+
+// ── Level ladder + referral link (shown once ACTIVE) ──────────────────────────
+function LevelPanel({ mine }: { mine: MyAmbassador }) {
+  const level = mine.level ?? 'INSIDER';
+  const bookingCount = mine.bookingCount ?? 0;
+  const referralLink = mine.referralCode
+    ? `${window.location.origin}/discover?ref=${mine.referralCode}`
+    : null;
+
+  const copyLink = () => {
+    if (!referralLink) return;
+    navigator.clipboard.writeText(referralLink);
+    toast.success('Referral link copied');
+  };
+
+  return (
+    <Surface className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            You're an ambassador — Level: <span className="text-primary">{LEVEL_LABELS[level]}</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {bookingCount} booking{bookingCount === 1 ? '' : 's'} attributed to you
+            {mine.nextLevel ? ` · ${mine.nextLevel.remaining} more to ${LEVEL_LABELS[mine.nextLevel.level]}` : ' · top level reached'}
+          </p>
+        </div>
+      </div>
+
+      {referralLink && (
+        <div className="flex items-center gap-2">
+          <Input value={referralLink} readOnly className="h-9 text-xs" />
+          <Button size="sm" variant="outline" onClick={copyLink} className="shrink-0">
+            <Copy className="w-3.5 h-3.5" /> Copy
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {AMBASSADOR_LEVEL_ORDER.map((l, i) => {
+          const reached = AMBASSADOR_LEVEL_ORDER.indexOf(level) >= i;
+          return (
+            <div
+              key={l}
+              className={`rounded-xl border p-3 text-center ${reached ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'}`}
+            >
+              <Gift className={`w-4 h-4 mx-auto mb-1 ${reached ? 'text-primary' : 'text-muted-foreground'}`} />
+              <p className={`text-xs font-semibold ${reached ? 'text-foreground' : 'text-muted-foreground'}`}>{LEVEL_LABELS[l]}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{LEVEL_REWARDS[l]}</p>
+            </div>
+          );
+        })}
+      </div>
     </Surface>
   );
 }

@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound.tsx";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { OrganizerEventLayout } from "@/components/OrganizerEventLayout";
 import { useSyncActiveEventFromUrl } from "@/lib/useActiveEvent";
+import { captureReferralFromUrl } from "@/lib/referral";
 
 // Entry points stay eager so the first paint has no async hop.
 import LandingPage from "./pages/LandingPage";
@@ -41,6 +42,7 @@ const AttendeeDashboard = lazy(() => import("./pages/attendee/Dashboard"));
 const ProfilePage = lazy(() => import("./pages/attendee/Profile"));
 const ConnectPage = lazy(() => import("./pages/attendee/Connect"));
 const ConnectionsPage = lazy(() => import("./pages/attendee/Connections"));
+const PeopleDirectoryPage = lazy(() => import("./pages/attendee/People"));
 const DiscoverPage = lazy(() => import("./pages/attendee/Discover"));
 const BrowseCommunitiesPage = lazy(() => import("./pages/attendee/Communities"));
 const AmbassadorsPage = lazy(() => import("./pages/Ambassadors"));
@@ -118,6 +120,12 @@ const RouterMounted = () => {
   const logout = useAppStore((s) => s.logout);
   const login = useAppStore((s) => s.login);
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+
+  // Capture ?ref=<ambassador code> from wherever it lands — first-touch
+  // attribution for the session, read back at register/checkout time.
+  useEffect(() => {
+    captureReferralFromUrl(window.location.search);
+  }, []);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -219,6 +227,7 @@ const App = () => (
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/connect" element={<ProtectedRoute><ConnectPage /></ProtectedRoute>} />
           <Route path="/connections" element={<ProtectedRoute><ConnectionsPage /></ProtectedRoute>} />
+          <Route path="/people" element={<ProtectedRoute><PeopleDirectoryPage /></ProtectedRoute>} />
           <Route path="/people-i-met" element={<ProtectedRoute><PeopleIMetPage /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { eventsService, SearchEventsParams } from '@/services/events.service';
 import { toast } from 'sonner';
 import { trackEventJoin } from '@/lib/analytics';
+import { getReferralCode } from '@/lib/referral';
 
 export const eventKeys = {
   all: ['events'] as const,
@@ -95,7 +96,7 @@ export function useRegisterForEvent() {
     }: {
       eventId: string;
       answers?: Array<{ questionId: string; answer: string }>;
-    }) => eventsService.registerForEvent(eventId, answers),
+    }) => eventsService.registerForEvent(eventId, answers, getReferralCode()),
     onSuccess: (res, vars) => {
       qc.invalidateQueries({ queryKey: eventKeys.detail(vars.eventId) });
       qc.invalidateQueries({ queryKey: eventKeys.myRegistrations() });
