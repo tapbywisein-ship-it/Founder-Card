@@ -72,18 +72,54 @@ export interface Pagination {
   totalPages: number;
 }
 
+export type FulfillmentStatus = 'PENDING' | 'DISPATCHED' | 'DELIVERED';
+
+export interface ShippingAddress {
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface AmbassadorReward {
+  id: string;
+  ambassadorId: string;
+  level: AmbassadorLevel;
+  shippingAddress: ShippingAddress | null;
+  fulfillmentStatus: FulfillmentStatus;
+  trackingId?: string | null;
+  trackingProvider?: string | null;
+  dispatchedAt?: string | null;
+  deliveredAt?: string | null;
+  createdAt: string;
+}
+
+/** Admin fulfillment queue row: reward + who it belongs to. */
+export interface AmbassadorRewardAdminRow extends AmbassadorReward {
+  ambassador: { id: string; city: string; user: AmbassadorPublic['user'] };
+}
+
 export const ambassadorsService = {
   listActive(city?: string) {
     const qs = city ? `?city=${encodeURIComponent(city)}` : '';
     return apiFetch<{ data: AmbassadorPublic[] }>(`/ambassadors${qs}`);
   },
   getMine() {
-    return apiFetch<{ data: MyAmbassador | null }>('/ambassadors/me');
+    return apiFetch<{ data: (MyAmbassador & { rewards?: AmbassadorReward[] }) | null }>('/ambassadors/me');
   },
   apply(input: ApplyAmbassadorInput) {
     return apiFetch<{ data: MyAmbassador }>('/ambassadors/apply', {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  },
+  submitShippingAddress(rewardId: string, address: ShippingAddress) {
+    return apiFetch<{ data: AmbassadorReward }>(`/ambassadors/rewards/${rewardId}/shipping-address`, {
+      method: 'PATCH',
+      body: JSON.stringify(address),
     });
   },
 
@@ -97,6 +133,22 @@ export const ambassadorsService = {
     return apiFetch<{ data: MyAmbassador }>(`/ambassadors/admin/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status, reviewNote }),
+    });
+  },
+  adminListRewards(status?: FulfillmentStatus, page = 1, limit = 50) {
+    const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) qs.set('status', status);
+    return apiFetch<{ data: AmbassadorRewardAdminRow[]; pagination: Pagination }>(`/ambassadors/admin/rewards?${qs}`);
+  },
+  dispatchReward(id: string, trackingId: string, trackingProvider: string) {
+    return apiFetch<{ data: AmbassadorReward }>(`/ambassadors/admin/rewards/${id}/dispatch`, {
+      method: 'PATCH',
+      body: JSON.stringify({ trackingId, trackingProvider }),
+    });
+  },
+  markRewardDelivered(id: string) {
+    return apiFetch<{ data: AmbassadorReward }>(`/ambassadors/admin/rewards/${id}/delivered`, {
+      method: 'PATCH',
     });
   },
 };

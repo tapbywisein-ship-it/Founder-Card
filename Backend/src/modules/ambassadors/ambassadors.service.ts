@@ -1,14 +1,21 @@
 import prisma from '@config/database';
-import { BadRequestError, NotFoundError } from '@utils/errors';
+import { BadRequestError, NotFoundError, ForbiddenError } from '@utils/errors';
 import { parsePaginationQuery, buildPaginationMeta } from '@utils/pagination';
 import { randomShortToken } from '@utils/slug';
-import { ApplyAmbassadorDto, UpdateAmbassadorStatusDto } from './ambassadors.validation';
+import notificationsService from '@modules/notifications/notifications.service';
+import {
+  ApplyAmbassadorDto,
+  UpdateAmbassadorStatusDto,
+  SubmitShippingAddressDto,
+} from './ambassadors.validation';
 
 // Public-safe user fields for the directory (never expose email/private data).
 const PUBLIC_USER_SELECT = {
   id: true,
   username: true,
-  profile: { select: { firstName: true, lastName: true, avatar: true, company: true, position: true } },
+  profile: {
+    select: { firstName: true, lastName: true, avatar: true, company: true, position: true },
+  },
 } as const;
 
 export const AMBASSADOR_LEVELS = ['INSIDER', 'AMBASSADOR', 'LEADER', 'ELITE'] as const;
@@ -23,12 +30,21 @@ const LEVEL_THRESHOLDS: { level: AmbassadorLevel; min: number }[] = [
   { level: 'INSIDER', min: 0 },
 ];
 
+const LEVEL_REWARDS: Record<AmbassadorLevel, string> = {
+  INSIDER: 'Digital ID + stickers',
+  AMBASSADOR: 'T-shirt + physical ID',
+  LEADER: 'Hoodie + cap',
+  ELITE: 'Limited-edition jacket + exclusive swag box',
+};
+
 export function computeLevel(bookingCount: number): AmbassadorLevel {
   return LEVEL_THRESHOLDS.find((t) => bookingCount >= t.min)!.level;
 }
 
 /** Bookings needed to reach the next level, or null if already at the top. */
-export function nextLevelGap(bookingCount: number): { level: AmbassadorLevel; remaining: number } | null {
+export function nextLevelGap(
+  bookingCount: number
+): { level: AmbassadorLevel; remaining: number } | null {
   const next = [...LEVEL_THRESHOLDS].reverse().find((t) => bookingCount < t.min);
   return next ? { level: next.level, remaining: next.min - bookingCount } : null;
 }
@@ -41,6 +57,40 @@ async function bookingCountsFor(ambassadorIds: string[]): Promise<Map<string, nu
     _count: true,
   });
   return new Map(rows.map((r) => [r.referredByAmbassadorId as string, r._count]));
+}
+
+/**
+ * Make sure a reward row exists for every level up to (and including) the
+ * ambassador's current level — one row per level, created once, never
+ * duplicated (unique on ambassadorId+level). Notifies on newly-unlocked
+ * levels so the ambassador knows to add a shipping address.
+ */
+async function ensureRewardRows(ambassadorId: string, userId: string, level: AmbassadorLevel) {
+  const upTo = AMBASSADOR_LEVELS.slice(0, AMBASSADOR_LEVELS.indexOf(level) + 1);
+  const existing = await prisma.ambassadorReward.findMany({
+    where: { ambassadorId },
+    select: { level: true },
+  });
+  const have = new Set(existing.map((r) => r.level));
+  const missing = upTo.filter((l) => !have.has(l));
+  if (missing.length === 0) return;
+
+  await prisma.ambassadorReward.createMany({
+    data: missing.map((l) => ({ ambassadorId, level: l })),
+    skipDuplicates: true,
+  });
+
+  for (const l of missing) {
+    await notificationsService
+      .createNotification(
+        userId,
+        'LEVEL_UP',
+        `You've reached ${l.charAt(0) + l.slice(1).toLowerCase()} level!`,
+        `Your reward — ${LEVEL_REWARDS[l]} — is ready. Add a shipping address so we can send it.`,
+        { level: l }
+      )
+      .catch(() => {});
+  }
 }
 
 export class AmbassadorsService {
@@ -67,12 +117,125 @@ export class AmbassadorsService {
     if (!ambassador || ambassador.status !== 'ACTIVE') return ambassador;
 
     const bookingCount = (await bookingCountsFor([ambassador.id])).get(ambassador.id) ?? 0;
+    const level = computeLevel(bookingCount);
+    await ensureRewardRows(ambassador.id, userId, level);
+    const rewards = await prisma.ambassadorReward.findMany({
+      where: { ambassadorId: ambassador.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
     return {
       ...ambassador,
       bookingCount,
-      level: computeLevel(bookingCount),
+      level,
       nextLevel: nextLevelGap(bookingCount),
+      rewards,
     };
+  }
+
+  /** Set/update the shipping address on one of the caller's own reward rows. */
+  async submitShippingAddress(userId: string, rewardId: string, address: SubmitShippingAddressDto) {
+    const reward = await prisma.ambassadorReward.findUnique({
+      where: { id: rewardId },
+      include: { ambassador: { select: { userId: true } } },
+    });
+    if (!reward) throw new NotFoundError('Reward');
+    if (reward.ambassador.userId !== userId) throw new ForbiddenError('Not your reward');
+    if (reward.fulfillmentStatus !== 'PENDING') {
+      throw new BadRequestError('This reward has already been dispatched');
+    }
+    return prisma.ambassadorReward.update({
+      where: { id: rewardId },
+      data: { shippingAddress: address },
+    });
+  }
+
+  /** Admin fulfillment queue, optionally filtered by status. */
+  async adminListRewards(status: string | undefined, page?: number, limit?: number) {
+    const p = parsePaginationQuery({ page, limit });
+    const where = status ? { fulfillmentStatus: status as RewardStatus } : {};
+    const [rows, total] = await Promise.all([
+      prisma.ambassadorReward.findMany({
+        where,
+        orderBy: { createdAt: 'asc' },
+        skip: (p.page - 1) * p.limit,
+        take: p.limit,
+        include: { ambassador: { include: { user: { select: PUBLIC_USER_SELECT } } } },
+      }),
+      prisma.ambassadorReward.count({ where }),
+    ]);
+    return { rewards: rows, pagination: buildPaginationMeta(total, p.page, p.limit) };
+  }
+
+  /** Admin: mark a reward dispatched with tracking info. Requires an address on file. */
+  async dispatchReward(
+    id: string,
+    input: { trackingId: string; trackingProvider: string },
+    actingAdminId: string
+  ) {
+    const reward = await prisma.ambassadorReward.findUnique({
+      where: { id },
+      include: { ambassador: { select: { userId: true } } },
+    });
+    if (!reward) throw new NotFoundError('Reward');
+    if (!reward.shippingAddress) throw new BadRequestError('No shipping address on file yet');
+    if (reward.fulfillmentStatus !== 'PENDING') {
+      throw new BadRequestError('Reward has already been dispatched');
+    }
+    const updated = await prisma.ambassadorReward.update({
+      where: { id },
+      data: {
+        fulfillmentStatus: 'DISPATCHED',
+        trackingId: input.trackingId,
+        trackingProvider: input.trackingProvider,
+        dispatchedAt: new Date(),
+      },
+    });
+    await notificationsService
+      .createNotification(
+        reward.ambassador.userId,
+        'SYSTEM',
+        'Your ambassador reward is on its way!',
+        `Shipped via ${input.trackingProvider}. Tracking ID: ${input.trackingId}`,
+        { rewardId: id }
+      )
+      .catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: actingAdminId,
+          action: 'AMBASSADOR_REWARD_DISPATCHED',
+          resource: 'AmbassadorReward',
+          resourceId: id,
+          metadata: { targetUserId: reward.ambassador.userId, ...input },
+        },
+      })
+      .catch(() => {});
+    return updated;
+  }
+
+  /** Admin: mark a dispatched reward as delivered. */
+  async markRewardDelivered(id: string, actingAdminId: string) {
+    const reward = await prisma.ambassadorReward.findUnique({ where: { id } });
+    if (!reward) throw new NotFoundError('Reward');
+    if (reward.fulfillmentStatus !== 'DISPATCHED') {
+      throw new BadRequestError('Reward must be dispatched before it can be marked delivered');
+    }
+    const updated = await prisma.ambassadorReward.update({
+      where: { id },
+      data: { fulfillmentStatus: 'DELIVERED', deliveredAt: new Date() },
+    });
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: actingAdminId,
+          action: 'AMBASSADOR_REWARD_DELIVERED',
+          resource: 'AmbassadorReward',
+          resourceId: id,
+        },
+      })
+      .catch(() => {});
+    return updated;
   }
 
   /** Public directory: ACTIVE ambassadors only, optionally filtered by city. */
@@ -112,7 +275,9 @@ export class AmbassadorsService {
       }),
       prisma.ambassador.count({ where }),
     ]);
-    const counts = await bookingCountsFor(rows.filter((r) => r.status === 'ACTIVE').map((r) => r.id));
+    const counts = await bookingCountsFor(
+      rows.filter((r) => r.status === 'ACTIVE').map((r) => r.id)
+    );
     const ambassadors = rows.map((r) => {
       const bookingCount = counts.get(r.id) ?? 0;
       return r.status === 'ACTIVE' ? { ...r, bookingCount, level: computeLevel(bookingCount) } : r;
@@ -139,7 +304,7 @@ export class AmbassadorsService {
     const existing = await prisma.ambassador.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError('Ambassador application');
     const needsReferralCode = dto.status === 'ACTIVE' && !existing.referralCode;
-    return prisma.ambassador.update({
+    const updated = await prisma.ambassador.update({
       where: { id },
       data: {
         status: dto.status,
@@ -148,9 +313,15 @@ export class AmbassadorsService {
         ...(needsReferralCode ? { referralCode: randomShortToken(6) } : {}),
       },
     });
+    // Seed the Level 1 Insider reward the moment they go ACTIVE.
+    if (updated.status === 'ACTIVE') {
+      await ensureRewardRows(updated.id, updated.userId, 'INSIDER').catch(() => {});
+    }
+    return updated;
   }
 }
 
 type ApplicationStatus = 'APPLIED' | 'INTERVIEW' | 'ACTIVE' | 'REJECTED';
+type RewardStatus = 'PENDING' | 'DISPATCHED' | 'DELIVERED';
 
 export default new AmbassadorsService();

@@ -1239,8 +1239,39 @@ model Ambassador {
 
   user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   referredRegistrations EventRegistration[]
+  rewards               AmbassadorReward[]
 
   @@index([status])
   @@index([city])
   @@map("ambassadors")
+}
+
+enum AmbassadorRewardLevel {
+  INSIDER
+  AMBASSADOR
+  LEADER
+  ELITE
+}
+
+/// One row per level an ambassador has reached — created the moment they cross
+/// a booking threshold, fulfilled (shipped) manually by an admin. Mirrors
+/// CardPurchase's shipping/fulfillment shape.
+model AmbassadorReward {
+  id                String                @id @default(uuid())
+  ambassadorId      String
+  level             AmbassadorRewardLevel
+  shippingAddress   Json?
+  fulfillmentStatus FulfillmentStatus     @default(PENDING)
+  trackingId        String?
+  trackingProvider  String?
+  dispatchedAt      DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  ambassador Ambassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+
+  @@unique([ambassadorId, level])
+  @@index([fulfillmentStatus])
+  @@map("ambassador_rewards")
 }

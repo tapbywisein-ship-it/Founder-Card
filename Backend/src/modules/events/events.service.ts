@@ -632,7 +632,15 @@ export class EventsService {
     couponCode?: string;
     referredByAmbassadorId?: string | null;
   }) {
-    const { eventId, userId, amountPaid, ticketTierId, ticketTierName, couponCode, referredByAmbassadorId } = args;
+    const {
+      eventId,
+      userId,
+      amountPaid,
+      ticketTierId,
+      ticketTierName,
+      couponCode,
+      referredByAmbassadorId,
+    } = args;
     const event = await prisma.event.findFirst({ where: { id: eventId, deletedAt: null } });
     if (!event) throw new NotFoundError('Event');
 
@@ -655,11 +663,18 @@ export class EventsService {
           where: { id: existing.id },
           data: {
             ...data,
-            ...(!existing.referredByAmbassadorId && referredByAmbassadorId ? { referredByAmbassadorId } : {}),
+            ...(!existing.referredByAmbassadorId && referredByAmbassadorId
+              ? { referredByAmbassadorId }
+              : {}),
           },
         })
       : await prisma.eventRegistration.create({
-          data: { eventId, userId, referredByAmbassadorId: referredByAmbassadorId ?? null, ...data },
+          data: {
+            eventId,
+            userId,
+            referredByAmbassadorId: referredByAmbassadorId ?? null,
+            ...data,
+          },
         });
 
     // Award score + lead once — skip if the user was already a confirmed attendee.
@@ -1184,7 +1199,8 @@ export class EventsService {
       where: { eventId_code: { eventId, code: code.trim().toUpperCase() } },
     });
     if (!coupon || !coupon.isActive) throw new NotFoundError('Coupon');
-    if (coupon.expiresAt && new Date() > coupon.expiresAt) throw new BadRequestError('Coupon has expired');
+    if (coupon.expiresAt && new Date() > coupon.expiresAt)
+      throw new BadRequestError('Coupon has expired');
     if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
       throw new BadRequestError('Coupon usage limit reached');
     }
@@ -1560,7 +1576,14 @@ export class EventsService {
           1.5 * commonInterests.length +
           3 * youWantTheirSkills.length +
           3 * theyWantYourSkills.length;
-        return { registration: r, score, commonSkills, commonInterests, youWantTheirSkills, theyWantYourSkills };
+        return {
+          registration: r,
+          score,
+          commonSkills,
+          commonInterests,
+          youWantTheirSkills,
+          theyWantYourSkills,
+        };
       })
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
@@ -1897,7 +1920,9 @@ export class EventsService {
 
     const count = rows.length;
     const avgRating = count > 0 ? rows.reduce((s, r) => s + r.rating, 0) / count : null;
-    const npsRows = rows.filter((r) => r.nps !== null) as Array<{ nps: number } & (typeof rows)[number]>;
+    const npsRows = rows.filter((r) => r.nps !== null) as Array<
+      { nps: number } & (typeof rows)[number]
+    >;
     // NPS = %promoters (9–10) − %detractors (0–6).
     const npsScore =
       npsRows.length > 0
@@ -1920,7 +1945,9 @@ export class EventsService {
           rating: r.rating,
           comment: r.comment,
           createdAt: r.createdAt,
-          name: r.user.profile ? `${r.user.profile.firstName} ${r.user.profile.lastName}`.trim() : 'Attendee',
+          name: r.user.profile
+            ? `${r.user.profile.firstName} ${r.user.profile.lastName}`.trim()
+            : 'Attendee',
         })),
     };
   }

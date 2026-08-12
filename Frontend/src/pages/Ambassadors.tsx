@@ -9,11 +9,12 @@ import { Surface } from '@/components/Surface';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAppStore } from '@/store/appStore';
-import { toast } from 'sonner';
 import {
   ambassadorsService,
   type AmbassadorStatus,
   type MyAmbassador,
+  type AmbassadorReward,
+  type ShippingAddress,
   AMBASSADOR_LEVEL_ORDER,
   LEVEL_LABELS,
   LEVEL_REWARDS,
@@ -143,7 +144,7 @@ function ApplyPanel({
   onApplied,
 }: {
   isAuthenticated: boolean;
-  mine: MyAmbassador | null;
+  mine: (MyAmbassador & { rewards?: AmbassadorReward[] }) | null;
   onSignIn: () => void;
   onApplied: () => void;
 }) {
@@ -235,7 +236,7 @@ function ApplyPanel({
 }
 
 // ── Level ladder + referral link (shown once ACTIVE) ──────────────────────────
-function LevelPanel({ mine }: { mine: MyAmbassador }) {
+function LevelPanel({ mine }: { mine: MyAmbassador & { rewards?: AmbassadorReward[] } }) {
   const level = mine.level ?? 'INSIDER';
   const bookingCount = mine.bookingCount ?? 0;
   const referralLink = mine.referralCode
@@ -249,44 +250,152 @@ function LevelPanel({ mine }: { mine: MyAmbassador }) {
   };
 
   return (
-    <Surface className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            You're an ambassador — Level: <span className="text-primary">{LEVEL_LABELS[level]}</span>
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {bookingCount} booking{bookingCount === 1 ? '' : 's'} attributed to you
-            {mine.nextLevel ? ` · ${mine.nextLevel.remaining} more to ${LEVEL_LABELS[mine.nextLevel.level]}` : ' · top level reached'}
-          </p>
+    <div className="space-y-4">
+      <Surface className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              You're an ambassador — Level: <span className="text-primary">{LEVEL_LABELS[level]}</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {bookingCount} booking{bookingCount === 1 ? '' : 's'} attributed to you
+              {mine.nextLevel ? ` · ${mine.nextLevel.remaining} more to ${LEVEL_LABELS[mine.nextLevel.level]}` : ' · top level reached'}
+            </p>
+          </div>
         </div>
+
+        {referralLink && (
+          <div className="flex items-center gap-2">
+            <Input value={referralLink} readOnly className="h-9 text-xs" />
+            <Button size="sm" variant="outline" onClick={copyLink} className="shrink-0">
+              <Copy className="w-3.5 h-3.5" /> Copy
+            </Button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {AMBASSADOR_LEVEL_ORDER.map((l, i) => {
+            const reached = AMBASSADOR_LEVEL_ORDER.indexOf(level) >= i;
+            return (
+              <div
+                key={l}
+                className={`rounded-xl border p-3 text-center ${reached ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'}`}
+              >
+                <Gift className={`w-4 h-4 mx-auto mb-1 ${reached ? 'text-primary' : 'text-muted-foreground'}`} />
+                <p className={`text-xs font-semibold ${reached ? 'text-foreground' : 'text-muted-foreground'}`}>{LEVEL_LABELS[l]}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{LEVEL_REWARDS[l]}</p>
+              </div>
+            );
+          })}
+        </div>
+      </Surface>
+
+      {mine.rewards && mine.rewards.length > 0 && (
+        <Surface className="space-y-3">
+          <p className="text-sm font-semibold text-foreground">Your rewards</p>
+          <div className="space-y-3">
+            {mine.rewards.map((r) => (
+              <RewardCard key={r.id} reward={r} />
+            ))}
+          </div>
+        </Surface>
+      )}
+    </div>
+  );
+}
+
+const emptyAddress: ShippingAddress = {
+  fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
+};
+
+const FULFILLMENT_LABEL: Record<AmbassadorReward['fulfillmentStatus'], string> = {
+  PENDING: 'Awaiting address',
+  DISPATCHED: 'Shipped',
+  DELIVERED: 'Delivered',
+};
+
+function RewardCard({ reward }: { reward: AmbassadorReward }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(!reward.shippingAddress);
+  const [address, setAddress] = useState<ShippingAddress>(reward.shippingAddress ?? emptyAddress);
+
+  const submit = useMutation({
+    mutationFn: () => ambassadorsService.submitShippingAddress(reward.id, address),
+    onSuccess: () => {
+      toast.success('Shipping address saved');
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ['ambassadors', 'me'] });
+    },
+    onError: (e: Error) => toast.error(e.message || 'Could not save address'),
+  });
+
+  const valid =
+    address.fullName.trim().length > 0 &&
+    address.phone.trim().length >= 6 &&
+    address.addressLine1.trim().length > 0 &&
+    address.city.trim().length > 0 &&
+    address.state.trim().length > 0 &&
+    /^\d{6}$/.test(address.pincode);
+
+  const statusColor =
+    reward.fulfillmentStatus === 'DELIVERED'
+      ? 'bg-emerald-500/10 text-emerald-600'
+      : reward.fulfillmentStatus === 'DISPATCHED'
+        ? 'bg-blue-500/10 text-blue-600'
+        : 'bg-amber-500/10 text-amber-600';
+
+  return (
+    <div className="rounded-xl border border-border p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-sm font-semibold text-foreground">
+          {LEVEL_LABELS[reward.level]} <span className="text-xs font-normal text-muted-foreground">· {LEVEL_REWARDS[reward.level]}</span>
+        </p>
+        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
+          {FULFILLMENT_LABEL[reward.fulfillmentStatus]}
+        </span>
       </div>
 
-      {referralLink && (
-        <div className="flex items-center gap-2">
-          <Input value={referralLink} readOnly className="h-9 text-xs" />
-          <Button size="sm" variant="outline" onClick={copyLink} className="shrink-0">
-            <Copy className="w-3.5 h-3.5" /> Copy
-          </Button>
+      {reward.fulfillmentStatus !== 'PENDING' && (
+        <p className="text-xs text-muted-foreground">
+          {reward.trackingProvider && reward.trackingId ? `${reward.trackingProvider}: ${reward.trackingId}` : null}
+        </p>
+      )}
+
+      {reward.fulfillmentStatus === 'PENDING' && !editing && reward.shippingAddress && (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Address on file — {reward.shippingAddress.city}, {reward.shippingAddress.pincode}. Waiting to ship.
+          </p>
+          <Button size="sm" variant="ghost" className="h-6 text-xs shrink-0" onClick={() => setEditing(true)}>Edit</Button>
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {AMBASSADOR_LEVEL_ORDER.map((l, i) => {
-          const reached = AMBASSADOR_LEVEL_ORDER.indexOf(level) >= i;
-          return (
-            <div
-              key={l}
-              className={`rounded-xl border p-3 text-center ${reached ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'}`}
-            >
-              <Gift className={`w-4 h-4 mx-auto mb-1 ${reached ? 'text-primary' : 'text-muted-foreground'}`} />
-              <p className={`text-xs font-semibold ${reached ? 'text-foreground' : 'text-muted-foreground'}`}>{LEVEL_LABELS[l]}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{LEVEL_REWARDS[l]}</p>
-            </div>
-          );
-        })}
-      </div>
-    </Surface>
+      {reward.fulfillmentStatus === 'PENDING' && editing && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="Full name *" value={address.fullName} className="h-8 text-xs" onChange={(e) => setAddress((a) => ({ ...a, fullName: e.target.value }))} />
+            <Input placeholder="Phone *" value={address.phone} className="h-8 text-xs" onChange={(e) => setAddress((a) => ({ ...a, phone: e.target.value }))} />
+          </div>
+          <Input placeholder="Address line 1 *" value={address.addressLine1} className="h-8 text-xs" onChange={(e) => setAddress((a) => ({ ...a, addressLine1: e.target.value }))} />
+          <Input placeholder="Address line 2" value={address.addressLine2 ?? ''} className="h-8 text-xs" onChange={(e) => setAddress((a) => ({ ...a, addressLine2: e.target.value }))} />
+          <div className="grid grid-cols-3 gap-2">
+            <Input placeholder="City *" value={address.city} className="h-8 text-xs" onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))} />
+            <Input placeholder="State *" value={address.state} className="h-8 text-xs" onChange={(e) => setAddress((a) => ({ ...a, state: e.target.value }))} />
+            <Input placeholder="PIN code *" value={address.pincode} maxLength={6} className="h-8 text-xs" onChange={(e) => setAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, '') }))} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" className="h-7 text-xs" disabled={!valid || submit.isPending} onClick={() => submit.mutate()}>
+              {submit.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save address'}
+            </Button>
+            {reward.shippingAddress && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAddress(reward.shippingAddress!); setEditing(false); }}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
