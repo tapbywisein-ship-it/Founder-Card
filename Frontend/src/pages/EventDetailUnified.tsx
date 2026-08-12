@@ -857,6 +857,44 @@ const EventDetailUnified = () => {
           </p>
         </Surface>
 
+        {/* Location map — only for in-person events with somewhere to point at */}
+        {event.locationType !== 'VIRTUAL' && (event.latitude && event.longitude || event.address || event.city) && (
+          <Surface>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-foreground">Location</h2>
+              <a
+                href={
+                  event.latitude && event.longitude
+                    ? `https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        [event.address, event.city, event.country].filter(Boolean).join(', ')
+                      )}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+              >
+                Open in Maps <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="rounded-card overflow-hidden border border-border">
+              <iframe
+                title="Event location map"
+                src={
+                  event.latitude && event.longitude
+                    ? `https://www.google.com/maps?q=${event.latitude},${event.longitude}&output=embed`
+                    : `https://www.google.com/maps?q=${encodeURIComponent(
+                        [event.address, event.city, event.country].filter(Boolean).join(', ')
+                      )}&output=embed`
+                }
+                className="w-full h-64 border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </Surface>
+        )}
+
         {/* Phase 5 — Speakers + Agenda */}
         <EventSpeakersAgenda eventId={event.id} />
 
