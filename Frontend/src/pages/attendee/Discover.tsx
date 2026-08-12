@@ -197,7 +197,7 @@ const DiscoverPage = () => {
                         {/* Cover image (falls back to the event theme gradient) */}
                         <div className="relative">
                           {e.coverImage ? (
-                            <img src={e.coverImage} alt={e.title} loading="lazy" className="w-full aspect-[16/9] object-cover" />
+                            <img src={e.coverImage} alt={e.title} loading="lazy" className="w-full aspect-[16/9] object-contain bg-muted" />
                           ) : (
                             <div className="w-full aspect-[16/9]" style={{ background: theme.gradient }} aria-hidden />
                           )}
